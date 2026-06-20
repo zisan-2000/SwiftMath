@@ -12,7 +12,13 @@ import { Input } from "@/components/ui/input";
 import { FormMessage } from "@/components/ui/form-message";
 
 /** Form for a teacher to create a student and add them to this group. */
-export function AddStudentForm({ groupId }: { groupId: string }) {
+export function AddStudentForm({
+  groupId,
+  onSuccess,
+}: {
+  groupId: string;
+  onSuccess?: () => void;
+}) {
   const [state, formAction, pending] = useActionState<
     AddStudentState,
     FormData
@@ -25,8 +31,9 @@ export function AddStudentForm({ groupId }: { groupId: string }) {
     if (state.ok) {
       formRef.current?.reset();
       toast.success("Student added");
+      onSuccess?.();
     }
-  }, [state]);
+  }, [state, onSuccess]);
 
   return (
     <form ref={formRef} action={formAction} className="flex flex-col gap-3">

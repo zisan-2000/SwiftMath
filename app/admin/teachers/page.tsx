@@ -8,7 +8,7 @@ import { Role } from "@/lib/generated/prisma/enums";
 import { listInstituteTeachers } from "@/server/admin";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
-import { AddTeacherForm } from "@/components/admin/add-teacher-form";
+import { AddTeacherDialog } from "@/components/admin/add-teacher-dialog";
 import { ActiveToggle } from "@/components/admin/active-toggle";
 import { ResetPasswordForm } from "@/components/reset-password-form";
 import {
@@ -47,10 +47,11 @@ export default async function AdminTeachersPage() {
       instituteName={institute?.name ?? "Institute"}
       title="Teachers"
       subtitle="Create teacher accounts and see who teaches in your institute."
+      actions={<AddTeacherDialog />}
     >
       <BackLink href="/admin">Admin dashboard</BackLink>
 
-      <Card className="mb-8">
+      <Card>
         <CardHeader className="border-b border-border">
           <CardTitle className="text-base">
             All teachers ({teachers.length})
@@ -62,7 +63,8 @@ export default async function AdminTeachersPage() {
               <EmptyState
                 icon={Users}
                 title="No teachers yet"
-                description="Add your first teacher using the form below."
+                description="Use the “Add teacher” button to create your first teacher account."
+                action={<AddTeacherDialog />}
               />
             </div>
           ) : (
@@ -100,15 +102,6 @@ export default async function AdminTeachersPage() {
               ))}
             </ul>
           )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Add a teacher</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AddTeacherForm />
         </CardContent>
       </Card>
     </AppShell>

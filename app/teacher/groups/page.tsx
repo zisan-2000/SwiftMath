@@ -8,12 +8,9 @@ import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
 import { listTeacherGroups } from "@/server/teacher";
 import { AppShell } from "@/components/app-shell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { CreateGroupDialog } from "@/components/teacher/create-group-dialog";
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { createGroupAction } from "./actions";
 
 export const metadata: Metadata = {
   title: `Groups · ${APP_NAME}`,
@@ -36,35 +33,14 @@ export default async function TeacherGroupsPage() {
       instituteName={institute?.name ?? "Institute"}
       title="Groups"
       subtitle="Create groups and manage the students in them."
+      actions={<CreateGroupDialog />}
     >
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle className="text-base">Create a group</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form
-            action={createGroupAction}
-            className="flex flex-col gap-3 sm:flex-row sm:items-end"
-          >
-            <div className="flex flex-1 flex-col gap-1.5">
-              <Label htmlFor="name">New group name</Label>
-              <Input
-                id="name"
-                name="name"
-                required
-                placeholder="e.g. Monday Beginners"
-              />
-            </div>
-            <Button type="submit">Create group</Button>
-          </form>
-        </CardContent>
-      </Card>
-
       {groups.length === 0 ? (
         <EmptyState
           icon={Boxes}
           title="No groups yet"
-          description="Create your first group above to start adding students."
+          description="Use the “Create group” button to start adding students."
+          action={<CreateGroupDialog />}
         />
       ) : (
         <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2">

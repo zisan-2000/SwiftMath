@@ -10,7 +10,7 @@ import { Role } from "@/lib/generated/prisma/enums";
 import { getTeacherGroup, listInstituteLevels } from "@/server/teacher";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
-import { AddStudentForm } from "@/components/teacher/add-student-form";
+import { AddStudentDialog } from "@/components/teacher/add-student-dialog";
 import { AssignLevelForm } from "@/components/teacher/assign-level-form";
 import { ResetPasswordForm } from "@/components/reset-password-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,10 +50,20 @@ export default async function GroupDetailPage({
       instituteName={institute?.name ?? "Institute"}
       title={group.name}
       subtitle="Students in this group and their assigned level."
+      actions={<AddStudentDialog groupId={group.id} />}
     >
       <BackLink href="/teacher/groups">All groups</BackLink>
 
-      <Card className="mb-8">
+      {levels.length === 0 && (
+        <Card className="mb-6 border-warning/30 bg-warning/10">
+          <CardContent className="py-4 text-sm text-warning">
+            No levels exist for your institute yet, so the level menu is empty.
+            Ask your admin to create levels.
+          </CardContent>
+        </Card>
+      )}
+
+      <Card>
         <CardHeader className="border-b border-border">
           <CardTitle className="text-base">
             Students ({group.students.length})
@@ -65,7 +75,8 @@ export default async function GroupDetailPage({
               <EmptyState
                 icon={Users}
                 title="No students yet"
-                description="Add your first student using the form below."
+                description="Use the “Add student” button to create your first student."
+                action={<AddStudentDialog groupId={group.id} />}
               />
             </div>
           ) : (
@@ -103,24 +114,6 @@ export default async function GroupDetailPage({
               ))}
             </ul>
           )}
-        </CardContent>
-      </Card>
-
-      {levels.length === 0 && (
-        <Card className="mb-8 border-warning/30 bg-warning/10">
-          <CardContent className="py-4 text-sm text-warning">
-            No levels exist for your institute yet, so the level menu is empty.
-            Ask your admin to create levels.
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Add a student</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AddStudentForm groupId={group.id} />
         </CardContent>
       </Card>
     </AppShell>

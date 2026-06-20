@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Layers } from "lucide-react";
+import { Layers, Plus } from "lucide-react";
 
 import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
@@ -9,7 +9,6 @@ import { Role, OperationType } from "@/lib/generated/prisma/enums";
 import { listLevels } from "@/server/admin";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
-import { LevelForm } from "@/components/admin/level-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -21,7 +20,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { createLevelAction } from "./actions";
 
 export const metadata: Metadata = {
   title: `Levels · ${APP_NAME}`,
@@ -51,20 +49,24 @@ export default async function AdminLevelsPage() {
     listLevels(admin.instituteId),
   ]);
 
-  // Suggest the next free order position so the create form is one click away.
-  const nextOrder =
-    levels.reduce((max, l) => Math.max(max, l.orderIndex), 0) + 1;
-
   return (
     <AppShell
       user={admin}
       instituteName={institute?.name ?? "Institute"}
       title="Levels"
       subtitle="The practice curriculum students progress through."
+      actions={
+        <Button asChild>
+          <Link href="/admin/levels/new">
+            <Plus className="h-4 w-4" />
+            Add level
+          </Link>
+        </Button>
+      }
     >
       <BackLink href="/admin">Admin dashboard</BackLink>
 
-      <Card className="mb-8">
+      <Card>
         <CardHeader className="border-b border-border">
           <CardTitle className="text-base">
             All levels ({levels.length})
@@ -76,7 +78,15 @@ export default async function AdminLevelsPage() {
               <EmptyState
                 icon={Layers}
                 title="No levels yet"
-                description="Add your first level using the form below."
+                description="Use the “Add level” button to create your first level."
+                action={
+                  <Button asChild>
+                    <Link href="/admin/levels/new">
+                      <Plus className="h-4 w-4" />
+                      Add level
+                    </Link>
+                  </Button>
+                }
               />
             </div>
           ) : (
@@ -135,29 +145,6 @@ export default async function AdminLevelsPage() {
               </TableBody>
             </Table>
           )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Add a level</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <LevelForm
-            action={createLevelAction}
-            submitLabel="Create level"
-            defaults={{
-              name: "",
-              operation: OperationType.ADDITION,
-              orderIndex: nextOrder,
-              termsPerQuestion: 2,
-              minNumber: 1,
-              maxNumber: 9,
-              questionCount: 10,
-              timeLimitSeconds: 120,
-              passAccuracy: 70,
-            }}
-          />
         </CardContent>
       </Card>
     </AppShell>

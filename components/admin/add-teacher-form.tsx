@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { FormMessage } from "@/components/ui/form-message";
 
 /** Form for an admin to create a teacher in their institute. */
-export function AddTeacherForm() {
+export function AddTeacherForm({ onSuccess }: { onSuccess?: () => void }) {
   const [state, formAction, pending] = useActionState<
     AddTeacherState,
     FormData
@@ -25,8 +25,9 @@ export function AddTeacherForm() {
     if (state.ok) {
       formRef.current?.reset();
       toast.success("Teacher added");
+      onSuccess?.();
     }
-  }, [state]);
+  }, [state, onSuccess]);
 
   return (
     <form ref={formRef} action={formAction} className="flex flex-col gap-3">
