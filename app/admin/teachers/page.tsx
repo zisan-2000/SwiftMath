@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Users } from "lucide-react";
 
 import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
@@ -7,9 +7,19 @@ import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
 import { listInstituteTeachers } from "@/server/admin";
 import { AppShell } from "@/components/app-shell";
+import { BackLink } from "@/components/nav/back-link";
 import { AddTeacherForm } from "@/components/admin/add-teacher-form";
+import { ActiveToggle } from "@/components/admin/active-toggle";
 import { ResetPasswordForm } from "@/components/reset-password-form";
-import { resetUserPasswordAction, setUserActiveAction } from "../actions";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { resetUserPasswordAction } from "../actions";
 
 export const metadata: Metadata = {
   title: `Teachers · ${APP_NAME}`,
@@ -38,85 +48,69 @@ export default async function AdminTeachersPage() {
       title="Teachers"
       subtitle="Create teacher accounts and see who teaches in your institute."
     >
-      <Link
-        href="/admin"
-        className="mb-6 inline-block text-sm text-indigo-600 hover:underline dark:text-indigo-400"
-      >
-        ← Admin dashboard
-      </Link>
+      <BackLink href="/admin">Admin dashboard</BackLink>
 
-      {/* Existing teachers */}
-      <section className="mb-8 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
-          <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">
+      <Card className="mb-8">
+        <CardHeader className="border-b border-border">
+          <CardTitle className="text-base">
             All teachers ({teachers.length})
-          </h2>
-        </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {teachers.length === 0 ? (
+            <div className="p-6">
+              <EmptyState
+                icon={Users}
+                title="No teachers yet"
+                description="Add your first teacher using the form below."
+              />
+            </div>
+          ) : (
+            <ul className="divide-y divide-border">
+              {teachers.map((teacher) => (
+                <li
+                  key={teacher.id}
+                  className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-2 truncate font-medium text-foreground">
+                      {teacher.name}
+                      {!teacher.isActive && (
+                        <Badge variant="muted">Disabled</Badge>
+                      )}
+                    </p>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {teacher.email}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-start gap-3">
+                    <span className="text-sm text-muted-foreground sm:pt-1.5">
+                      {teacher._count.taughtGroups}{" "}
+                      {teacher._count.taughtGroups === 1 ? "group" : "groups"}
+                    </span>
+                    <ResetPasswordForm
+                      action={resetUserPasswordAction.bind(null, teacher.id)}
+                    />
+                    <ActiveToggle
+                      userId={teacher.id}
+                      isActive={teacher.isActive}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
-        {teachers.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-zinc-500 dark:text-zinc-400">
-            No teachers yet. Add one below.
-          </p>
-        ) : (
-          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-            {teachers.map((teacher) => (
-              <li
-                key={teacher.id}
-                className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
-              >
-                <div className="min-w-0">
-                  <p className="flex items-center gap-2 truncate font-medium text-zinc-900 dark:text-zinc-100">
-                    {teacher.name}
-                    {!teacher.isActive && (
-                      <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
-                        Disabled
-                      </span>
-                    )}
-                  </p>
-                  <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">
-                    {teacher.email}
-                  </p>
-                </div>
-                <div className="flex items-start gap-4">
-                  <span className="text-sm text-zinc-500 dark:text-zinc-400 sm:pt-1.5">
-                    {teacher._count.taughtGroups}{" "}
-                    {teacher._count.taughtGroups === 1 ? "group" : "groups"}
-                  </span>
-                  <ResetPasswordForm
-                    action={resetUserPasswordAction.bind(null, teacher.id)}
-                  />
-                  <form
-                    action={setUserActiveAction.bind(
-                      null,
-                      teacher.id,
-                      !teacher.isActive,
-                    )}
-                  >
-                    <button
-                      type="submit"
-                      className={
-                        teacher.isActive
-                          ? "rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30"
-                          : "rounded-lg border border-green-200 px-3 py-1.5 text-sm font-medium text-green-700 transition-colors hover:bg-green-50 dark:border-green-900 dark:text-green-400 dark:hover:bg-green-950/30"
-                      }
-                    >
-                      {teacher.isActive ? "Disable" : "Enable"}
-                    </button>
-                  </form>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* Add a teacher */}
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-        <h2 className="mb-4 font-semibold text-zinc-900 dark:text-zinc-100">
-          Add a teacher
-        </h2>
-        <AddTeacherForm />
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Add a teacher</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AddTeacherForm />
+        </CardContent>
+      </Card>
     </AppShell>
   );
 }

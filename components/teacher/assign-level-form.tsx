@@ -1,0 +1,69 @@
+"use client";
+
+import { useFormStatus } from "react-dom";
+import { toast } from "sonner";
+
+import { assignLevelAction } from "@/app/teacher/groups/[groupId]/actions";
+import { Button } from "@/components/ui/button";
+
+interface LevelOption {
+  id: string;
+  orderIndex: number;
+  name: string;
+}
+
+/** Native <select> styled to match the Input component. */
+const SELECT_CLASS =
+  "h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+function SaveButton() {
+  const { pending } = useFormStatus();
+  return (
+    <Button type="submit" variant="outline" size="sm" disabled={pending}>
+      {pending ? "Saving…" : "Save"}
+    </Button>
+  );
+}
+
+/**
+ * Assign or clear a student's current level. Wraps the server action so we can
+ * pop a toast once the (revalidating) action resolves — the row updates in
+ * place, so a transient confirmation is the right feedback.
+ */
+export function AssignLevelForm({
+  groupId,
+  studentId,
+  currentLevelId,
+  levels,
+}: {
+  groupId: string;
+  studentId: string;
+  currentLevelId: string | null;
+  levels: LevelOption[];
+}) {
+  return (
+    <form
+      action={async (formData) => {
+        await assignLevelAction(formData);
+        toast.success("Level updated");
+      }}
+      className="flex items-center gap-2"
+    >
+      <input type="hidden" name="groupId" value={groupId} />
+      <input type="hidden" name="studentId" value={studentId} />
+      <select
+        name="levelId"
+        defaultValue={currentLevelId ?? ""}
+        className={SELECT_CLASS}
+      >
+        <option value="">— No level —</option>
+        {levels.map((level) => (
+          <option key={level.id} value={level.id}>
+            {level.orderIndex}. {level.name}
+          </option>
+        ))}
+      </select>
+      <SaveButton />
+    </form>
+  );
+}

@@ -1,78 +1,86 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
 
-import { APP_NAME } from "@/lib/constants";
 import type { Role } from "@/lib/generated/prisma/enums";
-import { SignOutButton } from "@/components/sign-out-button";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { Brand } from "@/components/nav/brand";
+import { SidebarNav } from "@/components/nav/sidebar-nav";
+import { MobileNav } from "@/components/nav/mobile-nav";
+import { UserMenu } from "@/components/nav/user-menu";
 
 interface AppShellProps {
   /** The signed-in user, already fetched + authorised by the page. */
   user: { name: string; role: Role };
-  /** Display name of the user's institute (white-label header). */
+  /** Display name of the user's institute (white-label brand). */
   instituteName: string;
-  /** Page heading shown under the top bar. */
+  /** Page heading shown at the top of the content area. */
   title: string;
   /** Optional sub-heading / description for the page. */
   subtitle?: string;
+  /** Optional page-level actions rendered on the right of the page header. */
+  actions?: ReactNode;
   children: ReactNode;
 }
 
 /**
- * Shared chrome for every authenticated page: a top bar with the institute
- * brand and the current user, plus a titled content area. Presentational only
- * — pages do their own auth (requireRole) and pass the resulting user in.
+ * Shared chrome for every authenticated page: a fixed sidebar (desktop) / drawer
+ * (mobile) with role-based navigation, a sticky top bar with the theme toggle
+ * and user menu, and a titled content area. Presentational only — pages do
+ * their own auth (requireRole) and pass the resulting user in.
  */
 export function AppShell({
   user,
   instituteName,
   title,
   subtitle,
+  actions,
   children,
 }: AppShellProps) {
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-zinc-50 font-sans dark:bg-black">
-      <header className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-4">
-          <div className="min-w-0">
-            <p className="truncate text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-              {instituteName}
-            </p>
-            <p className="text-xs text-zinc-400 dark:text-zinc-500">
-              {APP_NAME}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Link
-              href="/account"
-              className="hidden text-right sm:block"
-              title="Account settings"
-            >
-              <p className="text-sm font-medium text-zinc-900 hover:text-indigo-600 dark:text-zinc-100 dark:hover:text-indigo-400">
-                {user.name}
-              </p>
-              <p className="text-xs uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
-                {user.role}
-              </p>
-            </Link>
-            <SignOutButton />
-          </div>
+    <div className="flex min-h-svh bg-background">
+      {/* Desktop sidebar */}
+      <aside className="sticky top-0 hidden h-svh w-64 shrink-0 flex-col border-r border-border bg-card lg:flex">
+        <div className="border-b border-border px-4 py-4">
+          <Brand instituteName={instituteName} role={user.role} />
         </div>
-      </header>
-
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-            {title}
-          </h1>
-          {subtitle && (
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              {subtitle}
-            </p>
-          )}
+        <div className="flex-1 overflow-y-auto p-3">
+          <SidebarNav role={user.role} />
         </div>
-        {children}
-      </main>
+      </aside>
+
+      {/* Main column */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-sm lg:px-8">
+          <MobileNav role={user.role} instituteName={instituteName} />
+          <div className="lg:hidden">
+            <Brand instituteName={instituteName} role={user.role} />
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            <ThemeToggle />
+            <UserMenu user={user} />
+          </div>
+        </header>
+
+        <main className="flex-1 px-4 py-8 lg:px-8">
+          <div className="mx-auto w-full max-w-5xl animate-in fade-in-50 duration-300">
+            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                  {title}
+                </h1>
+                {subtitle && (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {subtitle}
+                  </p>
+                )}
+              </div>
+              {actions && (
+                <div className="flex shrink-0 items-center gap-2">{actions}</div>
+              )}
+            </div>
+            {children}
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

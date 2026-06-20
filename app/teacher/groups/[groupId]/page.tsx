@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Users } from "lucide-react";
 
 import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
@@ -8,9 +9,13 @@ import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
 import { getTeacherGroup, listInstituteLevels } from "@/server/teacher";
 import { AppShell } from "@/components/app-shell";
+import { BackLink } from "@/components/nav/back-link";
 import { AddStudentForm } from "@/components/teacher/add-student-form";
+import { AssignLevelForm } from "@/components/teacher/assign-level-form";
 import { ResetPasswordForm } from "@/components/reset-password-form";
-import { assignLevelAction, resetStudentPasswordAction } from "./actions";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { resetStudentPasswordAction } from "./actions";
 
 export const metadata: Metadata = {
   title: `Group · ${APP_NAME}`,
@@ -46,96 +51,78 @@ export default async function GroupDetailPage({
       title={group.name}
       subtitle="Students in this group and their assigned level."
     >
-      <Link
-        href="/teacher/groups"
-        className="mb-6 inline-block text-sm text-indigo-600 hover:underline dark:text-indigo-400"
-      >
-        ← All groups
-      </Link>
+      <BackLink href="/teacher/groups">All groups</BackLink>
 
-      {/* Students */}
-      <section className="mb-8 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
-          <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">
+      <Card className="mb-8">
+        <CardHeader className="border-b border-border">
+          <CardTitle className="text-base">
             Students ({group.students.length})
-          </h2>
-        </div>
-
-        {group.students.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-zinc-500 dark:text-zinc-400">
-            No students yet. Add one below.
-          </p>
-        ) : (
-          <ul className="divide-y divide-zinc-100 dark:divide-zinc-800">
-            {group.students.map((student) => (
-              <li
-                key={student.id}
-                className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
-              >
-                <div className="min-w-0">
-                  <Link
-                    href={`/teacher/groups/${group.id}/students/${student.id}`}
-                    className="truncate font-medium text-zinc-900 hover:text-indigo-600 hover:underline dark:text-zinc-100 dark:hover:text-indigo-400"
-                  >
-                    {student.name}
-                  </Link>
-                  <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">
-                    {student.email}
-                  </p>
-                </div>
-
-                <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                  {/* Assign / change level */}
-                  <form
-                    action={assignLevelAction}
-                    className="flex items-center gap-2"
-                  >
-                    <input type="hidden" name="groupId" value={group.id} />
-                    <input type="hidden" name="studentId" value={student.id} />
-                    <select
-                      name="levelId"
-                      defaultValue={student.currentLevelId ?? ""}
-                      className="rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {group.students.length === 0 ? (
+            <div className="p-6">
+              <EmptyState
+                icon={Users}
+                title="No students yet"
+                description="Add your first student using the form below."
+              />
+            </div>
+          ) : (
+            <ul className="divide-y divide-border">
+              {group.students.map((student) => (
+                <li
+                  key={student.id}
+                  className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <Link
+                      href={`/teacher/groups/${group.id}/students/${student.id}`}
+                      className="truncate font-medium text-foreground transition-colors hover:text-primary hover:underline"
                     >
-                      <option value="">— No level —</option>
-                      {levels.map((level) => (
-                        <option key={level.id} value={level.id}>
-                          {level.orderIndex}. {level.name}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="submit"
-                      className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
-                    >
-                      Save
-                    </button>
-                  </form>
+                      {student.name}
+                    </Link>
+                    <p className="truncate text-sm text-muted-foreground">
+                      {student.email}
+                    </p>
+                  </div>
 
-                  <ResetPasswordForm
-                    action={resetStudentPasswordAction.bind(null, student.id)}
-                  />
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+                  <div className="flex flex-col items-stretch gap-2 sm:items-end">
+                    <AssignLevelForm
+                      groupId={group.id}
+                      studentId={student.id}
+                      currentLevelId={student.currentLevelId ?? null}
+                      levels={levels}
+                    />
+
+                    <ResetPasswordForm
+                      action={resetStudentPasswordAction.bind(null, student.id)}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
       {levels.length === 0 && (
-        <p className="mb-8 rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 text-sm text-amber-700 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-400">
-          No levels exist for your institute yet, so the level menu is empty.
-          Levels are seeded in a later task.
-        </p>
+        <Card className="mb-8 border-warning/30 bg-warning/10">
+          <CardContent className="py-4 text-sm text-warning">
+            No levels exist for your institute yet, so the level menu is empty.
+            Ask your admin to create levels.
+          </CardContent>
+        </Card>
       )}
 
-      {/* Add a student */}
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-        <h2 className="mb-4 font-semibold text-zinc-900 dark:text-zinc-100">
-          Add a student
-        </h2>
-        <AddStudentForm groupId={group.id} />
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Add a student</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AddStudentForm groupId={group.id} />
+        </CardContent>
+      </Card>
     </AppShell>
   );
 }

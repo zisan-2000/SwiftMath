@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Trophy } from "lucide-react";
 
 import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
@@ -6,6 +7,18 @@ import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
 import { getInstituteLeaderboard } from "@/server/ranking";
 import { AppShell } from "@/components/app-shell";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: `Ranking · ${APP_NAME}`,
@@ -36,59 +49,57 @@ export default async function StudentRankingPage() {
       }
     >
       {leaderboard.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-zinc-300 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-400">
-          No students to rank yet.
-        </p>
+        <EmptyState
+          icon={Trophy}
+          title="No students to rank yet"
+          description="Once students start practising, the leaderboard fills up here."
+        />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-zinc-100 text-left text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-                <th className="px-4 py-3 font-medium">#</th>
-                <th className="px-4 py-3 font-medium">Student</th>
-                <th className="px-4 py-3 font-medium">Level</th>
-                <th className="px-4 py-3 text-right font-medium">Passed</th>
-                <th className="px-4 py-3 text-right font-medium">Avg. accuracy</th>
-              </tr>
-            </thead>
-            <tbody>
-              {leaderboard.map((row) => {
-                const isMe = row.studentId === student.id;
-                return (
-                  <tr
-                    key={row.studentId}
-                    className={`border-b border-zinc-100 last:border-b-0 dark:border-zinc-800 ${
-                      isMe
-                        ? "bg-indigo-50 dark:bg-indigo-950/30"
-                        : ""
-                    }`}
-                  >
-                    <td className="px-4 py-3 font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
-                      {row.rank}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-900 dark:text-zinc-100">
-                      {row.name}
-                      {isMe && (
-                        <span className="ml-2 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">
-                          You
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>#</TableHead>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Level</TableHead>
+                  <TableHead className="text-right">Passed</TableHead>
+                  <TableHead className="text-right">Avg. accuracy</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {leaderboard.map((row) => {
+                  const isMe = row.studentId === student.id;
+                  return (
+                    <TableRow
+                      key={row.studentId}
+                      className={cn(isMe && "bg-primary/5 hover:bg-primary/10")}
+                    >
+                      <TableCell className="font-semibold tabular-nums text-foreground">
+                        {row.rank}
+                      </TableCell>
+                      <TableCell className="text-foreground">
+                        <span className="flex items-center gap-2">
+                          {row.name}
+                          {isMe && <Badge>You</Badge>}
                         </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
-                      {row.levelName ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-zinc-900 dark:text-zinc-100">
-                      {row.passedCount}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-zinc-900 dark:text-zinc-100">
-                      {row.avgAccuracy}%
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {row.levelName ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-foreground">
+                        {row.passedCount}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-foreground">
+                        {row.avgAccuracy}%
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </AppShell>
   );

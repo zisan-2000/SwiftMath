@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Boxes } from "lucide-react";
 
 import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
@@ -7,6 +7,17 @@ import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
 import { listInstituteGroups } from "@/server/admin";
 import { AppShell } from "@/components/app-shell";
+import { BackLink } from "@/components/nav/back-link";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export const metadata: Metadata = {
   title: `Groups · ${APP_NAME}`,
@@ -35,61 +46,56 @@ export default async function AdminGroupsPage() {
       title="Groups"
       subtitle="Every class across your institute and who teaches it."
     >
-      <Link
-        href="/admin"
-        className="mb-6 inline-block text-sm text-indigo-600 hover:underline dark:text-indigo-400"
-      >
-        ← Admin dashboard
-      </Link>
+      <BackLink href="/admin">Admin dashboard</BackLink>
 
-      <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
-          <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">
+      <Card>
+        <CardHeader className="border-b border-border">
+          <CardTitle className="text-base">
             All groups ({groups.length})
-          </h2>
-        </div>
-
-        {groups.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-zinc-500 dark:text-zinc-400">
-            No groups yet. Teachers create their own groups.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-zinc-100 text-left text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-                  <th className="px-4 py-3 font-medium">Group</th>
-                  <th className="px-4 py-3 font-medium">Teacher</th>
-                  <th className="px-4 py-3 text-right font-medium">Students</th>
-                </tr>
-              </thead>
-              <tbody>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {groups.length === 0 ? (
+            <div className="p-6">
+              <EmptyState
+                icon={Boxes}
+                title="No groups yet"
+                description="Teachers create and manage their own groups."
+              />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Group</TableHead>
+                  <TableHead>Teacher</TableHead>
+                  <TableHead className="text-right">Students</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {groups.map((group) => (
-                  <tr
-                    key={group.id}
-                    className="border-b border-zinc-100 last:border-b-0 dark:border-zinc-800"
-                  >
-                    <td className="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">
+                  <TableRow key={group.id}>
+                    <TableCell className="font-medium text-foreground">
                       {group.name}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
-                      <span className="text-zinc-900 dark:text-zinc-100">
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-foreground">
                         {group.teacher.name}
                       </span>
-                      <span className="block text-xs text-zinc-400 dark:text-zinc-500">
+                      <span className="block text-xs text-muted-foreground">
                         {group.teacher.email}
                       </span>
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
                       {group._count.students}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </AppShell>
   );
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Layers } from "lucide-react";
 
 import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
@@ -7,7 +8,19 @@ import { prisma } from "@/lib/prisma";
 import { Role, OperationType } from "@/lib/generated/prisma/enums";
 import { listLevels } from "@/server/admin";
 import { AppShell } from "@/components/app-shell";
+import { BackLink } from "@/components/nav/back-link";
 import { LevelForm } from "@/components/admin/level-form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { createLevelAction } from "./actions";
 
 export const metadata: Metadata = {
@@ -49,112 +62,104 @@ export default async function AdminLevelsPage() {
       title="Levels"
       subtitle="The practice curriculum students progress through."
     >
-      <Link
-        href="/admin"
-        className="mb-6 inline-block text-sm text-indigo-600 hover:underline dark:text-indigo-400"
-      >
-        ← Admin dashboard
-      </Link>
+      <BackLink href="/admin">Admin dashboard</BackLink>
 
-      {/* Existing levels */}
-      <section className="mb-8 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-        <div className="border-b border-zinc-100 px-5 py-3 dark:border-zinc-800">
-          <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">
+      <Card className="mb-8">
+        <CardHeader className="border-b border-border">
+          <CardTitle className="text-base">
             All levels ({levels.length})
-          </h2>
-        </div>
-
-        {levels.length === 0 ? (
-          <p className="px-5 py-6 text-sm text-zinc-500 dark:text-zinc-400">
-            No levels yet. Add your first level below.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-zinc-100 text-left text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
-                  <th className="px-4 py-3 font-medium">#</th>
-                  <th className="px-4 py-3 font-medium">Name</th>
-                  <th className="px-4 py-3 font-medium">Op</th>
-                  <th className="px-4 py-3 text-right font-medium">Terms</th>
-                  <th className="px-4 py-3 text-right font-medium">Range</th>
-                  <th className="px-4 py-3 text-right font-medium">Qs</th>
-                  <th className="px-4 py-3 text-right font-medium">Time</th>
-                  <th className="px-4 py-3 text-right font-medium">Pass</th>
-                  <th className="px-4 py-3 text-right font-medium">Students</th>
-                  <th className="px-4 py-3 text-right font-medium" />
-                </tr>
-              </thead>
-              <tbody>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {levels.length === 0 ? (
+            <div className="p-6">
+              <EmptyState
+                icon={Layers}
+                title="No levels yet"
+                description="Add your first level using the form below."
+              />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>#</TableHead>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Op</TableHead>
+                  <TableHead className="text-right">Terms</TableHead>
+                  <TableHead className="text-right">Range</TableHead>
+                  <TableHead className="text-right">Qs</TableHead>
+                  <TableHead className="text-right">Time</TableHead>
+                  <TableHead className="text-right">Pass</TableHead>
+                  <TableHead className="text-right">Students</TableHead>
+                  <TableHead className="text-right" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {levels.map((level) => (
-                  <tr
-                    key={level.id}
-                    className="border-b border-zinc-100 last:border-b-0 dark:border-zinc-800"
-                  >
-                    <td className="px-4 py-3 font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
+                  <TableRow key={level.id}>
+                    <TableCell className="font-semibold tabular-nums text-foreground">
                       {level.orderIndex}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-900 dark:text-zinc-100">
+                    </TableCell>
+                    <TableCell className="font-medium text-foreground">
                       {level.name}
-                    </td>
-                    <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       {OPERATION_SYMBOL[level.operation]}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
                       {level.termsPerQuestion}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
                       {level.minNumber}–{level.maxNumber}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
                       {level.questionCount}
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
                       {level.timeLimitSeconds}s
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
                       {level.passAccuracy}%
-                    </td>
-                    <td className="px-4 py-3 text-right tabular-nums text-zinc-600 dark:text-zinc-400">
+                    </TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
                       {level._count.studentsOnLevel}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <Link
-                        href={`/admin/levels/${level.id}`}
-                        className="text-indigo-600 hover:underline dark:text-indigo-400"
-                      >
-                        Edit
-                      </Link>
-                    </td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="sm" asChild>
+                        <Link href={`/admin/levels/${level.id}`}>Edit</Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
-      {/* Add a level */}
-      <section className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-        <h2 className="mb-4 font-semibold text-zinc-900 dark:text-zinc-100">
-          Add a level
-        </h2>
-        <LevelForm
-          action={createLevelAction}
-          submitLabel="Create level"
-          defaults={{
-            name: "",
-            operation: OperationType.ADDITION,
-            orderIndex: nextOrder,
-            termsPerQuestion: 2,
-            minNumber: 1,
-            maxNumber: 9,
-            questionCount: 10,
-            timeLimitSeconds: 120,
-            passAccuracy: 70,
-          }}
-        />
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Add a level</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <LevelForm
+            action={createLevelAction}
+            submitLabel="Create level"
+            defaults={{
+              name: "",
+              operation: OperationType.ADDITION,
+              orderIndex: nextOrder,
+              termsPerQuestion: 2,
+              minNumber: 1,
+              maxNumber: 9,
+              questionCount: 10,
+              timeLimitSeconds: 120,
+              passAccuracy: 70,
+            }}
+          />
+        </CardContent>
+      </Card>
     </AppShell>
   );
 }

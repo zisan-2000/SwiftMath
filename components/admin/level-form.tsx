@@ -1,9 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
+import { toast } from "sonner";
 
 import { OperationType } from "@/lib/generated/prisma/enums";
 import type { LevelFormState } from "@/app/admin/levels/actions";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { FormMessage } from "@/components/ui/form-message";
 
 /** The server action shape both create and (bound) update conform to. */
 type LevelFormAction = (
@@ -29,10 +34,9 @@ interface LevelFormProps {
   defaults: LevelFormDefaults;
 }
 
-const inputClass =
-  "rounded-lg border border-zinc-300 bg-white px-3 py-2 text-zinc-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:ring-indigo-900";
-
-const labelClass = "text-sm font-medium text-zinc-700 dark:text-zinc-300";
+/** Native <select> styled to match the Input component. */
+const SELECT_CLASS =
+  "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring disabled:cursor-not-allowed disabled:opacity-50";
 
 /** Human labels for each operation in the select. */
 const OPERATION_LABELS: Record<OperationType, string> = {
@@ -59,10 +63,8 @@ function NumberField({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={name} className={labelClass}>
-        {label}
-      </label>
-      <input
+      <Label htmlFor={name}>{label}</Label>
+      <Input
         id={name}
         name={name}
         type="number"
@@ -70,11 +72,8 @@ function NumberField({
         step={1}
         defaultValue={defaultValue}
         required
-        className={inputClass}
       />
-      {hint && (
-        <span className="text-xs text-zinc-400 dark:text-zinc-500">{hint}</span>
-      )}
+      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
     </div>
   );
 }
@@ -90,32 +89,32 @@ export function LevelForm({ action, submitLabel, defaults }: LevelFormProps) {
     FormData
   >(action, {});
 
+  // Create redirects on success; edit returns { ok } in place, so toast there.
+  useEffect(() => {
+    if (state.ok) toast.success("Level saved");
+  }, [state]);
+
   return (
     <form action={formAction} className="flex flex-col gap-5">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="name" className={labelClass}>
-            Name
-          </label>
-          <input
+          <Label htmlFor="name">Name</Label>
+          <Input
             id="name"
             name="name"
             placeholder="e.g. Addition I"
             defaultValue={defaults.name}
             required
-            className={inputClass}
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="operation" className={labelClass}>
-            Operation
-          </label>
+          <Label htmlFor="operation">Operation</Label>
           <select
             id="operation"
             name="operation"
             defaultValue={defaults.operation}
-            className={inputClass}
+            className={SELECT_CLASS}
           >
             {Object.values(OperationType).map((op) => (
               <option key={op} value={op}>
@@ -172,23 +171,12 @@ export function LevelForm({ action, submitLabel, defaults }: LevelFormProps) {
         />
       </div>
 
-      {state.error && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {state.error}
-        </p>
-      )}
-      {state.ok && (
-        <p className="text-sm text-green-600 dark:text-green-400">Saved.</p>
-      )}
+      {state.error && <FormMessage variant="error">{state.error}</FormMessage>}
 
       <div>
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-lg bg-indigo-600 px-5 py-2.5 font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-60"
-        >
+        <Button type="submit" disabled={pending}>
           {pending ? "Saving…" : submitLabel}
-        </button>
+        </Button>
       </div>
     </form>
   );

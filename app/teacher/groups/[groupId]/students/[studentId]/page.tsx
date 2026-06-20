@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PartyPopper } from "lucide-react";
 
 import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
@@ -8,12 +8,21 @@ import { prisma } from "@/lib/prisma";
 import { Role, SessionStatus } from "@/lib/generated/prisma/enums";
 import { getStudentProgress, listTeacherGroups } from "@/server/teacher";
 import { AppShell } from "@/components/app-shell";
+import { BackLink } from "@/components/nav/back-link";
 import { StatCard } from "@/components/stat-card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { moveStudentAction } from "./actions";
 
 export const metadata: Metadata = {
   title: `Student progress · ${APP_NAME}`,
 };
+
+/** Native <select> styled to match the Input component. */
+const SELECT_CLASS =
+  "h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export default async function StudentProgressPage({
   params,
@@ -49,14 +58,8 @@ export default async function StudentProgressPage({
       title={student.name}
       subtitle={student.email}
     >
-      <Link
-        href={`/teacher/groups/${groupId}`}
-        className="mb-6 inline-block text-sm text-indigo-600 hover:underline dark:text-indigo-400"
-      >
-        ← Back to group
-      </Link>
+      <BackLink href={`/teacher/groups/${groupId}`}>Back to group</BackLink>
 
-      {/* Headline stats */}
       <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <StatCard
           label="Current level"
@@ -73,114 +76,103 @@ export default async function StudentProgressPage({
       </div>
 
       {stats.leveledUpCount > 0 && (
-        <p className="mb-8 rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-700 dark:border-indigo-900 dark:bg-indigo-950/30 dark:text-indigo-300">
-          Leveled up {stats.leveledUpCount}{" "}
-          {stats.leveledUpCount === 1 ? "time" : "times"} so far. 🎉
-        </p>
+        <Card className="mb-8 border-primary/30 bg-primary/5">
+          <CardContent className="flex items-center gap-3 py-4 text-sm text-foreground">
+            <PartyPopper className="h-5 w-5 shrink-0 text-primary" />
+            <span>
+              Leveled up {stats.leveledUpCount}{" "}
+              {stats.leveledUpCount === 1 ? "time" : "times"} so far.
+            </span>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Recent attempts */}
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         Recent attempts
       </h2>
       {recentSessions.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-zinc-300 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-400">
-          This student hasn’t practised yet.
-        </p>
+        <EmptyState
+          title="No attempts yet"
+          description="This student hasn’t practised yet."
+        />
       ) : (
-        <ul className="overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-          {recentSessions.map((s) => (
-            <li
-              key={s.id}
-              className="flex items-center justify-between border-b border-zinc-100 px-5 py-3 last:border-b-0 dark:border-zinc-800"
-            >
-              <div>
-                <p className="font-medium text-zinc-900 dark:text-zinc-100">
-                  {s.level.name}
-                </p>
-                <p className="text-xs text-zinc-400 dark:text-zinc-500">
-                  {s.createdAt.toLocaleString()}
-                </p>
-              </div>
-              <div className="text-right">
-                {s.status === SessionStatus.IN_PROGRESS ? (
-                  <span className="text-sm text-amber-600 dark:text-amber-400">
-                    In progress
-                  </span>
-                ) : (
-                  <>
-                    <span className="font-semibold text-zinc-900 dark:text-zinc-100">
-                      {s.accuracy}%
-                    </span>{" "}
-                    <span className="text-xs text-zinc-400 dark:text-zinc-500">
-                      ({s.correctCount}/{s.totalQuestions})
-                    </span>{" "}
-                    <span
-                      className={
-                        s.passed
-                          ? "text-sm text-green-600 dark:text-green-400"
-                          : "text-sm text-zinc-400 dark:text-zinc-500"
-                      }
-                    >
-                      {s.passed ? "Passed" : "Not passed"}
-                    </span>
-                    {s.status === SessionStatus.EXPIRED && (
-                      <span className="ml-1 text-sm text-amber-600 dark:text-amber-400">
-                        · Expired
+        <Card>
+          <ul className="divide-y divide-border">
+            {recentSessions.map((s) => (
+              <li
+                key={s.id}
+                className="flex items-center justify-between gap-3 px-5 py-3"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground">{s.level.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {s.createdAt.toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 text-right">
+                  {s.status === SessionStatus.IN_PROGRESS ? (
+                    <Badge variant="warning">In progress</Badge>
+                  ) : (
+                    <>
+                      <span className="font-semibold tabular-nums text-foreground">
+                        {s.accuracy}%
                       </span>
-                    )}
-                    {s.leveledUp && (
-                      <span className="ml-1 text-sm text-indigo-600 dark:text-indigo-400">
-                        · Leveled up
+                      <span className="text-xs text-muted-foreground">
+                        ({s.correctCount}/{s.totalQuestions})
                       </span>
-                    )}
-                  </>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+                      <Badge variant={s.passed ? "success" : "muted"}>
+                        {s.passed ? "Passed" : "Not passed"}
+                      </Badge>
+                      {s.status === SessionStatus.EXPIRED && (
+                        <Badge variant="warning">Expired</Badge>
+                      )}
+                      {s.leveledUp && <Badge>Leveled up</Badge>}
+                    </>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
 
-      {/* Move to another group */}
       {otherGroups.length > 0 && (
-        <section className="mt-8 rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-          <h2 className="mb-1 font-semibold text-zinc-900 dark:text-zinc-100">
-            Move to another group
-          </h2>
-          <p className="mb-4 text-sm text-zinc-500 dark:text-zinc-400">
-            Reassign this student to one of your other groups. Their level and
-            history are kept.
-          </p>
-          <form
-            action={moveStudentAction}
-            className="flex flex-col gap-2 sm:flex-row sm:items-center"
-          >
-            <input type="hidden" name="studentId" value={student.id} />
-            <input type="hidden" name="currentGroupId" value={groupId} />
-            <select
-              name="targetGroupId"
-              defaultValue=""
-              required
-              className="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle className="text-base">Move to another group</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Reassign this student to one of your other groups. Their level and
+              history are kept.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <form
+              action={moveStudentAction}
+              className="flex flex-col gap-2 sm:flex-row sm:items-center"
             >
-              <option value="" disabled>
-                Choose a group…
-              </option>
-              {otherGroups.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
+              <input type="hidden" name="studentId" value={student.id} />
+              <input type="hidden" name="currentGroupId" value={groupId} />
+              <select
+                name="targetGroupId"
+                defaultValue=""
+                required
+                className={SELECT_CLASS}
+              >
+                <option value="" disabled>
+                  Choose a group…
                 </option>
-              ))}
-            </select>
-            <button
-              type="submit"
-              className="rounded-lg border border-zinc-300 px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
-            >
-              Move student
-            </button>
-          </form>
-        </section>
+                {otherGroups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+              <Button type="submit" variant="outline">
+                Move student
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       )}
     </AppShell>
   );

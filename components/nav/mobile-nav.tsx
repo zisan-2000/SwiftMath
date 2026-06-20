@@ -1,0 +1,50 @@
+"use client";
+
+import { useState } from "react";
+import { Menu } from "lucide-react";
+
+import type { Role } from "@/lib/generated/prisma/enums";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Brand } from "@/components/nav/brand";
+import { SidebarNav } from "@/components/nav/sidebar-nav";
+
+/**
+ * Hamburger + slide-in drawer holding the primary navigation. Visible only on
+ * small screens (the parent hides it at `lg`). Closes itself when a link is
+ * tapped via `SidebarNav`'s `onNavigate`.
+ */
+export function MobileNav({
+  role,
+  instituteName,
+}: {
+  role: Role;
+  instituteName: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger
+        aria-label="Open menu"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+      >
+        <Menu className="h-4 w-4" />
+      </SheetTrigger>
+      <SheetContent side="left" className="w-72 max-w-[80vw] p-0">
+        <SheetHeader className="border-b border-border p-4">
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <Brand instituteName={instituteName} role={role} />
+        </SheetHeader>
+        <div className="p-3">
+          <SidebarNav role={role} onNavigate={() => setOpen(false)} />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+}

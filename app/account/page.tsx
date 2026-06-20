@@ -5,6 +5,8 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { AppShell } from "@/components/app-shell";
 import { ChangePasswordForm } from "@/components/account/change-password-form";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export const metadata: Metadata = {
   title: `Account · ${APP_NAME}`,
@@ -30,26 +32,36 @@ export default async function AccountPage() {
       subtitle="Manage your sign-in details."
     >
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">Name</p>
-          <p className="mt-1 font-medium text-zinc-900 dark:text-zinc-100">
-            {user.name}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">Email</p>
-          <p className="mt-1 font-medium text-zinc-900 dark:text-zinc-100">
-            {user.email}
-          </p>
-        </div>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Name</p>
+            <p className="mt-1 font-medium text-foreground">{user.name}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Email</p>
+            <p className="mt-1 font-medium text-foreground">{user.email}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-5">
+            <p className="text-sm text-muted-foreground">Role</p>
+            <div className="mt-1">
+              <Badge variant="secondary">{user.role}</Badge>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      <section className="max-w-md rounded-2xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-950">
-        <h2 className="mb-4 font-semibold text-zinc-900 dark:text-zinc-100">
-          Change password
-        </h2>
-        <ChangePasswordForm />
-      </section>
+      <Card className="max-w-md">
+        <CardHeader>
+          <CardTitle className="text-base">Change password</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChangePasswordForm />
+        </CardContent>
+      </Card>
     </AppShell>
   );
 }

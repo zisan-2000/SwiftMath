@@ -4,6 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { submitSessionAction } from "@/app/student/practice/actions";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 
 interface RunnerQuestion {
   id: string;
@@ -76,20 +79,22 @@ export function PracticeRunner({
   return (
     <div>
       {/* Sticky timer */}
-      <div className="sticky top-0 z-10 mb-6 flex items-center justify-between rounded-2xl border border-zinc-200 bg-white px-5 py-3 dark:border-zinc-800 dark:bg-zinc-950">
-        <span className="text-sm text-zinc-500 dark:text-zinc-400">
-          Time left
-        </span>
+      <Card
+        className={cn(
+          "sticky top-16 z-10 mb-6 flex items-center justify-between px-5 py-3 transition-colors",
+          lowTime && "border-destructive/40 bg-destructive/5",
+        )}
+      >
+        <span className="text-sm text-muted-foreground">Time left</span>
         <span
-          className={`font-mono text-xl font-bold tabular-nums ${
-            lowTime
-              ? "text-red-600 dark:text-red-400"
-              : "text-zinc-900 dark:text-zinc-100"
-          }`}
+          className={cn(
+            "font-mono text-xl font-bold tabular-nums",
+            lowTime ? "text-destructive" : "text-foreground",
+          )}
         >
           {formatClock(secondsLeft)}
         </span>
-      </div>
+      </Card>
 
       <form
         onSubmit={(e) => {
@@ -99,36 +104,33 @@ export function PracticeRunner({
       >
         <ol className="flex flex-col gap-3">
           {questions.map((q) => (
-            <li
-              key={q.id}
-              className="flex items-center justify-between gap-4 rounded-xl border border-zinc-200 bg-white px-5 py-3 dark:border-zinc-800 dark:bg-zinc-950"
-            >
-              <span className="font-mono text-lg text-zinc-900 dark:text-zinc-100">
-                <span className="mr-3 text-sm text-zinc-400">{q.index + 1}.</span>
-                {q.prompt} =
-              </span>
-              <input
-                type="number"
-                inputMode="numeric"
-                value={answers[q.id] ?? ""}
-                disabled={submitting}
-                onChange={(e) =>
-                  setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
-                }
-                className="w-28 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-right text-zinc-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:focus:ring-indigo-900"
-              />
+            <li key={q.id}>
+              <Card className="flex items-center justify-between gap-4 px-5 py-3">
+                <span className="font-mono text-lg text-foreground">
+                  <span className="mr-3 text-sm text-muted-foreground">
+                    {q.index + 1}.
+                  </span>
+                  {q.prompt} =
+                </span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={answers[q.id] ?? ""}
+                  disabled={submitting}
+                  onChange={(e) =>
+                    setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
+                  }
+                  className="h-10 w-28 rounded-md border border-input bg-background px-3 text-right text-foreground shadow-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
+                />
+              </Card>
             </li>
           ))}
         </ol>
 
         <div className="mt-6 flex justify-end">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded-lg bg-indigo-600 px-6 py-2.5 font-medium text-white transition-colors hover:bg-indigo-700 disabled:opacity-60"
-          >
+          <Button type="submit" size="lg" disabled={submitting}>
             {submitting ? "Submitting…" : "Submit answers"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>
