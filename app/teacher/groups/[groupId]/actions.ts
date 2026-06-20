@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 
 import { requireRole } from "@/lib/session";
 import { Role } from "@/lib/generated/prisma/enums";
-import { addStudentToGroup, assignStudentLevel } from "@/server/teacher";
+import {
+  addStudentToGroup,
+  assignStudentLevel,
+  resetStudentPassword,
+} from "@/server/teacher";
+import type { ResetPasswordState } from "@/components/reset-password-form";
 
 /** Result of the add-student form, surfaced via useActionState. */
 export interface AddStudentState {
@@ -68,4 +73,34 @@ export async function assignLevelAction(formData: FormData) {
   await assignStudentLevel(teacher, studentId, levelId);
 
   revalidatePath(`/teacher/groups/${groupId}`);
+}
+
+/**
+ * Reset a student's password. The student id is bound by the page;
+ * `resetStudentPassword` re-checks the student is in one of this teacher's
+ * groups.
+ */
+export async function resetStudentPasswordAction(
+  studentId: string,
+  _prevState: ResetPasswordState,
+  formData: FormData,
+): Promise<ResetPasswordState> {
+  const teacher = await requireRole(Role.TEACHER);
+
+  const next = String(formData.get("newPassword") ?? "");
+  const confirm = String(formData.get("confirmPassword") ?? "");
+
+  if (next.length < 8) {
+    return { error: "Password must be at least 8 characters." };
+  }
+  if (next !== confirm) {
+    return { error: "Passwords do not match." };
+  }
+
+  const ok = await resetStudentPassword(teacher, studentId, next);
+  if (!ok) {
+    return { error: "Student not found in your groups." };
+  }
+
+  return { ok: true };
 }

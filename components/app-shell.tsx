@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 
 import { APP_NAME } from "@/lib/constants";
 import type { Role } from "@/lib/generated/prisma/enums";
@@ -42,14 +43,18 @@ export function AppShell({
           </div>
 
           <div className="flex items-center gap-3">
-            <div className="hidden text-right sm:block">
-              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+            <Link
+              href="/account"
+              className="hidden text-right sm:block"
+              title="Account settings"
+            >
+              <p className="text-sm font-medium text-zinc-900 hover:text-indigo-600 dark:text-zinc-100 dark:hover:text-indigo-400">
                 {user.name}
               </p>
               <p className="text-xs uppercase tracking-wide text-indigo-600 dark:text-indigo-400">
                 {user.role}
               </p>
-            </div>
+            </Link>
             <SignOutButton />
           </div>
         </div>

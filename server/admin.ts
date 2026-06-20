@@ -9,7 +9,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
-import { createUserAccount } from "@/server/users";
+import { createUserAccount, setUserPassword } from "@/server/users";
 import { Role, OperationType } from "@/lib/generated/prisma/enums";
 
 /** The authenticated admin, as needed for scoping. */
@@ -47,6 +47,7 @@ export function listInstituteTeachers(instituteId: string) {
       id: true,
       name: true,
       email: true,
+      isActive: true,
       createdAt: true,
       _count: { select: { taughtGroups: true } },
     },
@@ -72,6 +73,64 @@ export function createTeacher(
     role: Role.TEACHER,
     instituteId: admin.instituteId,
   });
+}
+
+/**
+ * Reset the password of a TEACHER or STUDENT in the admin's own institute.
+ * Verifies the target belongs to this institute (and isn't another admin)
+ * before delegating to the trusted setUserPassword primitive. Returns false if
+ * the user isn't a resettable member of this institute.
+ */
+export async function resetUserPassword(
+  admin: AdminContext,
+  userId: string,
+  newPassword: string,
+): Promise<boolean> {
+  const target = await prisma.user.findFirst({
+    where: {
+      id: userId,
+      instituteId: admin.instituteId,
+      role: { in: [Role.TEACHER, Role.STUDENT] },
+    },
+    select: { id: true },
+  });
+  if (!target) return false;
+
+  await setUserPassword(userId, newPassword);
+  return true;
+}
+
+/**
+ * Enable or disable (soft) a TEACHER or STUDENT in the admin's institute.
+ * Disabling keeps all the user's data/history but blocks app access; admins
+ * can't disable themselves or other admins (only TEACHER/STUDENT targets).
+ * When disabling, the target's sessions are revoked so they're signed out at
+ * once. Returns false if the target isn't a valid member of this institute.
+ */
+export async function setUserActive(
+  admin: AdminContext,
+  userId: string,
+  isActive: boolean,
+): Promise<boolean> {
+  if (userId === admin.id) return false;
+
+  const target = await prisma.user.findFirst({
+    where: {
+      id: userId,
+      instituteId: admin.instituteId,
+      role: { in: [Role.TEACHER, Role.STUDENT] },
+    },
+    select: { id: true },
+  });
+  if (!target) return false;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({ where: { id: userId }, data: { isActive } });
+    if (!isActive) {
+      await tx.session.deleteMany({ where: { userId } });
+    }
+  });
+  return true;
 }
 
 /**
@@ -106,6 +165,7 @@ export function listInstituteStudents(instituteId: string) {
       id: true,
       name: true,
       email: true,
+      isActive: true,
       group: { select: { name: true } },
       currentLevel: { select: { name: true, orderIndex: true } },
     },

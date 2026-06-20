@@ -19,7 +19,13 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getSessionCookie } from "better-auth/cookies";
 
 /** Path prefixes that require a signed-in user. */
-const PROTECTED_PREFIXES = ["/dashboard", "/admin", "/teacher", "/student"];
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/admin",
+  "/teacher",
+  "/student",
+  "/account",
+];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -48,5 +54,6 @@ export const config = {
     "/teacher/:path*",
     "/student",
     "/student/:path*",
+    "/account",
   ],
 };

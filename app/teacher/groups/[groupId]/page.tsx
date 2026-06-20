@@ -9,7 +9,8 @@ import { Role } from "@/lib/generated/prisma/enums";
 import { getTeacherGroup, listInstituteLevels } from "@/server/teacher";
 import { AppShell } from "@/components/app-shell";
 import { AddStudentForm } from "@/components/teacher/add-student-form";
-import { assignLevelAction } from "./actions";
+import { ResetPasswordForm } from "@/components/reset-password-form";
+import { assignLevelAction, resetStudentPasswordAction } from "./actions";
 
 export const metadata: Metadata = {
   title: `Group · ${APP_NAME}`,
@@ -69,43 +70,52 @@ export default async function GroupDetailPage({
             {group.students.map((student) => (
               <li
                 key={student.id}
-                className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
               >
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-zinc-900 dark:text-zinc-100">
+                  <Link
+                    href={`/teacher/groups/${group.id}/students/${student.id}`}
+                    className="truncate font-medium text-zinc-900 hover:text-indigo-600 hover:underline dark:text-zinc-100 dark:hover:text-indigo-400"
+                  >
                     {student.name}
-                  </p>
+                  </Link>
                   <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">
                     {student.email}
                   </p>
                 </div>
 
-                {/* Assign / change level */}
-                <form
-                  action={assignLevelAction}
-                  className="flex items-center gap-2"
-                >
-                  <input type="hidden" name="groupId" value={group.id} />
-                  <input type="hidden" name="studentId" value={student.id} />
-                  <select
-                    name="levelId"
-                    defaultValue={student.currentLevelId ?? ""}
-                    className="rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                <div className="flex flex-col items-stretch gap-2 sm:items-end">
+                  {/* Assign / change level */}
+                  <form
+                    action={assignLevelAction}
+                    className="flex items-center gap-2"
                   >
-                    <option value="">— No level —</option>
-                    {levels.map((level) => (
-                      <option key={level.id} value={level.id}>
-                        {level.orderIndex}. {level.name}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
-                  >
-                    Save
-                  </button>
-                </form>
+                    <input type="hidden" name="groupId" value={group.id} />
+                    <input type="hidden" name="studentId" value={student.id} />
+                    <select
+                      name="levelId"
+                      defaultValue={student.currentLevelId ?? ""}
+                      className="rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                    >
+                      <option value="">— No level —</option>
+                      {levels.map((level) => (
+                        <option key={level.id} value={level.id}>
+                          {level.orderIndex}. {level.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="submit"
+                      className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                    >
+                      Save
+                    </button>
+                  </form>
+
+                  <ResetPasswordForm
+                    action={resetStudentPasswordAction.bind(null, student.id)}
+                  />
+                </div>
               </li>
             ))}
           </ul>

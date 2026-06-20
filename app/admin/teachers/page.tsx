@@ -8,6 +8,8 @@ import { Role } from "@/lib/generated/prisma/enums";
 import { listInstituteTeachers } from "@/server/admin";
 import { AppShell } from "@/components/app-shell";
 import { AddTeacherForm } from "@/components/admin/add-teacher-form";
+import { ResetPasswordForm } from "@/components/reset-password-form";
+import { resetUserPasswordAction, setUserActiveAction } from "../actions";
 
 export const metadata: Metadata = {
   title: `Teachers · ${APP_NAME}`,
@@ -60,20 +62,48 @@ export default async function AdminTeachersPage() {
             {teachers.map((teacher) => (
               <li
                 key={teacher.id}
-                className="flex flex-col gap-1 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
               >
                 <div className="min-w-0">
-                  <p className="truncate font-medium text-zinc-900 dark:text-zinc-100">
+                  <p className="flex items-center gap-2 truncate font-medium text-zinc-900 dark:text-zinc-100">
                     {teacher.name}
+                    {!teacher.isActive && (
+                      <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                        Disabled
+                      </span>
+                    )}
                   </p>
                   <p className="truncate text-sm text-zinc-500 dark:text-zinc-400">
                     {teacher.email}
                   </p>
                 </div>
-                <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {teacher._count.taughtGroups}{" "}
-                  {teacher._count.taughtGroups === 1 ? "group" : "groups"}
-                </span>
+                <div className="flex items-start gap-4">
+                  <span className="text-sm text-zinc-500 dark:text-zinc-400 sm:pt-1.5">
+                    {teacher._count.taughtGroups}{" "}
+                    {teacher._count.taughtGroups === 1 ? "group" : "groups"}
+                  </span>
+                  <ResetPasswordForm
+                    action={resetUserPasswordAction.bind(null, teacher.id)}
+                  />
+                  <form
+                    action={setUserActiveAction.bind(
+                      null,
+                      teacher.id,
+                      !teacher.isActive,
+                    )}
+                  >
+                    <button
+                      type="submit"
+                      className={
+                        teacher.isActive
+                          ? "rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30"
+                          : "rounded-lg border border-green-200 px-3 py-1.5 text-sm font-medium text-green-700 transition-colors hover:bg-green-50 dark:border-green-900 dark:text-green-400 dark:hover:bg-green-950/30"
+                      }
+                    >
+                      {teacher.isActive ? "Disable" : "Enable"}
+                    </button>
+                  </form>
+                </div>
               </li>
             ))}
           </ul>

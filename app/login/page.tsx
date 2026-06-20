@@ -15,7 +15,14 @@ export const metadata: Metadata = {
  * Login page. The form is a client component that reads `?redirect=` via
  * useSearchParams, so it must sit inside a <Suspense> boundary.
  */
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  // Next.js 16: searchParams is async.
+  searchParams: Promise<{ disabled?: string }>;
+}) {
+  const { disabled } = await searchParams;
+
   // Send genuinely signed-in users to their dashboard. This uses a REAL session
   // lookup (not just cookie presence) so a stale cookie shows the form instead
   // of bouncing back and forth with the protected routes.
@@ -35,6 +42,12 @@ export default async function LoginPage() {
             Sign in to your account
           </p>
         </div>
+
+        {disabled && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+            Your account has been disabled. Contact your institute administrator.
+          </div>
+        )}
 
         <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
           <Suspense fallback={null}>

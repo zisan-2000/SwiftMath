@@ -34,7 +34,7 @@ export async function getInstituteLeaderboard(
 ): Promise<RankedStudent[]> {
   const [students, passedGroups, accuracyGroups] = await Promise.all([
     prisma.user.findMany({
-      where: { instituteId, role: Role.STUDENT },
+      where: { instituteId, role: Role.STUDENT, isActive: true },
       select: {
         id: true,
         name: true,

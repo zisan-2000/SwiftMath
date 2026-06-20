@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
 import { listInstituteStudents } from "@/server/admin";
 import { AppShell } from "@/components/app-shell";
+import { ResetPasswordForm } from "@/components/reset-password-form";
+import { resetUserPasswordAction, setUserActiveAction } from "../actions";
 
 export const metadata: Metadata = {
   title: `Students · ${APP_NAME}`,
@@ -62,6 +64,7 @@ export default async function AdminStudentsPage() {
                   <th className="px-4 py-3 font-medium">Email</th>
                   <th className="px-4 py-3 font-medium">Group</th>
                   <th className="px-4 py-3 font-medium">Current level</th>
+                  <th className="px-4 py-3 text-right font-medium">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -71,7 +74,14 @@ export default async function AdminStudentsPage() {
                     className="border-b border-zinc-100 last:border-b-0 dark:border-zinc-800"
                   >
                     <td className="px-4 py-3 text-zinc-900 dark:text-zinc-100">
-                      {student.name}
+                      <span className="flex items-center gap-2">
+                        {student.name}
+                        {!student.isActive && (
+                          <span className="rounded-full bg-zinc-200 px-2 py-0.5 text-xs font-medium text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400">
+                            Disabled
+                          </span>
+                        )}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-zinc-600 dark:text-zinc-400">
                       {student.email}
@@ -96,6 +106,31 @@ export default async function AdminStudentsPage() {
                           — Not assigned
                         </span>
                       )}
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      <div className="flex flex-wrap items-start justify-end gap-2">
+                        <ResetPasswordForm
+                          action={resetUserPasswordAction.bind(null, student.id)}
+                        />
+                        <form
+                          action={setUserActiveAction.bind(
+                            null,
+                            student.id,
+                            !student.isActive,
+                          )}
+                        >
+                          <button
+                            type="submit"
+                            className={
+                              student.isActive
+                                ? "rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 transition-colors hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/30"
+                                : "rounded-lg border border-green-200 px-3 py-1.5 text-sm font-medium text-green-700 transition-colors hover:bg-green-50 dark:border-green-900 dark:text-green-400 dark:hover:bg-green-950/30"
+                            }
+                          >
+                            {student.isActive ? "Disable" : "Enable"}
+                          </button>
+                        </form>
+                      </div>
                     </td>
                   </tr>
                 ))}

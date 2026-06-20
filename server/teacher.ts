@@ -9,8 +9,8 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
-import { createUserAccount } from "@/server/users";
-import { Role } from "@/lib/generated/prisma/enums";
+import { createUserAccount, setUserPassword } from "@/server/users";
+import { Role, SessionStatus } from "@/lib/generated/prisma/enums";
 
 /** The authenticated teacher, as needed for scoping. */
 export interface TeacherContext {
@@ -140,4 +140,133 @@ export async function assignStudentLevel(
     where: { id: studentId },
     data: { currentLevelId: levelId },
   });
+}
+
+/**
+ * A student's practice progress, for a teacher to review. Verifies the student
+ * is in the given group and that the group belongs to this teacher (returns
+ * null otherwise). Aggregates are computed from server-written session data, so
+ * they can't be influenced by the browser.
+ */
+export async function getStudentProgress(
+  teacher: TeacherContext,
+  groupId: string,
+  studentId: string,
+) {
+  const student = await prisma.user.findFirst({
+    where: {
+      id: studentId,
+      role: Role.STUDENT,
+      groupId,
+      group: { teacherId: teacher.id },
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      currentLevel: { select: { name: true, orderIndex: true } },
+    },
+  });
+  if (!student) return null;
+
+  const [recentSessions, finishedStats, passedCount, leveledUpCount] =
+    await Promise.all([
+      // Most recent attempts (any status).
+      prisma.practiceSession.findMany({
+        where: { studentId },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        select: {
+          id: true,
+          status: true,
+          accuracy: true,
+          correctCount: true,
+          totalQuestions: true,
+          passed: true,
+          leveledUp: true,
+          createdAt: true,
+          level: { select: { name: true } },
+        },
+      }),
+      // Accuracy aggregates over finished (graded) attempts only.
+      prisma.practiceSession.aggregate({
+        where: { studentId, status: { not: SessionStatus.IN_PROGRESS } },
+        _avg: { accuracy: true },
+        _max: { accuracy: true },
+        _count: { _all: true },
+      }),
+      prisma.practiceSession.count({ where: { studentId, passed: true } }),
+      prisma.practiceSession.count({ where: { studentId, leveledUp: true } }),
+    ]);
+
+  return {
+    student,
+    recentSessions,
+    stats: {
+      completed: finishedStats._count._all,
+      avgAccuracy: Math.round(finishedStats._avg.accuracy ?? 0),
+      bestAccuracy: finishedStats._max.accuracy ?? 0,
+      passedCount,
+      leveledUpCount,
+    },
+  };
+}
+
+/**
+ * Move a student from one of the teacher's groups into another group the same
+ * teacher owns. Both the student's current group and the target group must
+ * belong to this teacher (a teacher can't pull in or push out students from
+ * another teacher's class). The student's level is left untouched. Returns
+ * false if the move isn't allowed.
+ */
+export async function moveStudentToGroup(
+  teacher: TeacherContext,
+  studentId: string,
+  targetGroupId: string,
+): Promise<boolean> {
+  const student = await prisma.user.findFirst({
+    where: {
+      id: studentId,
+      role: Role.STUDENT,
+      group: { teacherId: teacher.id },
+    },
+    select: { id: true },
+  });
+  if (!student) return false;
+
+  const target = await prisma.group.findFirst({
+    where: { id: targetGroupId, teacherId: teacher.id },
+    select: { id: true },
+  });
+  if (!target) return false;
+
+  await prisma.user.update({
+    where: { id: studentId },
+    data: { groupId: targetGroupId },
+  });
+  return true;
+}
+
+/**
+ * Reset a student's password. Verifies the student belongs to one of this
+ * teacher's groups before delegating to setUserPassword. Returns false if the
+ * student isn't in the teacher's groups.
+ */
+export async function resetStudentPassword(
+  teacher: TeacherContext,
+  studentId: string,
+  newPassword: string,
+): Promise<boolean> {
+  const student = await prisma.user.findFirst({
+    where: {
+      id: studentId,
+      role: Role.STUDENT,
+      group: { teacherId: teacher.id },
+    },
+    select: { id: true },
+  });
+  if (!student) return false;
+
+  await setUserPassword(studentId, newPassword);
+  return true;
 }

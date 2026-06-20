@@ -11,6 +11,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { auth, type AuthSession } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
 
 /**
@@ -46,6 +47,20 @@ export async function requireUser(): Promise<SessionUser> {
   if (!user) {
     redirect("/login");
   }
+
+  // Trusted soft-disable check: a disabled account must not be able to use the
+  // app even with a valid session cookie. We read `isActive` fresh from the DB
+  // (not the possibly-stale session) so a disable takes effect on the very next
+  // request. If disabled, revoke their sessions and bounce to login.
+  const status = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { isActive: true },
+  });
+  if (!status?.isActive) {
+    await prisma.session.deleteMany({ where: { userId: user.id } });
+    redirect("/login?disabled=1");
+  }
+
   return user;
 }
 

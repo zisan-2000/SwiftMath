@@ -8,7 +8,7 @@
 
 import "server-only";
 
-import { hashPassword } from "better-auth/crypto";
+import { hashPassword, verifyPassword } from "better-auth/crypto";
 
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
@@ -63,4 +63,77 @@ export async function createUserAccount(params: CreateUserAccountParams) {
 
     return user;
   });
+}
+
+/**
+ * Force-set a user's email/password credential to a new password. This is the
+ * trusted "reset" primitive used by staff (admin/teacher) flows — it does NOT
+ * ask for the old password, so callers MUST verify they're allowed to reset
+ * this particular user first (see resetUserPassword / resetStudentPassword).
+ *
+ * As a security measure the target's existing sessions are revoked, so the new
+ * password takes effect everywhere and any old logged-in device is signed out.
+ * If somehow no credential row exists, one is created (mirrors createUserAccount).
+ */
+export async function setUserPassword(
+  userId: string,
+  newPassword: string,
+): Promise<void> {
+  const passwordHash = await hashPassword(newPassword);
+
+  await prisma.$transaction(async (tx) => {
+    const updated = await tx.account.updateMany({
+      where: { userId, providerId: "credential" },
+      data: { password: passwordHash },
+    });
+
+    if (updated.count === 0) {
+      await tx.account.create({
+        data: {
+          userId,
+          accountId: userId,
+          providerId: "credential",
+          password: passwordHash,
+        },
+      });
+    }
+
+    // Revoke all of the target's sessions so the reset is effective immediately.
+    await tx.session.deleteMany({ where: { userId } });
+  });
+}
+
+/** Outcome of a self-service password change. */
+export type ChangePasswordResult = "ok" | "wrong-current" | "no-credential";
+
+/**
+ * Self-service password change: verifies the user's *current* password before
+ * setting the new one. Used by the account page. The current session is left
+ * intact (the user stays signed in on this device).
+ */
+export async function changeOwnPassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<ChangePasswordResult> {
+  const credential = await prisma.account.findFirst({
+    where: { userId, providerId: "credential" },
+    select: { id: true, password: true },
+  });
+
+  if (!credential?.password) return "no-credential";
+
+  const valid = await verifyPassword({
+    hash: credential.password,
+    password: currentPassword,
+  });
+  if (!valid) return "wrong-current";
+
+  const passwordHash = await hashPassword(newPassword);
+  await prisma.account.update({
+    where: { id: credential.id },
+    data: { password: passwordHash },
+  });
+
+  return "ok";
 }

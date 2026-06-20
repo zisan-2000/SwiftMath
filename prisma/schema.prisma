@@ -100,6 +100,11 @@ model User {
   /// Drives route protection and data scoping. Carried in the session.
   role Role @default(STUDENT)
 
+  /// Soft-disable flag. A disabled user keeps ALL their data/history but cannot
+  /// sign in or use the app (enforced server-side in requireUser, which also
+  /// revokes their sessions). Reversible. Mirrors Institute.isActive.
+  isActive Boolean @default(true)
+
   /// Every user belongs to exactly one institute. Carried in the session.
   instituteId String
   institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
