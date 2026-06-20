@@ -1,0 +1,333 @@
+// SEFT Abacus — Prisma schema (single source of truth for the database).
+//
+// Design rules baked into this schema:
+//  - MULTI-INSTITUTE from day one: every domain record carries `instituteId`.
+//    In Phase 1 only one institute (SEFT) is active, but the structure supports
+//    many.
+//  - SERVER IS THE SOURCE OF TRUTH: timing/scoring/level-up data lives here and
+//    is written only by trusted server code. The practice-attempt tables that
+//    record scores live with the practice engine (added in a later task); this
+//    file currently defines the structural foundation (institutes, users,
+//    groups, levels) plus level tracking.
+//
+// Prisma 7 notes: the new `prisma-client` generator emits the client into
+// `lib/generated/prisma`. The datasource URL is supplied by `prisma.config.ts`
+// (from DATABASE_URL), so there is no inline `url` here.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+/// A user's role within their institute.
+/// Phase 1 collapses Super Admin + Institute Admin into a single ADMIN.
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+/// The arithmetic operation a practice level drills.
+/// Phase 1 focuses on ADDITION / SUBTRACTION; the rest are reserved so we do
+/// not need an enum migration to enable them later.
+enum OperationType {
+  ADDITION
+  SUBTRACTION
+  MULTIPLICATION
+  DIVISION
+  MIXED
+}
+
+/// Lifecycle of a timed practice attempt.
+/// IN_PROGRESS → COMPLETED (submitted in time) or EXPIRED (ran out of time).
+enum SessionStatus {
+  IN_PROGRESS
+  COMPLETED
+  EXPIRED
+}
+
+// ---------------------------------------------------------------------------
+// Tenant
+// ---------------------------------------------------------------------------
+
+/// An institute is the top-level tenant. SEFT is the only active one in Phase 1.
+model Institute {
+  id        String   @id @default(cuid())
+  /// URL-safe identifier, e.g. "seft". Unique across the platform.
+  slug      String   @unique
+  name      String
+  /// Lets an institute be disabled without deleting its data.
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users            User[]
+  groups           Group[]
+  levels           Level[]
+  practiceSessions PracticeSession[]
+
+  @@map("institute")
+}
+
+// ---------------------------------------------------------------------------
+// Auth + identity
+//
+// The four models below (User, Session, Account, Verification) are the shape
+// better-auth's Prisma adapter expects. `User` is extended with our own fields
+// (role, instituteId, group/level relations). The auth wiring itself is set up
+// in a later task; here we only define the tables.
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // --- SEFT Abacus custom fields ---
+
+  /// Drives route protection and data scoping. Carried in the session.
+  role Role @default(STUDENT)
+
+  /// Every user belongs to exactly one institute. Carried in the session.
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  /// Groups this user owns as a TEACHER (empty for students/admins).
+  taughtGroups Group[] @relation("GroupTeacher")
+
+  /// The group a STUDENT belongs to (null for teachers/admins, and for
+  /// students not yet placed in a group).
+  groupId String?
+  group   Group?  @relation("GroupStudents", fields: [groupId], references: [id], onDelete: SetNull)
+
+  /// A STUDENT's current level, used for level-up progression. Null until a
+  /// teacher assigns a starting level.
+  currentLevelId String?
+  currentLevel   Level?  @relation("StudentCurrentLevel", fields: [currentLevelId], references: [id], onDelete: SetNull)
+
+  /// Timed practice attempts made by this STUDENT.
+  practiceSessions PracticeSession[] @relation("StudentSessions")
+
+  // --- better-auth relations ---
+  sessions Session[]
+  accounts Account[]
+
+  @@index([instituteId])
+  @@index([groupId])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  /// Hashed password for the email/password provider.
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ---------------------------------------------------------------------------
+// Teaching structures
+// ---------------------------------------------------------------------------
+
+/// A teacher's class. Students are placed into a group; a group belongs to one
+/// teacher and one institute.
+model Group {
+  id   String @id @default(cuid())
+  name String
+
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  /// The teacher who owns this group.
+  teacherId String
+  teacher   User   @relation("GroupTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+
+  /// Students placed in this group.
+  students User[] @relation("GroupStudents")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([instituteId])
+  @@index([teacherId])
+  @@map("group")
+}
+
+/// A practice level: the curriculum step a student drills. Levels are ordered
+/// per institute (orderIndex) and a student progresses through them.
+///
+/// The fields below define what the SERVER uses to generate questions and to
+/// score/decide a pass — the browser never sets these.
+model Level {
+  id   String @id @default(cuid())
+  name String
+
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  /// Ordering within an institute (1, 2, 3 …). Drives level-up.
+  orderIndex Int
+
+  // --- Server-enforced scoring / timing (trusted) ---
+
+  /// How many questions a practice session contains.
+  questionCount Int
+  /// Total time the server allows for the whole session, in seconds.
+  timeLimitSeconds Int
+  /// Minimum accuracy (percentage, 0–100) required to pass and level up.
+  passAccuracy Int
+
+  // --- Question generation parameters (Phase 1: arithmetic) ---
+
+  /// Which operation this level drills.
+  operation OperationType
+  /// How many numbers appear in one question (e.g. 3 → a + b + c).
+  termsPerQuestion Int
+  /// Inclusive lower bound for each generated number.
+  minNumber Int
+  /// Inclusive upper bound for each generated number.
+  maxNumber Int
+
+  /// Students currently sitting on this level.
+  studentsOnLevel User[] @relation("StudentCurrentLevel")
+
+  /// Practice attempts made at this level.
+  practiceSessions PracticeSession[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // No two levels in the same institute share an order position.
+  @@unique([instituteId, orderIndex])
+  @@index([instituteId])
+  @@map("level")
+}
+
+// ---------------------------------------------------------------------------
+// Practice attempts
+//
+// A PracticeSession is one timed attempt by a student at a level. EVERYTHING
+// that matters for fairness lives here and is written only by trusted server
+// code: the server generates the questions (storing the correct answers, which
+// are never sent to the browser until grading), stamps startedAt/expiresAt, and
+// computes correctness, accuracy, pass, and level-up on submit.
+// ---------------------------------------------------------------------------
+
+model PracticeSession {
+  id String @id @default(cuid())
+
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation("StudentSessions", fields: [studentId], references: [id], onDelete: Cascade)
+
+  levelId String
+  level   Level   @relation(fields: [levelId], references: [id])
+
+  status SessionStatus @default(IN_PROGRESS)
+
+  /// Server clock. The session must be submitted on or before `expiresAt`.
+  startedAt   DateTime  @default(now())
+  expiresAt   DateTime
+  submittedAt DateTime?
+
+  // --- Server-computed results (trusted) ---
+  totalQuestions Int
+  correctCount   Int     @default(0)
+  /// Accuracy as a percentage, 0–100.
+  accuracy       Int     @default(0)
+  /// Did the attempt meet the level's pass threshold (in time)?
+  passed         Boolean @default(false)
+  /// Did passing this attempt advance the student to the next level?
+  leveledUp      Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  questions PracticeQuestion[]
+
+  @@index([studentId])
+  @@index([instituteId])
+  @@index([levelId])
+  @@map("practice_session")
+}
+
+model PracticeQuestion {
+  id String @id @default(cuid())
+
+  sessionId String
+  session   PracticeSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  /// Position within the session (0-based).
+  index Int
+
+  /// Human-readable prompt shown to the student, e.g. "12 + 7 + 3".
+  prompt String
+
+  /// The correct answer — server-only. Never serialised to the client while a
+  /// session is in progress.
+  correctAnswer Int
+
+  /// What the student submitted (null if left blank / not reached).
+  studentAnswer Int?
+  /// Graded server-side on submit.
+  isCorrect Boolean?
+
+  @@unique([sessionId, index])
+  @@index([sessionId])
+  @@map("practice_question")
+}
