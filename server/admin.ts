@@ -1,0 +1,193 @@
+// Trusted, server-only logic for the ADMIN flow.
+//
+// Phase 1 collapses Super Admin + Institute Admin into one ADMIN who manages a
+// SINGLE institute — their own. Every function takes the admin's identity and
+// scopes by their `instituteId`, so an admin can never read or write another
+// institute's data. Callers (server actions) handle auth (requireRole) and
+// user-facing validation; the scoping here is the trusted backstop.
+
+import "server-only";
+
+import { prisma } from "@/lib/prisma";
+import { createUserAccount } from "@/server/users";
+import { Role, OperationType } from "@/lib/generated/prisma/enums";
+
+/** The authenticated admin, as needed for scoping. */
+export interface AdminContext {
+  id: string;
+  instituteId: string;
+}
+
+/**
+ * The full set of trusted, server-enforced fields that define a practice level.
+ * These drive question generation, timing, and pass/level-up — the browser
+ * never sets them, so the action validates and the admin supplies them here.
+ */
+export interface LevelInput {
+  name: string;
+  orderIndex: number;
+  operation: OperationType;
+  termsPerQuestion: number;
+  minNumber: number;
+  maxNumber: number;
+  questionCount: number;
+  timeLimitSeconds: number;
+  passAccuracy: number;
+}
+
+/**
+ * Every teacher in the admin's institute, with how many groups each owns.
+ * Ordered by name for a stable list.
+ */
+export function listInstituteTeachers(instituteId: string) {
+  return prisma.user.findMany({
+    where: { instituteId, role: Role.TEACHER },
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      createdAt: true,
+      _count: { select: { taughtGroups: true } },
+    },
+  });
+}
+
+/**
+ * Create a TEACHER account in the admin's institute. Delegates to the single
+ * trusted user-provisioning helper, which sets role/instituteId server-side and
+ * writes the matching credential row so the teacher can sign in immediately.
+ *
+ * Email-uniqueness errors bubble up from createUserAccount for the action to
+ * translate into a friendly message.
+ */
+export function createTeacher(
+  admin: AdminContext,
+  teacher: { name: string; email: string; password: string },
+) {
+  return createUserAccount({
+    name: teacher.name,
+    email: teacher.email,
+    password: teacher.password,
+    role: Role.TEACHER,
+    instituteId: admin.instituteId,
+  });
+}
+
+/**
+ * Every group in the admin's institute, with its owning teacher and student
+ * count. Read-only institute-wide view; teachers still create and run their own
+ * groups. Ordered by group name for a stable list.
+ */
+export function listInstituteGroups(instituteId: string) {
+  return prisma.group.findMany({
+    where: { instituteId },
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      teacher: { select: { name: true, email: true } },
+      _count: { select: { students: true } },
+    },
+  });
+}
+
+/**
+ * Every student in the admin's institute, with their group placement and
+ * current level. Read-only institute-wide view; teachers still own day-to-day
+ * student management (adding, level assignment) within their groups.
+ * Ordered by name for a stable list.
+ */
+export function listInstituteStudents(instituteId: string) {
+  return prisma.user.findMany({
+    where: { instituteId, role: Role.STUDENT },
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      group: { select: { name: true } },
+      currentLevel: { select: { name: true, orderIndex: true } },
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Levels
+//
+// Levels are the practice curriculum. They are ordered per institute
+// (orderIndex) and a student progresses through them. Only the admin defines
+// them; the practice engine reads them when generating + grading sessions.
+// ---------------------------------------------------------------------------
+
+/** Every level in the admin's institute, in progression order. */
+export function listLevels(instituteId: string) {
+  return prisma.level.findMany({
+    where: { instituteId },
+    orderBy: { orderIndex: "asc" },
+    select: {
+      id: true,
+      name: true,
+      orderIndex: true,
+      operation: true,
+      termsPerQuestion: true,
+      minNumber: true,
+      maxNumber: true,
+      questionCount: true,
+      timeLimitSeconds: true,
+      passAccuracy: true,
+      _count: { select: { studentsOnLevel: true } },
+    },
+  });
+}
+
+/**
+ * A single level, scoped to the admin's institute. Returns null if it does not
+ * exist or belongs to another institute (so an admin can't edit foreign data).
+ */
+export function getLevel(admin: AdminContext, levelId: string) {
+  return prisma.level.findFirst({
+    where: { id: levelId, instituteId: admin.instituteId },
+    select: {
+      id: true,
+      name: true,
+      orderIndex: true,
+      operation: true,
+      termsPerQuestion: true,
+      minNumber: true,
+      maxNumber: true,
+      questionCount: true,
+      timeLimitSeconds: true,
+      passAccuracy: true,
+    },
+  });
+}
+
+/**
+ * Create a level in the admin's institute. A duplicate orderIndex hits the
+ * `@@unique([instituteId, orderIndex])` constraint (P2002), which the caller
+ * translates into a friendly message.
+ */
+export function createLevel(admin: AdminContext, input: LevelInput) {
+  return prisma.level.create({
+    data: { ...input, name: input.name.trim(), instituteId: admin.instituteId },
+  });
+}
+
+/**
+ * Update a level, but only if it belongs to the admin's institute. Uses
+ * `updateMany` with an institute-scoped filter so a forged id can never touch
+ * another institute's level; returns the number of rows changed (0 = not
+ * found / not theirs).
+ */
+export async function updateLevel(
+  admin: AdminContext,
+  levelId: string,
+  input: LevelInput,
+): Promise<number> {
+  const result = await prisma.level.updateMany({
+    where: { id: levelId, instituteId: admin.instituteId },
+    data: { ...input, name: input.name.trim() },
+  });
+  return result.count;
+}
