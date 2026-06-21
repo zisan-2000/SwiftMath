@@ -34,12 +34,7 @@ export default async function LoginPage({
   }
 
   return (
-    <div className="relative flex min-h-svh flex-1 items-center justify-center overflow-hidden bg-background px-6 py-16">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-40 left-1/2 h-80 w-[36rem] -translate-x-1/2 rounded-full bg-primary/10 blur-3xl"
-      />
-
+    <div className="relative flex min-h-svh flex-1 items-center justify-center px-6 py-16">
       <div className="relative w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
           <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
@@ -59,7 +54,7 @@ export default async function LoginPage({
           </div>
         )}
 
-        <Card className="shadow-sm">
+        <Card className="border-border/80 bg-card/90 shadow-lg shadow-primary/5 backdrop-blur-sm">
           <CardContent className="p-6">
             <Suspense fallback={null}>
               <LoginForm />

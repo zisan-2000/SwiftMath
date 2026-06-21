@@ -36,9 +36,9 @@ export function AppShell({
   children,
 }: AppShellProps) {
   return (
-    <div className="flex min-h-svh bg-background">
-      {/* Desktop sidebar */}
-      <aside className="sticky top-0 hidden h-svh w-64 shrink-0 flex-col border-r border-border bg-card lg:flex">
+    <div className="flex min-h-svh">
+      {/* Desktop sidebar — frosted glass so the mesh shows at the edge */}
+      <aside className="sticky top-0 hidden h-svh w-64 shrink-0 flex-col border-r border-border/80 bg-card/75 backdrop-blur-xl lg:flex">
         <div className="border-b border-border px-4 py-4">
           <Brand instituteName={instituteName} role={user.role} />
         </div>
@@ -49,7 +49,7 @@ export function AppShell({
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-sm lg:px-8">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border/80 bg-background/70 px-4 backdrop-blur-xl lg:px-8">
           <MobileNav role={user.role} instituteName={instituteName} />
           <div className="lg:hidden">
             <Brand instituteName={instituteName} role={user.role} />

@@ -14,7 +14,8 @@
 :root {
   --radius: 0.625rem;
 
-  --background: oklch(1 0 0);
+  /* Slightly cool-tinted white — reads premium vs flat #fff */
+  --background: oklch(0.988 0.004 285);
   --foreground: oklch(0.141 0.005 285.823);
 
   --card: oklch(1 0 0);
@@ -66,7 +67,8 @@
 }
 
 .dark {
-  --background: oklch(0.141 0.005 285.823);
+  /* Deep slate with a hint of indigo — not flat black */
+  --background: oklch(0.155 0.012 285);
   --foreground: oklch(0.985 0 0);
 
   --card: oklch(0.21 0.006 285.885);
@@ -191,5 +193,262 @@
     font-family: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Ambient mesh background layers (see components/ui/app-background.tsx).
+ * Grid opacity is token-aware so light/dark both stay readable.
+ * ------------------------------------------------------------------------- */
+@layer utilities {
+  .bg-mesh-base {
+    background: linear-gradient(
+      165deg,
+      color-mix(in oklch, var(--primary) 4%, var(--background)) 0%,
+      var(--background) 42%,
+      color-mix(in oklch, var(--chart-4) 3%, var(--background)) 100%
+    );
+  }
+
+  .bg-mesh-grid {
+    background-image:
+      linear-gradient(
+        to right,
+        color-mix(in oklch, var(--primary) 7%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in oklch, var(--primary) 7%, transparent) 1px,
+        transparent 1px
+      );
+    background-size: 3rem 3rem;
+    mask-image: radial-gradient(
+      ellipse 85% 75% at 50% 35%,
+      black 15%,
+      transparent 72%
+    );
+  }
+
+  .dark .bg-mesh-grid {
+    background-image:
+      linear-gradient(
+        to right,
+        color-mix(in oklch, var(--primary) 12%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        to bottom,
+        color-mix(in oklch, var(--primary) 12%, transparent) 1px,
+        transparent 1px
+      );
+  }
+
+  .bg-mesh-vignette {
+    /* Soft centre wash only — keeps edge art visible */
+    background: radial-gradient(
+      ellipse 65% 55% at 50% 48%,
+      color-mix(in oklch, var(--background) 50%, transparent) 0%,
+      transparent 68%
+    );
+  }
+
+  /* ---- Premium SVG scene (mesh-svg-scene.tsx) ---- */
+  .mesh-svg-scene {
+    opacity: 1;
+    /* Art at the edges; centre stays clean for page content */
+    mask-image: radial-gradient(
+      ellipse 88% 78% at 50% 48%,
+      transparent 0%,
+      transparent 38%,
+      rgba(0, 0, 0, 0.45) 62%,
+      black 88%
+    );
+  }
+
+  .mesh-grad-a {
+    stop-color: var(--primary);
+    stop-opacity: 0.75;
+  }
+  .mesh-grad-b {
+    stop-color: var(--chart-4);
+    stop-opacity: 0.55;
+  }
+  .mesh-grad-c {
+    stop-color: var(--primary);
+    stop-opacity: 0.4;
+  }
+
+  .mesh-fill-a {
+    stop-color: var(--primary);
+    stop-opacity: 0.55;
+  }
+  .mesh-fill-b {
+    stop-color: var(--chart-4);
+    stop-opacity: 0.35;
+  }
+
+  .mesh-bead-core {
+    stop-color: var(--primary);
+    stop-opacity: 0.85;
+  }
+  .mesh-bead-edge {
+    stop-color: var(--chart-4);
+    stop-opacity: 0.45;
+  }
+
+  .mesh-glass-plate {
+    fill: color-mix(in oklch, var(--card) 55%, transparent);
+    stroke: color-mix(in oklch, var(--primary) 28%, transparent);
+    stroke-width: 1.5;
+  }
+
+  .mesh-abacus-frame {
+    fill: color-mix(in oklch, var(--card) 70%, transparent);
+    stroke: color-mix(in oklch, var(--primary) 35%, transparent);
+    stroke-width: 2;
+  }
+
+  .mesh-abacus-inner {
+    fill: color-mix(in oklch, var(--primary) 6%, transparent);
+    stroke: color-mix(in oklch, var(--primary) 18%, transparent);
+    stroke-width: 1;
+  }
+
+  .mesh-rod {
+    stroke: color-mix(in oklch, var(--primary) 40%, transparent);
+  }
+
+  .mesh-bead {
+    stroke: color-mix(in oklch, var(--primary-foreground) 15%, var(--primary));
+    stroke-width: 1;
+  }
+
+  .mesh-ring {
+    opacity: 0.55;
+  }
+  .mesh-ring-soft {
+    opacity: 0.35;
+  }
+  .mesh-ring-accent {
+    opacity: 0.65;
+  }
+
+  .mesh-equation-text {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 76px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    fill: color-mix(in oklch, var(--primary) 28%, transparent);
+  }
+
+  .mesh-num-accent {
+    font-family: var(--font-mono), ui-monospace, monospace;
+    font-size: 148px;
+    font-weight: 800;
+    fill: color-mix(in oklch, var(--primary) 18%, transparent);
+  }
+
+  .mesh-num-sm {
+    font-size: 108px;
+  }
+
+  .mesh-spark-dot {
+    fill: color-mix(in oklch, var(--primary) 55%, transparent);
+  }
+
+  .mesh-spark-path {
+    stroke: color-mix(in oklch, var(--primary) 30%, transparent);
+    stroke-dasharray: 6 10;
+    fill: none;
+  }
+
+  .dark .mesh-grad-a {
+    stop-opacity: 0.9;
+  }
+  .dark .mesh-grad-b {
+    stop-opacity: 0.7;
+  }
+  .dark .mesh-grad-c {
+    stop-opacity: 0.55;
+  }
+
+  .dark .mesh-glass-plate {
+    fill: color-mix(in oklch, var(--card) 45%, transparent);
+    stroke: color-mix(in oklch, var(--primary) 40%, transparent);
+  }
+
+  .dark .mesh-abacus-frame {
+    fill: color-mix(in oklch, var(--card) 50%, transparent);
+    stroke: color-mix(in oklch, var(--primary) 45%, transparent);
+  }
+
+  .dark .mesh-equation-text {
+    fill: color-mix(in oklch, var(--primary) 38%, transparent);
+  }
+
+  .dark .mesh-num-accent {
+    fill: color-mix(in oklch, var(--primary) 26%, transparent);
+  }
+
+  .dark .mesh-ring {
+    opacity: 0.7;
+  }
+  .dark .mesh-ring-soft {
+    opacity: 0.45;
+  }
+  .dark .mesh-ring-accent {
+    opacity: 0.8;
+  }
+
+  /* Slow drift for decorative SVG glyphs (respect reduced motion). */
+  @keyframes mesh-float-a {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) rotate(0deg);
+    }
+    50% {
+      transform: translate3d(0, -10px, 0) rotate(1.5deg);
+    }
+  }
+
+  @keyframes mesh-float-b {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) rotate(0deg);
+    }
+    50% {
+      transform: translate3d(6px, -8px, 0) rotate(-1deg);
+    }
+  }
+
+  @keyframes mesh-float-c {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(-5px, 8px, 0);
+    }
+  }
+
+  .mesh-float-a {
+    animation: mesh-float-a 22s ease-in-out infinite;
+  }
+
+  .mesh-float-b {
+    animation: mesh-float-b 26s ease-in-out infinite;
+  }
+
+  .mesh-float-c {
+    animation: mesh-float-c 19s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mesh-float-a,
+    .mesh-float-b,
+    .mesh-float-c {
+      animation: none;
+    }
   }
 }

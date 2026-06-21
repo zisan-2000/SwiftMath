@@ -4,6 +4,7 @@ import { Sigma } from "lucide-react";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { HeroAccent } from "@/components/ui/app-background";
 
 /**
  * Public landing page.
@@ -13,12 +14,8 @@ import { Button } from "@/components/ui/button";
  */
 export default function Home() {
   return (
-    <div className="relative flex min-h-svh flex-1 flex-col items-center justify-center overflow-hidden bg-background px-6">
-      {/* Soft brand glow */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-40 left-1/2 h-80 w-[36rem] -translate-x-1/2 rounded-full bg-primary/15 blur-3xl"
-      />
+    <div className="relative flex min-h-svh flex-1 flex-col items-center justify-center px-6">
+      <HeroAccent />
 
       <main className="relative flex w-full max-w-xl flex-col items-center gap-6 text-center">
         <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">

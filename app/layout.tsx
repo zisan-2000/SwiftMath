@@ -4,6 +4,7 @@ import "./globals.css";
 
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { AppBackground } from "@/components/ui/app-background";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,13 +38,17 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">
+      <body
+        suppressHydrationWarning
+        className="flex min-h-full flex-col"
+      >
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
         >
+          <AppBackground />
           {children}
           <Toaster />
         </ThemeProvider>
