@@ -15,41 +15,65 @@ export default function GlobalError({
 }) {
   return (
     <html lang="en">
-      <body
-        style={{
-          margin: 0,
-          minHeight: "100vh",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "1rem",
-          padding: "1.5rem",
-          textAlign: "center",
-          fontFamily: "system-ui, sans-serif",
-          background: "#fafafa",
-          color: "#18181b",
-        }}
-      >
+      <head>
+        <meta charSet="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <style>{`
+          :root {
+            color-scheme: light dark;
+            --background: #fafafa;
+            --foreground: #18181b;
+            --muted: #52525b;
+            --primary: #4f46e5;
+            --primary-foreground: #ffffff;
+          }
+          @media (prefers-color-scheme: dark) {
+            :root {
+              --background: #18181b;
+              --foreground: #fafafa;
+              --muted: #a1a1aa;
+              --primary: #6366f1;
+            }
+          }
+          body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 1.5rem;
+            text-align: center;
+            font-family: system-ui, sans-serif;
+            background: var(--background);
+            color: var(--foreground);
+          }
+          p {
+            color: var(--muted);
+            margin: 0;
+          }
+          button {
+            border: none;
+            border-radius: 0.5rem;
+            background: var(--primary);
+            color: var(--primary-foreground);
+            padding: 0.625rem 1.25rem;
+            font-weight: 500;
+            cursor: pointer;
+          }
+          button:focus-visible {
+            outline: 2px solid var(--primary);
+            outline-offset: 2px;
+          }
+        `}</style>
+      </head>
+      <body>
         <h1 style={{ fontSize: "1.5rem", fontWeight: 700, margin: 0 }}>
           Something went wrong
         </h1>
-        <p style={{ color: "#52525b", margin: 0 }}>
-          The application hit an unexpected error.
-        </p>
-        <button
-          type="button"
-          onClick={() => unstable_retry()}
-          style={{
-            border: "none",
-            borderRadius: "0.5rem",
-            background: "#4f46e5",
-            color: "#fff",
-            padding: "0.625rem 1.25rem",
-            fontWeight: 500,
-            cursor: "pointer",
-          }}
-        >
+        <p>The application hit an unexpected error.</p>
+        <button type="button" onClick={() => unstable_retry()}>
           Try again
         </button>
       </body>

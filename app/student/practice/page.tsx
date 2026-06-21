@@ -95,7 +95,7 @@ export default async function PracticeHomePage() {
             {sessions.map((s) => (
               <li
                 key={s.id}
-                className="flex items-center justify-between gap-3 px-5 py-3"
+                className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
                   <p className="font-medium text-foreground">{s.level.name}</p>
@@ -103,7 +103,7 @@ export default async function PracticeHomePage() {
                     {s.createdAt.toLocaleString()}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {s.status === SessionStatus.IN_PROGRESS ? (
                     <Badge variant="warning">In progress</Badge>
                   ) : (

@@ -1,9 +1,8 @@
 // Server-side session access.
 //
 // Thin, typed wrappers around better-auth's `getSession` for use in Server
-// Components, Route Handlers, and Server Actions. Role-based guards that
-// redirect (requireRole, etc.) are added with the login flow in a later task;
-// this module only *reads* the session.
+// Components, Route Handlers, and Server Actions. Role-based guards
+// (requireRole, requireUser) redirect unauthenticated or unauthorised callers.
 
 import "server-only";
 

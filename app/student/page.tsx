@@ -15,8 +15,8 @@ export const metadata: Metadata = {
 };
 
 /**
- * STUDENT dashboard (skeleton). Shows where the student currently sits (group +
- * level). Timed practice and ranking arrive in later tasks.
+ * STUDENT dashboard. Shows current group and level with shortcuts to practice
+ * and ranking.
  */
 export default async function StudentDashboardPage() {
   const user = await requireRole(Role.STUDENT);

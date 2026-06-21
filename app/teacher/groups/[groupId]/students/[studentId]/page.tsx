@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Label } from "@/components/ui/label";
 import { moveStudentAction } from "./actions";
 
 export const metadata: Metadata = {
@@ -101,7 +102,7 @@ export default async function StudentProgressPage({
             {recentSessions.map((s) => (
               <li
                 key={s.id}
-                className="flex items-center justify-between gap-3 px-5 py-3"
+                className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
                   <p className="font-medium text-foreground">{s.level.name}</p>
@@ -109,7 +110,7 @@ export default async function StudentProgressPage({
                     {s.createdAt.toLocaleString()}
                   </p>
                 </div>
-                <div className="flex items-center gap-2 text-right">
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end sm:text-right">
                   {s.status === SessionStatus.IN_PROGRESS ? (
                     <Badge variant="warning">In progress</Badge>
                   ) : (
@@ -148,25 +149,29 @@ export default async function StudentProgressPage({
           <CardContent>
             <form
               action={moveStudentAction}
-              className="flex flex-col gap-2 sm:flex-row sm:items-center"
+              className="flex flex-col gap-2 sm:flex-row sm:items-end"
             >
               <input type="hidden" name="studentId" value={student.id} />
               <input type="hidden" name="currentGroupId" value={groupId} />
-              <select
-                name="targetGroupId"
-                defaultValue=""
-                required
-                className={SELECT_CLASS}
-              >
-                <option value="" disabled>
-                  Choose a group…
-                </option>
-                {otherGroups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
+              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                <Label htmlFor="target-group">Target group</Label>
+                <select
+                  id="target-group"
+                  name="targetGroupId"
+                  defaultValue=""
+                  required
+                  className={SELECT_CLASS}
+                >
+                  <option value="" disabled>
+                    Choose a group…
                   </option>
-                ))}
-              </select>
+                  {otherGroups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <Button type="submit" variant="outline">
                 Move student
               </Button>

@@ -13,14 +13,6 @@ import { ResetPasswordForm } from "@/components/reset-password-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { resetUserPasswordAction } from "../actions";
 
 export const metadata: Metadata = {
@@ -68,69 +60,42 @@ export default async function AdminStudentsPage() {
               />
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Group</TableHead>
-                  <TableHead>Current level</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {students.map((student) => (
-                  <TableRow key={student.id}>
-                    <TableCell className="font-medium text-foreground">
-                      <span className="flex items-center gap-2">
-                        {student.name}
-                        {!student.isActive && (
-                          <Badge variant="muted">Disabled</Badge>
-                        )}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
+            <ul className="divide-y divide-border">
+              {students.map((student) => (
+                <li
+                  key={student.id}
+                  className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
+                >
+                  <div className="min-w-0">
+                    <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
+                      {student.name}
+                      {!student.isActive && (
+                        <Badge variant="muted">Disabled</Badge>
+                      )}
+                    </p>
+                    <p className="truncate text-sm text-muted-foreground">
                       {student.email}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {student.group?.name ?? (
-                        <span className="text-muted-foreground/60">
-                          Unassigned
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {student.currentLevel ? (
-                        <>
-                          <span className="tabular-nums text-muted-foreground/70">
-                            {student.currentLevel.orderIndex}.
-                          </span>{" "}
-                          {student.currentLevel.name}
-                        </>
-                      ) : (
-                        <span className="text-muted-foreground/60">
-                          Not assigned
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell className="align-top">
-                      <div className="flex flex-wrap items-start justify-end gap-2">
-                        <ResetPasswordForm
-                          action={resetUserPasswordAction.bind(
-                            null,
-                            student.id,
-                          )}
-                        />
-                        <ActiveToggle
-                          userId={student.id}
-                          isActive={student.isActive}
-                        />
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {student.group?.name ?? "Unassigned"}
+                      {" · "}
+                      {student.currentLevel
+                        ? `${student.currentLevel.orderIndex}. ${student.currentLevel.name}`
+                        : "No level assigned"}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-start gap-2">
+                    <ResetPasswordForm
+                      action={resetUserPasswordAction.bind(null, student.id)}
+                    />
+                    <ActiveToggle
+                      userId={student.id}
+                      isActive={student.isActive}
+                    />
+                  </div>
+                </li>
+              ))}
+            </ul>
           )}
         </CardContent>
       </Card>

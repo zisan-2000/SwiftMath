@@ -7,6 +7,7 @@ import { submitSessionAction } from "@/app/student/practice/actions";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 
 interface RunnerQuestion {
   id: string;
@@ -87,6 +88,9 @@ export function PracticeRunner({
       >
         <span className="text-sm text-muted-foreground">Time left</span>
         <span
+          role="timer"
+          aria-live={lowTime ? "assertive" : "polite"}
+          aria-atomic="true"
           className={cn(
             "font-mono text-xl font-bold tabular-nums",
             lowTime ? "text-destructive" : "text-foreground",
@@ -103,28 +107,40 @@ export function PracticeRunner({
         }}
       >
         <ol className="flex flex-col gap-3">
-          {questions.map((q) => (
-            <li key={q.id}>
-              <Card className="flex items-center justify-between gap-4 px-5 py-3">
-                <span className="font-mono text-lg text-foreground">
-                  <span className="mr-3 text-sm text-muted-foreground">
-                    {q.index + 1}.
+          {questions.map((q) => {
+            const inputId = `answer-${q.id}`;
+            return (
+              <li key={q.id}>
+                <Card className="flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+                  <span className="min-w-0 break-words font-mono text-lg text-foreground">
+                    <span className="mr-3 text-sm text-muted-foreground">
+                      {q.index + 1}.
+                    </span>
+                    {q.prompt} =
                   </span>
-                  {q.prompt} =
-                </span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={answers[q.id] ?? ""}
-                  disabled={submitting}
-                  onChange={(e) =>
-                    setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))
-                  }
-                  className="h-10 w-28 rounded-md border border-input bg-background px-3 text-right text-foreground shadow-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-                />
-              </Card>
-            </li>
-          ))}
+                  <div className="flex shrink-0 flex-col gap-1.5 sm:items-end">
+                    <Label htmlFor={inputId} className="sr-only">
+                      Answer for question {q.index + 1}: {q.prompt}
+                    </Label>
+                    <input
+                      id={inputId}
+                      type="number"
+                      inputMode="numeric"
+                      value={answers[q.id] ?? ""}
+                      disabled={submitting}
+                      onChange={(e) =>
+                        setAnswers((prev) => ({
+                          ...prev,
+                          [q.id]: e.target.value,
+                        }))
+                      }
+                      className="h-10 w-full rounded-md border border-input bg-background px-3 text-right text-foreground shadow-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 sm:w-28"
+                    />
+                  </div>
+                </Card>
+              </li>
+            );
+          })}
         </ol>
 
         <div className="mt-6 flex justify-end">

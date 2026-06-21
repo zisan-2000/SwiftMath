@@ -3,7 +3,7 @@
 Multi-institute timed mental-math / abacus practice platform. SEFT Institute is
 the first (white-labelled) client.
 
-> **Status:** Phase 1 (MVP) — under active development.
+> **Status:** Phase 1 (MVP) — feature complete.
 
 ## Tech stack
 

@@ -110,22 +110,28 @@ export default async function PracticeSessionPage({
           {session.questions.map((q) => (
             <li
               key={q.id}
-              className="flex items-center justify-between gap-4 px-5 py-3"
+              className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between"
             >
-              <span className="font-mono text-foreground">
+              <span className="min-w-0 break-words font-mono text-foreground">
                 <span className="mr-3 text-sm text-muted-foreground">
                   {q.index + 1}.
                 </span>
                 {q.prompt} = {q.correctAnswer}
               </span>
-              <span className="flex items-center gap-3 text-sm">
+              <span className="flex flex-wrap items-center gap-3 text-sm">
                 <span className="text-muted-foreground">
                   your answer: {q.studentAnswer === null ? "—" : q.studentAnswer}
                 </span>
                 {q.isCorrect ? (
-                  <Check className="h-4 w-4 text-success" />
+                  <>
+                    <Check className="h-4 w-4 text-success" aria-hidden="true" />
+                    <span className="sr-only">Correct</span>
+                  </>
                 ) : (
-                  <X className="h-4 w-4 text-destructive" />
+                  <>
+                    <X className="h-4 w-4 text-destructive" aria-hidden="true" />
+                    <span className="sr-only">Incorrect</span>
+                  </>
                 )}
               </span>
             </li>

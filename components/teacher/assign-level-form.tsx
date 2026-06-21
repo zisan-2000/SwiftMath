@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { assignLevelAction } from "@/app/teacher/groups/[groupId]/actions";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 
 interface LevelOption {
   id: string;
@@ -41,28 +42,37 @@ export function AssignLevelForm({
   currentLevelId: string | null;
   levels: LevelOption[];
 }) {
+  const selectId = `level-${studentId}`;
+
   return (
     <form
       action={async (formData) => {
         await assignLevelAction(formData);
         toast.success("Level updated");
       }}
-      className="flex items-center gap-2"
+      className="flex flex-col gap-2 sm:flex-row sm:items-end"
     >
       <input type="hidden" name="groupId" value={groupId} />
       <input type="hidden" name="studentId" value={studentId} />
-      <select
-        name="levelId"
-        defaultValue={currentLevelId ?? ""}
-        className={SELECT_CLASS}
-      >
-        <option value="">— No level —</option>
-        {levels.map((level) => (
-          <option key={level.id} value={level.id}>
-            {level.orderIndex}. {level.name}
-          </option>
-        ))}
-      </select>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={selectId} className="sr-only">
+          Assigned level
+        </Label>
+        <select
+          id={selectId}
+          name="levelId"
+          defaultValue={currentLevelId ?? ""}
+          className={SELECT_CLASS}
+          aria-label="Assigned level"
+        >
+          <option value="">— No level —</option>
+          {levels.map((level) => (
+            <option key={level.id} value={level.id}>
+              {level.orderIndex}. {level.name}
+            </option>
+          ))}
+        </select>
+      </div>
       <SaveButton />
     </form>
   );

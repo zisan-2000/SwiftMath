@@ -34,7 +34,13 @@ export default async function LoginPage({
   }
 
   return (
-    <div className="relative flex min-h-svh flex-1 items-center justify-center px-6 py-16">
+    <main className="relative flex min-h-svh flex-1 items-center justify-center px-6 py-16">
+      <a
+        href="#login-form"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        Skip to sign in
+      </a>
       <div className="relative w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
           <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
@@ -49,12 +55,18 @@ export default async function LoginPage({
         </div>
 
         {disabled && (
-          <div className="mb-4 rounded-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning">
+          <div
+            role="alert"
+            className="mb-4 rounded-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground"
+          >
             Your account has been disabled. Contact your institute administrator.
           </div>
         )}
 
-        <Card className="border-border/80 bg-card/90 shadow-lg shadow-primary/5 backdrop-blur-sm">
+        <Card
+          id="login-form"
+          className="border-border/80 bg-card/90 shadow-lg shadow-primary/5 backdrop-blur-sm"
+        >
           <CardContent className="p-6">
             <Suspense fallback={null}>
               <LoginForm />
@@ -62,6 +74,6 @@ export default async function LoginPage({
           </CardContent>
         </Card>
       </div>
-    </div>
+    </main>
   );
 }

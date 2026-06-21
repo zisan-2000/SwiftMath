@@ -25,7 +25,7 @@ export function SidebarNav({
   const activeHref = getActiveHref(items, pathname);
 
   return (
-    <nav className="flex flex-col gap-1">
+    <nav aria-label="Primary navigation" className="flex flex-col gap-1">
       {items.map((item) => {
         const active = item.href === activeHref;
         const Icon = item.icon;

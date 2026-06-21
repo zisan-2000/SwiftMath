@@ -9,6 +9,7 @@ import {
 } from "@/app/teacher/groups/[groupId]/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { FormMessage } from "@/components/ui/form-message";
 
 /** Form for a teacher to create a student and add them to this group. */
@@ -40,22 +41,38 @@ export function AddStudentForm({
       <input type="hidden" name="groupId" value={groupId} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Input name="name" placeholder="Full name" required />
-        <Input
-          name="email"
-          type="email"
-          placeholder="Email"
-          autoComplete="off"
-          required
-        />
-        <Input
-          name="password"
-          type="password"
-          placeholder="Temporary password"
-          autoComplete="new-password"
-          minLength={8}
-          required
-        />
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="student-name">Full name</Label>
+          <Input
+            id="student-name"
+            name="name"
+            placeholder="Jane Doe"
+            required
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="student-email">Email</Label>
+          <Input
+            id="student-email"
+            name="email"
+            type="email"
+            placeholder="jane@institute.test"
+            autoComplete="off"
+            required
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="student-password">Temporary password</Label>
+          <Input
+            id="student-password"
+            name="password"
+            type="password"
+            placeholder="Min. 8 characters"
+            autoComplete="new-password"
+            minLength={8}
+            required
+          />
+        </div>
       </div>
 
       {state.error && <FormMessage variant="error">{state.error}</FormMessage>}

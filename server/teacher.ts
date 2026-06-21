@@ -270,3 +270,26 @@ export async function resetStudentPassword(
   await setUserPassword(studentId, newPassword);
   return true;
 }
+
+export type DeleteGroupResult =
+  | { ok: true }
+  | { ok: false; reason: "not-found" | "not-empty" };
+
+/**
+ * Delete a group owned by this teacher. Only allowed when the group has no
+ * students — move students to another group first.
+ */
+export async function deleteGroup(
+  teacher: TeacherContext,
+  groupId: string,
+): Promise<DeleteGroupResult> {
+  const group = await prisma.group.findFirst({
+    where: { id: groupId, teacherId: teacher.id },
+    select: { id: true, _count: { select: { students: true } } },
+  });
+  if (!group) return { ok: false, reason: "not-found" };
+  if (group._count.students > 0) return { ok: false, reason: "not-empty" };
+
+  await prisma.group.delete({ where: { id: group.id } });
+  return { ok: true };
+}

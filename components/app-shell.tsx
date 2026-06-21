@@ -37,8 +37,18 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <div className="flex min-h-svh">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring"
+      >
+        Skip to main content
+      </a>
+
       {/* Desktop sidebar — frosted glass so the mesh shows at the edge */}
-      <aside className="sticky top-0 hidden h-svh w-64 shrink-0 flex-col border-r border-border/80 bg-card/75 backdrop-blur-xl lg:flex">
+      <aside
+        aria-label="Primary navigation"
+        className="sticky top-0 hidden h-svh w-64 shrink-0 flex-col border-r border-border/80 bg-card/75 backdrop-blur-xl lg:flex"
+      >
         <div className="border-b border-border px-4 py-4">
           <Brand instituteName={instituteName} role={user.role} />
         </div>
@@ -49,9 +59,9 @@ export function AppShell({
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b border-border/80 bg-background/70 px-4 backdrop-blur-xl lg:px-8">
+        <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-border/80 bg-background/70 px-4 backdrop-blur-xl sm:gap-3 lg:px-8">
           <MobileNav role={user.role} instituteName={instituteName} />
-          <div className="lg:hidden">
+          <div className="min-w-0 flex-1 lg:hidden">
             <Brand instituteName={instituteName} role={user.role} />
           </div>
           <div className="ml-auto flex items-center gap-2">
@@ -60,7 +70,11 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-8 lg:px-8">
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className="flex-1 px-4 py-8 outline-none lg:px-8"
+        >
           <div className="mx-auto w-full max-w-5xl animate-in fade-in-50 duration-300">
             <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">

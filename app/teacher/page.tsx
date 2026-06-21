@@ -15,9 +15,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * TEACHER dashboard (skeleton). Scoped to the groups this teacher owns.
- * Creating groups, adding students, and assigning levels arrive in a later
- * task.
+ * TEACHER dashboard. Scoped to the groups this teacher owns.
  */
 export default async function TeacherDashboardPage() {
   const user = await requireRole(Role.TEACHER);

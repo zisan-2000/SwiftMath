@@ -18,7 +18,7 @@ export function StatCard({ label, value, hint, icon: Icon }: StatCardProps) {
       <CardContent className="flex items-start justify-between gap-3 p-5">
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="mt-2 truncate text-3xl font-bold tracking-tight text-foreground">
+          <p className="mt-2 text-balance break-words text-xl font-bold tracking-tight text-foreground sm:text-3xl">
             {value}
           </p>
           {hint && (

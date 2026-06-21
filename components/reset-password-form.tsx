@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { FormMessage } from "@/components/ui/form-message";
 
 /** Shared shape returned by every reset-password server action. */
@@ -62,24 +63,32 @@ export function ResetPasswordForm({ action }: { action: ResetPasswordAction }) {
       action={formAction}
       className="flex w-full max-w-xs flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3"
     >
-      <Input
-        name="newPassword"
-        type="password"
-        placeholder="New password"
-        autoComplete="new-password"
-        minLength={8}
-        required
-        className="h-8 text-sm"
-      />
-      <Input
-        name="confirmPassword"
-        type="password"
-        placeholder="Confirm new password"
-        autoComplete="new-password"
-        minLength={8}
-        required
-        className="h-8 text-sm"
-      />
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="reset-new-password">New password</Label>
+        <Input
+          id="reset-new-password"
+          name="newPassword"
+          type="password"
+          placeholder="Min. 8 characters"
+          autoComplete="new-password"
+          minLength={8}
+          required
+          className="h-8 text-sm"
+        />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="reset-confirm-password">Confirm new password</Label>
+        <Input
+          id="reset-confirm-password"
+          name="confirmPassword"
+          type="password"
+          placeholder="Repeat password"
+          autoComplete="new-password"
+          minLength={8}
+          required
+          className="h-8 text-sm"
+        />
+      </div>
 
       {state.error && (
         <FormMessage variant="error" size="sm">

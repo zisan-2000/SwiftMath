@@ -7,6 +7,7 @@ import { Role } from "@/lib/generated/prisma/enums";
 import {
   addStudentToGroup,
   assignStudentLevel,
+  deleteGroup,
   resetStudentPassword,
 } from "@/server/teacher";
 import type { ResetPasswordState } from "@/components/reset-password-form";
@@ -102,5 +103,26 @@ export async function resetStudentPasswordAction(
     return { error: "Student not found in your groups." };
   }
 
+  return { ok: true };
+}
+
+/** Delete an empty group owned by the signed-in teacher. */
+export async function deleteGroupAction(
+  groupId: string,
+): Promise<{ ok?: boolean; error?: string }> {
+  const teacher = await requireRole(Role.TEACHER);
+
+  const result = await deleteGroup(teacher, groupId);
+  if (!result.ok) {
+    if (result.reason === "not-empty") {
+      return {
+        error:
+          "This group still has students. Move them to another group first.",
+      };
+    }
+    return { error: "Group not found." };
+  }
+
+  revalidatePath("/teacher/groups");
   return { ok: true };
 }

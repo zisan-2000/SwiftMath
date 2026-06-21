@@ -13,6 +13,7 @@ import { BackLink } from "@/components/nav/back-link";
 import { AddStudentDialog } from "@/components/teacher/add-student-dialog";
 import { AssignLevelForm } from "@/components/teacher/assign-level-form";
 import { ResetPasswordForm } from "@/components/reset-password-form";
+import { DeleteGroupSection } from "@/components/teacher/delete-group-section";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { resetStudentPasswordAction } from "./actions";
@@ -56,7 +57,7 @@ export default async function GroupDetailPage({
 
       {levels.length === 0 && (
         <Card className="mb-6 border-warning/30 bg-warning/10">
-          <CardContent className="py-4 text-sm text-warning">
+          <CardContent className="py-4 text-sm text-warning-foreground">
             No levels exist for your institute yet, so the level menu is empty.
             Ask your admin to create levels.
           </CardContent>
@@ -114,6 +115,19 @@ export default async function GroupDetailPage({
               ))}
             </ul>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="mt-8 border-destructive/20">
+        <CardHeader>
+          <CardTitle className="text-base text-destructive">Danger zone</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DeleteGroupSection
+            groupId={group.id}
+            groupName={group.name}
+            studentCount={group.students.length}
+          />
         </CardContent>
       </Card>
     </AppShell>

@@ -36,12 +36,12 @@ export function MobileNav({
       >
         <Menu className="h-4 w-4" />
       </SheetTrigger>
-      <SheetContent side="left" className="w-72 max-w-[80vw] p-0">
-        <SheetHeader className="border-b border-border p-4">
+      <SheetContent side="left" className="flex h-full w-72 max-w-[80vw] flex-col p-0">
+        <SheetHeader className="shrink-0 border-b border-border p-4">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
           <Brand instituteName={instituteName} role={role} />
         </SheetHeader>
-        <div className="p-3">
+        <div className="flex-1 overflow-y-auto p-3">
           <SidebarNav role={role} onNavigate={() => setOpen(false)} />
         </div>
       </SheetContent>

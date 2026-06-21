@@ -90,7 +90,40 @@ export default async function AdminLevelsPage() {
               />
             </div>
           ) : (
-            <Table>
+            <>
+              {/* Compact cards on small screens */}
+              <ul className="divide-y divide-border md:hidden">
+                {levels.map((level) => (
+                  <li
+                    key={level.id}
+                    className="flex items-start justify-between gap-3 px-5 py-4"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground">
+                        <span className="mr-2 tabular-nums text-muted-foreground">
+                          {level.orderIndex}.
+                        </span>
+                        {level.name}
+                      </p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {OPERATION_SYMBOL[level.operation]} · {level.questionCount}{" "}
+                        qs · {level.timeLimitSeconds}s · pass {level.passAccuracy}%
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {level.termsPerQuestion} terms · {level.minNumber}–
+                        {level.maxNumber} · {level._count.studentsOnLevel} students
+                      </p>
+                    </div>
+                    <Button variant="ghost" size="sm" asChild className="shrink-0">
+                      <Link href={`/admin/levels/${level.id}`}>Edit</Link>
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Full table on md+ */}
+              <div className="hidden md:block">
+                <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead>#</TableHead>
@@ -144,6 +177,8 @@ export default async function AdminLevelsPage() {
                 ))}
               </TableBody>
             </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
