@@ -1,0 +1,37 @@
+# Runs on every push/PR to main. Catches lint and build failures before deploy.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-build:
+    runs-on: ubuntu-latest
+
+    env:
+      # Dummy values — CI only checks compile, not a live DB connection.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ci?schema=public
+      BETTER_AUTH_SECRET: ci-build-dummy-secret-do-not-use-in-production
+      BETTER_AUTH_URL: http://localhost:3000
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build

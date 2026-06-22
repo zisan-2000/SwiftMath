@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { KeyRound } from "lucide-react";
 import { toast } from "sonner";
 
@@ -28,20 +28,22 @@ type ResetPasswordAction = (
  */
 export function ResetPasswordForm({ action }: { action: ResetPasswordAction }) {
   const [open, setOpen] = useState(false);
-  const [state, formAction, pending] = useActionState<
-    ResetPasswordState,
-    FormData
-  >(action, {});
+  const [state, setState] = useState<ResetPasswordState>({});
+  const [pending, setPending] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
-  // Collapse + clear after a successful reset; the toast carries the message.
-  useEffect(() => {
-    if (state.ok) {
+  async function handleSubmit(formData: FormData) {
+    setPending(true);
+    const result = await action(state, formData);
+    setState(result);
+    setPending(false);
+
+    if (result.ok) {
       formRef.current?.reset();
       setOpen(false);
       toast.success("Password reset — the user must sign in again");
     }
-  }, [state]);
+  }
 
   if (!open) {
     return (
@@ -60,7 +62,7 @@ export function ResetPasswordForm({ action }: { action: ResetPasswordAction }) {
   return (
     <form
       ref={formRef}
-      action={formAction}
+      action={handleSubmit}
       className="flex w-full max-w-xs flex-col gap-2 rounded-lg border border-border bg-muted/40 p-3"
     >
       <div className="flex flex-col gap-1.5">

@@ -3,7 +3,12 @@
 Multi-institute timed mental-math / abacus practice platform. SEFT Institute is
 the first (white-labelled) client.
 
-> **Status:** Phase 1 (MVP) — feature complete. Phase 2 in progress (deployment).
+> **Status:** Phase 1 (MVP) — feature complete. Phase 2 in progress (deployment + CI).
+
+## Continuous integration
+
+Every push/PR to `main` runs **lint** and **build** via GitHub Actions (`.github/workflows/ci.yml`).
+Check the **Actions** tab on GitHub for pass/fail status.
 
 ## Tech stack
 
