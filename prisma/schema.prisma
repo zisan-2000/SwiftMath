@@ -67,6 +67,12 @@ model Institute {
   /// URL-safe identifier, e.g. "seft". Unique across the platform.
   slug      String   @unique
   name      String
+  /// Optional white-label branding (Phase 2.3). Shown in the authenticated UI
+  /// for this tenant. Null falls back to the platform defaults.
+  /// Short marketing line under the institute name.
+  tagline   String?
+  /// Absolute URL to the institute's logo image.
+  logoUrl   String?
   /// Lets an institute be disabled without deleting its data.
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())

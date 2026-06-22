@@ -30,9 +30,9 @@ export function AddInstituteDialog() {
         <DialogHeader>
           <DialogTitle>Create an institute</DialogTitle>
           <DialogDescription>
-            Stand up a new tenant, its first admin, and a 5-level starter
-            curriculum. The admin signs in with the temporary password you set
-            here.
+            Stand up a new tenant with optional branding, its first admin, and a
+            5-level starter curriculum. The admin signs in with the temporary
+            password you set here.
           </DialogDescription>
         </DialogHeader>
         <AddInstituteForm onSuccess={() => setOpen(false)} />

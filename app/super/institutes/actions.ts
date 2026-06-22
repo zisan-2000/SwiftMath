@@ -11,6 +11,16 @@ export interface AddInstituteState {
   ok?: boolean;
 }
 
+/** True if `value` parses as an absolute http(s) URL. */
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 /** Looks like a Prisma unique-constraint violation (slug or email taken)? */
 function isUniqueViolation(error: unknown): boolean {
   return (
@@ -36,6 +46,8 @@ export async function addInstituteAction(
   const slug = String(formData.get("slug") ?? "")
     .trim()
     .toLowerCase();
+  const tagline = String(formData.get("tagline") ?? "").trim();
+  const logoUrl = String(formData.get("logoUrl") ?? "").trim();
   const adminName = String(formData.get("adminName") ?? "").trim();
   const adminEmail = String(formData.get("adminEmail") ?? "").trim();
   const adminPassword = String(formData.get("adminPassword") ?? "");
@@ -45,6 +57,12 @@ export async function addInstituteAction(
     return {
       error: "Slug may contain only lowercase letters, numbers, and hyphens.",
     };
+  }
+  if (tagline.length > 120) {
+    return { error: "Tagline must be 120 characters or fewer." };
+  }
+  if (logoUrl && !isValidHttpUrl(logoUrl)) {
+    return { error: "Logo URL must be a valid http(s) URL." };
   }
   if (!adminName) return { error: "Admin name is required." };
   if (!adminEmail.includes("@")) {
@@ -58,6 +76,8 @@ export async function addInstituteAction(
     await createInstitute({
       name,
       slug,
+      tagline,
+      logoUrl,
       admin: { name: adminName, email: adminEmail, password: adminPassword },
     });
   } catch (error) {

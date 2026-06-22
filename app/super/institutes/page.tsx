@@ -63,16 +63,38 @@ export default async function SuperInstitutesPage() {
                   key={institute.id}
                   className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
                 >
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-2 truncate font-medium text-foreground">
-                      {institute.name}
-                      {!institute.isActive && (
-                        <Badge variant="muted">Disabled</Badge>
+                  <div className="flex min-w-0 items-start gap-3">
+                    {institute.logoUrl ? (
+                      // Super-admin-supplied URL; rendered small as a brand
+                      // preview. eslint-disable for next/image since the host
+                      // is arbitrary and unconfigured.
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={institute.logoUrl}
+                        alt=""
+                        className="h-9 w-9 shrink-0 rounded-md border border-border object-contain"
+                      />
+                    ) : (
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <Building2 className="h-4 w-4" />
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-2 truncate font-medium text-foreground">
+                        {institute.name}
+                        {!institute.isActive && (
+                          <Badge variant="muted">Disabled</Badge>
+                        )}
+                      </p>
+                      <p className="truncate text-sm text-muted-foreground">
+                        /{institute.slug}
+                      </p>
+                      {institute.tagline && (
+                        <p className="truncate text-sm text-muted-foreground/80">
+                          {institute.tagline}
+                        </p>
                       )}
-                    </p>
-                    <p className="truncate text-sm text-muted-foreground">
-                      /{institute.slug}
-                    </p>
+                    </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                     <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">

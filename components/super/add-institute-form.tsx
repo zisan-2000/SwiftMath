@@ -63,6 +63,35 @@ export function AddInstituteForm({ onSuccess }: { onSuccess?: () => void }) {
         <p className="text-xs text-muted-foreground">
           Slug is the URL-safe id: lowercase letters, numbers, and hyphens only.
         </p>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="institute-tagline">
+            Tagline{" "}
+            <span className="font-normal text-muted-foreground">
+              (optional)
+            </span>
+          </Label>
+          <Input
+            id="institute-tagline"
+            name="tagline"
+            placeholder="Mental-math mastery for every student"
+            maxLength={120}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="institute-logo">
+            Logo URL{" "}
+            <span className="font-normal text-muted-foreground">
+              (optional)
+            </span>
+          </Label>
+          <Input
+            id="institute-logo"
+            name="logoUrl"
+            type="url"
+            placeholder="https://example.com/logo.png"
+            autoComplete="off"
+          />
+        </div>
       </fieldset>
 
       <fieldset className="flex flex-col gap-3">

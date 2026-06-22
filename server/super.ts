@@ -36,6 +36,8 @@ export async function listInstitutesWithStats() {
       id: true,
       slug: true,
       name: true,
+      tagline: true,
+      logoUrl: true,
       isActive: true,
       createdAt: true,
       _count: { select: { users: true, groups: true, levels: true } },
@@ -48,6 +50,9 @@ export async function listInstitutesWithStats() {
 export interface CreateInstituteParams {
   name: string;
   slug: string;
+  /** Optional white-label branding (Phase 2.3). */
+  tagline?: string | null;
+  logoUrl?: string | null;
   admin: { name: string; email: string; password: string };
 }
 
@@ -65,13 +70,17 @@ export interface CreateInstituteParams {
 export async function createInstitute(params: CreateInstituteParams) {
   const name = params.name.trim();
   const slug = params.slug.trim().toLowerCase();
+  // Normalize optional branding: blank strings become null so the UI cleanly
+  // falls back to platform defaults.
+  const tagline = params.tagline?.trim() || null;
+  const logoUrl = params.logoUrl?.trim() || null;
   const adminName = params.admin.name.trim();
   const adminEmail = params.admin.email.trim().toLowerCase();
   const passwordHash = await hashPassword(params.admin.password);
 
   return prisma.$transaction(async (tx) => {
     const institute = await tx.institute.create({
-      data: { name, slug },
+      data: { name, slug, tagline, logoUrl },
     });
 
     await tx.level.createMany({
