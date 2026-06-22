@@ -6,6 +6,8 @@ import { requireSuperAdmin } from "@/lib/session";
 import { listInstitutesWithStats } from "@/server/super";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
+import { AddInstituteDialog } from "@/components/super/add-institute-dialog";
+import { InstituteActiveToggle } from "@/components/super/institute-active-toggle";
 import {
   Card,
   CardContent,
@@ -34,6 +36,7 @@ export default async function SuperInstitutesPage() {
       instituteName="Platform"
       title="Institutes"
       subtitle="Every institute on the platform."
+      actions={<AddInstituteDialog />}
     >
       <BackLink href="/super">Super Admin dashboard</BackLink>
 
@@ -49,7 +52,8 @@ export default async function SuperInstitutesPage() {
               <EmptyState
                 icon={Building2}
                 title="No institutes yet"
-                description="There are no institutes on the platform."
+                description="Use the “New institute” button to create your first tenant."
+                action={<AddInstituteDialog />}
               />
             </div>
           ) : (
@@ -70,19 +74,25 @@ export default async function SuperInstitutesPage() {
                       /{institute.slug}
                     </p>
                   </div>
-                  <div className="flex flex-wrap items-start gap-x-4 gap-y-1 text-sm text-muted-foreground sm:pt-0.5">
-                    <span>
-                      {institute._count.users}{" "}
-                      {institute._count.users === 1 ? "user" : "users"}
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                    <span className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                      <span>
+                        {institute._count.users}{" "}
+                        {institute._count.users === 1 ? "user" : "users"}
+                      </span>
+                      <span>
+                        {institute._count.groups}{" "}
+                        {institute._count.groups === 1 ? "group" : "groups"}
+                      </span>
+                      <span>
+                        {institute._count.levels}{" "}
+                        {institute._count.levels === 1 ? "level" : "levels"}
+                      </span>
                     </span>
-                    <span>
-                      {institute._count.groups}{" "}
-                      {institute._count.groups === 1 ? "group" : "groups"}
-                    </span>
-                    <span>
-                      {institute._count.levels}{" "}
-                      {institute._count.levels === 1 ? "level" : "levels"}
-                    </span>
+                    <InstituteActiveToggle
+                      instituteId={institute.id}
+                      isActive={institute.isActive}
+                    />
                   </div>
                 </li>
               ))}

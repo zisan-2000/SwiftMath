@@ -50,12 +50,18 @@ export async function requireUser(): Promise<SessionUser> {
   // Trusted soft-disable check: a disabled account must not be able to use the
   // app even with a valid session cookie. We read `isActive` fresh from the DB
   // (not the possibly-stale session) so a disable takes effect on the very next
-  // request. If disabled, revoke their sessions and bounce to login.
+  // request. We also check the user's INSTITUTE: a Super Admin can disable a
+  // whole tenant, which must lock out all its members. SUPER_ADMIN is exempt
+  // from the institute check (they're cross-tenant and would otherwise lock
+  // themselves out if their home institute were disabled). If disabled, revoke
+  // their sessions and bounce to login.
   const status = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { isActive: true },
+    select: { isActive: true, institute: { select: { isActive: true } } },
   });
-  if (!status?.isActive) {
+  const instituteBlocked =
+    user.role !== Role.SUPER_ADMIN && !status?.institute?.isActive;
+  if (!status?.isActive || instituteBlocked) {
     await prisma.session.deleteMany({ where: { userId: user.id } });
     redirect("/login?disabled=1");
   }

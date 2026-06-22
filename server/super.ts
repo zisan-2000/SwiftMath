@@ -8,7 +8,10 @@
 
 import "server-only";
 
+import { hashPassword } from "better-auth/crypto";
+
 import { prisma } from "@/lib/prisma";
+import { DEFAULT_STARTER_LEVELS } from "@/lib/default-levels";
 import { Role } from "@/lib/generated/prisma/enums";
 
 /** Platform-wide headline counts for the Super Admin dashboard. */
@@ -39,4 +42,93 @@ export async function listInstitutesWithStats() {
     },
   });
   return institutes;
+}
+
+/** Fields needed to stand up a brand-new institute plus its first ADMIN. */
+export interface CreateInstituteParams {
+  name: string;
+  slug: string;
+  admin: { name: string; email: string; password: string };
+}
+
+/**
+ * Create a new institute together with its first ADMIN account and the default
+ * starter curriculum (5 practice levels), in a single transaction so we never
+ * end up with an institute that has no way in or nothing to practice. The
+ * admin's credential row mirrors the better-auth email/password shape (see
+ * `server/users.ts`) so they can sign in immediately.
+ *
+ * Throws on a unique-constraint violation (P2002) — either the slug is taken
+ * (institute.slug) or the admin email is taken (user.email). The caller maps
+ * that to a friendly message.
+ */
+export async function createInstitute(params: CreateInstituteParams) {
+  const name = params.name.trim();
+  const slug = params.slug.trim().toLowerCase();
+  const adminName = params.admin.name.trim();
+  const adminEmail = params.admin.email.trim().toLowerCase();
+  const passwordHash = await hashPassword(params.admin.password);
+
+  return prisma.$transaction(async (tx) => {
+    const institute = await tx.institute.create({
+      data: { name, slug },
+    });
+
+    await tx.level.createMany({
+      data: DEFAULT_STARTER_LEVELS.map((def) => ({
+        ...def,
+        instituteId: institute.id,
+      })),
+    });
+
+    const admin = await tx.user.create({
+      data: {
+        email: adminEmail,
+        name: adminName,
+        role: Role.ADMIN,
+        instituteId: institute.id,
+        emailVerified: true,
+      },
+    });
+
+    await tx.account.create({
+      data: {
+        userId: admin.id,
+        accountId: admin.id,
+        providerId: "credential",
+        password: passwordHash,
+      },
+    });
+
+    return institute;
+  });
+}
+
+/**
+ * Enable or disable (soft) an institute platform-wide. Disabling keeps all the
+ * institute's data but blocks every member's app access (enforced in
+ * `requireUser`, which checks the institute's active flag). When disabling we
+ * also revoke the sessions of all that institute's users so the change takes
+ * effect immediately. Returns false if the institute doesn't exist.
+ */
+export async function setInstituteActive(
+  instituteId: string,
+  isActive: boolean,
+): Promise<boolean> {
+  const institute = await prisma.institute.findUnique({
+    where: { id: instituteId },
+    select: { id: true },
+  });
+  if (!institute) return false;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.institute.update({
+      where: { id: instituteId },
+      data: { isActive },
+    });
+    if (!isActive) {
+      await tx.session.deleteMany({ where: { user: { instituteId } } });
+    }
+  });
+  return true;
 }
