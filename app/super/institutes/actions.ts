@@ -3,12 +3,45 @@
 import { revalidatePath } from "next/cache";
 
 import { requireSuperAdmin } from "@/lib/session";
-import { createInstitute, setInstituteActive } from "@/server/super";
+import {
+  createInstitute,
+  setInstituteActive,
+  updateInstitute,
+} from "@/server/super";
 
 /** Result of the add-institute form, surfaced via useActionState. */
 export interface AddInstituteState {
   error?: string;
   ok?: boolean;
+}
+
+/** Result of the edit-institute form, surfaced via useActionState. */
+export interface UpdateInstituteState {
+  error?: string;
+  ok?: boolean;
+}
+
+/**
+ * Validate the shared institute identity + branding fields. Returns an error
+ * string, or null when everything is valid.
+ */
+function validateInstituteFields(fields: {
+  name: string;
+  slug: string;
+  tagline: string;
+  logoUrl: string;
+}): string | null {
+  if (!fields.name) return "Institute name is required.";
+  if (!/^[a-z0-9-]+$/.test(fields.slug)) {
+    return "Slug may contain only lowercase letters, numbers, and hyphens.";
+  }
+  if (fields.tagline.length > 120) {
+    return "Tagline must be 120 characters or fewer.";
+  }
+  if (fields.logoUrl && !isValidHttpUrl(fields.logoUrl)) {
+    return "Logo URL must be a valid http(s) URL.";
+  }
+  return null;
 }
 
 /** True if `value` parses as an absolute http(s) URL. */
@@ -52,18 +85,8 @@ export async function addInstituteAction(
   const adminEmail = String(formData.get("adminEmail") ?? "").trim();
   const adminPassword = String(formData.get("adminPassword") ?? "");
 
-  if (!name) return { error: "Institute name is required." };
-  if (!/^[a-z0-9-]+$/.test(slug)) {
-    return {
-      error: "Slug may contain only lowercase letters, numbers, and hyphens.",
-    };
-  }
-  if (tagline.length > 120) {
-    return { error: "Tagline must be 120 characters or fewer." };
-  }
-  if (logoUrl && !isValidHttpUrl(logoUrl)) {
-    return { error: "Logo URL must be a valid http(s) URL." };
-  }
+  const fieldError = validateInstituteFields({ name, slug, tagline, logoUrl });
+  if (fieldError) return { error: fieldError };
   if (!adminName) return { error: "Admin name is required." };
   if (!adminEmail.includes("@")) {
     return { error: "Enter a valid admin email address." };
@@ -83,6 +106,47 @@ export async function addInstituteAction(
   } catch (error) {
     if (isUniqueViolation(error)) {
       return { error: "That slug or admin email is already in use." };
+    }
+    throw error;
+  }
+
+  revalidatePath("/super/institutes");
+  revalidatePath("/super");
+  return { ok: true };
+}
+
+/**
+ * Update an institute's identity + branding. `instituteId` is bound by the
+ * page. Super-admin only.
+ */
+export async function updateInstituteAction(
+  instituteId: string,
+  _prevState: UpdateInstituteState,
+  formData: FormData,
+): Promise<UpdateInstituteState> {
+  await requireSuperAdmin();
+
+  const name = String(formData.get("name") ?? "").trim();
+  const slug = String(formData.get("slug") ?? "")
+    .trim()
+    .toLowerCase();
+  const tagline = String(formData.get("tagline") ?? "").trim();
+  const logoUrl = String(formData.get("logoUrl") ?? "").trim();
+
+  const fieldError = validateInstituteFields({ name, slug, tagline, logoUrl });
+  if (fieldError) return { error: fieldError };
+
+  try {
+    const ok = await updateInstitute(instituteId, {
+      name,
+      slug,
+      tagline,
+      logoUrl,
+    });
+    if (!ok) return { error: "Institute not found." };
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return { error: "That slug is already in use." };
     }
     throw error;
   }

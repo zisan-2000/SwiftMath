@@ -7,6 +7,7 @@ import { listInstitutesWithStats } from "@/server/super";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { AddInstituteDialog } from "@/components/super/add-institute-dialog";
+import { EditInstituteDialog } from "@/components/super/edit-institute-dialog";
 import { InstituteActiveToggle } from "@/components/super/institute-active-toggle";
 import {
   Card,
@@ -111,6 +112,15 @@ export default async function SuperInstitutesPage() {
                         {institute._count.levels === 1 ? "level" : "levels"}
                       </span>
                     </span>
+                    <EditInstituteDialog
+                      institute={{
+                        id: institute.id,
+                        name: institute.name,
+                        slug: institute.slug,
+                        tagline: institute.tagline,
+                        logoUrl: institute.logoUrl,
+                      }}
+                    />
                     <InstituteActiveToggle
                       instituteId={institute.id}
                       isActive={institute.isActive}

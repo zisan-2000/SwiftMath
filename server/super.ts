@@ -113,6 +113,43 @@ export async function createInstitute(params: CreateInstituteParams) {
   });
 }
 
+/** Editable institute fields (branding + identity). Admin/users are untouched. */
+export interface UpdateInstituteParams {
+  name: string;
+  slug: string;
+  tagline?: string | null;
+  logoUrl?: string | null;
+}
+
+/**
+ * Update an institute's identity + white-label branding. Does NOT touch its
+ * users, levels, or active state. Normalizes the slug + optional branding the
+ * same way `createInstitute` does. Returns false if the institute doesn't
+ * exist. Throws on a slug unique-constraint violation (P2002) for the caller
+ * to translate.
+ */
+export async function updateInstitute(
+  instituteId: string,
+  params: UpdateInstituteParams,
+): Promise<boolean> {
+  const existing = await prisma.institute.findUnique({
+    where: { id: instituteId },
+    select: { id: true },
+  });
+  if (!existing) return false;
+
+  await prisma.institute.update({
+    where: { id: instituteId },
+    data: {
+      name: params.name.trim(),
+      slug: params.slug.trim().toLowerCase(),
+      tagline: params.tagline?.trim() || null,
+      logoUrl: params.logoUrl?.trim() || null,
+    },
+  });
+  return true;
+}
+
 /**
  * Enable or disable (soft) an institute platform-wide. Disabling keeps all the
  * institute's data but blocks every member's app access (enforced in
