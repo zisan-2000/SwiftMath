@@ -284,5 +284,5 @@ Never use `prisma migrate reset` against staging or production — it wipes all 
 After staging is live:
 
 1. ~~**2.0.2** — CI pipeline (`lint` + `build` on every PR)~~ → see `.github/workflows/ci.yml`
-2. **2.0.3** — Automated tests for `server/practice.ts` and auth scoping
+2. ~~**2.0.3** — Automated tests for the practice engine~~ → `lib/practice-logic.test.ts` (Vitest, run in CI)
 3. **2.1** — Super Admin + multi-institute UI

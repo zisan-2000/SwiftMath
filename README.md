@@ -75,6 +75,7 @@ npm run start
 | `npm run build` | Production build |
 | `npm run start` | Run production build |
 | `npm run lint` | ESLint |
+| `npm test` | Run unit tests (Vitest) |
 | `npm run db:migrate` | Apply migrations (local dev; may create new migrations) |
 | `npm run db:migrate:deploy` | Apply migrations (staging/production) |
 | `npm run db:seed` | Seed demo data (local/staging only) |
