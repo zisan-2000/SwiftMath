@@ -3,13 +3,8 @@ import { Sigma } from "lucide-react";
 
 import { APP_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { roleHomePath } from "@/lib/roles";
 import type { Role } from "@/lib/generated/prisma/enums";
-
-const HOME_BY_ROLE: Record<Role, string> = {
-  ADMIN: "/admin",
-  TEACHER: "/teacher",
-  STUDENT: "/student",
-};
 
 /**
  * Institute wordmark + product badge. Links back to the role's dashboard. The
@@ -27,7 +22,7 @@ export function Brand({
 }) {
   return (
     <Link
-      href={HOME_BY_ROLE[role]}
+      href={roleHomePath(role)}
       className={cn(
         "flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className,

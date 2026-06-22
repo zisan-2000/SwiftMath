@@ -4,6 +4,7 @@ import { Role } from "@/lib/generated/prisma/enums";
 
 /** Home route for each role — where `/dashboard` sends a signed-in user. */
 const ROLE_HOME: Record<Role, string> = {
+  [Role.SUPER_ADMIN]: "/super",
   [Role.ADMIN]: "/admin",
   [Role.TEACHER]: "/teacher",
   [Role.STUDENT]: "/student",

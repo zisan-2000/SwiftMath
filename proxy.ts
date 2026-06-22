@@ -21,6 +21,7 @@ import { getSessionCookie } from "better-auth/cookies";
 /** Path prefixes that require a signed-in user. */
 const PROTECTED_PREFIXES = [
   "/dashboard",
+  "/super",
   "/admin",
   "/teacher",
   "/student",
@@ -48,6 +49,8 @@ export const config = {
   // Only run on the protected areas. /login handles its own redirect.
   matcher: [
     "/dashboard",
+    "/super",
+    "/super/:path*",
     "/admin",
     "/admin/:path*",
     "/teacher",

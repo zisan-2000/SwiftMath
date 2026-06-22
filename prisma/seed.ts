@@ -153,6 +153,15 @@ async function main() {
     levels.push(level);
   }
 
+  // --- Super Admin (platform-level operator, cross-tenant) ---
+  // Their `instituteId` is just a home base; their access spans all institutes.
+  await ensureUser({
+    email: "super@seft.test",
+    name: "Platform Super Admin",
+    role: Role.SUPER_ADMIN,
+    instituteId: seft.id,
+  });
+
   // --- Admin ---
   await ensureUser({
     email: "admin@seft.test",
@@ -209,6 +218,7 @@ async function main() {
   console.log(`Students:  ${students.length} in "Demo Group A"\n`);
   console.log(`All demo accounts use the password: ${DEMO_PASSWORD}`);
   console.log("Sign-in emails:");
+  console.log("  SUPER    super@seft.test");
   console.log("  ADMIN    admin@seft.test");
   console.log("  TEACHER  teacher@seft.test");
   for (const s of students) console.log(`  STUDENT  ${s.email}`);

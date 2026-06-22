@@ -1,6 +1,7 @@
 import {
   Boxes,
   Brain,
+  Building2,
   GraduationCap,
   Home,
   LayoutDashboard,
@@ -24,6 +25,10 @@ export interface NavItem {
  * menu, not here, so this stays focused on the role's working areas.
  */
 export const NAV_ITEMS: Record<Role, NavItem[]> = {
+  SUPER_ADMIN: [
+    { href: "/super", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/super/institutes", label: "Institutes", icon: Building2 },
+  ],
   ADMIN: [
     { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
     { href: "/admin/teachers", label: "Teachers", icon: Users },

@@ -75,3 +75,14 @@ export async function requireRole(...roles: Role[]): Promise<SessionUser> {
   }
   return user;
 }
+
+/**
+ * Require the platform-level Super Admin. Convenience wrapper around
+ * `requireRole` used to guard the cross-tenant `/super` area. Unlike the
+ * institute-scoped roles, a Super Admin is allowed to read/manage data across
+ * every institute, so server logic behind this guard must NOT scope by
+ * `instituteId`.
+ */
+export async function requireSuperAdmin(): Promise<SessionUser> {
+  return requireRole(Role.SUPER_ADMIN);
+}

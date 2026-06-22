@@ -27,12 +27,15 @@ datasource db {
 // Enums
 // ---------------------------------------------------------------------------
 
-/// A user's role within their institute.
-/// Phase 1 collapses Super Admin + Institute Admin into a single ADMIN.
+/// A user's role.
+/// STUDENT / TEACHER / ADMIN are scoped to one institute. SUPER_ADMIN is a
+/// platform-level operator (Phase 2) who manages every institute; their own
+/// `instituteId` points at a home institute but their access is cross-tenant.
 enum Role {
   STUDENT
   TEACHER
   ADMIN
+  SUPER_ADMIN
 }
 
 /// The arithmetic operation a practice level drills.
