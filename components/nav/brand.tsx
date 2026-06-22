@@ -7,6 +7,31 @@ import { roleHomePath } from "@/lib/roles";
 import type { Role } from "@/lib/generated/prisma/enums";
 
 /**
+ * The brand mark: an institute-supplied logo (white-label) when set, otherwise
+ * the default platform glyph. Kept as a small square so it sits cleanly in the
+ * sidebar and mobile header.
+ */
+function BrandMark({ logoUrl }: { logoUrl?: string | null }) {
+  if (logoUrl) {
+    return (
+      // Arbitrary tenant-supplied host, so plain <img> (next/image needs
+      // configured domains). Decorative — the institute name labels it.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={logoUrl}
+        alt=""
+        className="h-9 w-9 shrink-0 rounded-lg border border-border object-contain"
+      />
+    );
+  }
+  return (
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
+      <Sigma className="h-5 w-5" />
+    </span>
+  );
+}
+
+/**
  * Institute wordmark + product badge. Links back to the role's dashboard. The
  * institute name is the prominent (white-label) line; the platform name sits
  * underneath as a small caption.
@@ -14,10 +39,13 @@ import type { Role } from "@/lib/generated/prisma/enums";
 export function Brand({
   instituteName,
   role,
+  logoUrl,
   className,
 }: {
   instituteName: string;
   role: Role;
+  /** Optional white-label logo URL; falls back to the platform glyph. */
+  logoUrl?: string | null;
   className?: string;
 }) {
   return (
@@ -28,9 +56,7 @@ export function Brand({
         className,
       )}
     >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-        <Sigma className="h-5 w-5" />
-      </span>
+      <BrandMark logoUrl={logoUrl} />
       <span className="min-w-0">
         <span className="block truncate text-sm font-semibold leading-tight text-foreground">
           {instituteName}

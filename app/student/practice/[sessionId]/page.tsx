@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Check, X } from "lucide-react";
 
-import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role, SessionStatus } from "@/lib/generated/prisma/enums";
@@ -16,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { startSessionAction } from "../actions";
 
 export const metadata: Metadata = {
-  title: `Practice session · ${APP_NAME}`,
+  title: "Practice session",
 };
 
 export default async function PracticeSessionPage({
@@ -31,7 +30,7 @@ export default async function PracticeSessionPage({
     getStudentSession(student.id, sessionId),
     prisma.institute.findUnique({
       where: { id: student.instituteId },
-      select: { name: true },
+      select: { name: true, logoUrl: true },
     }),
   ]);
 
@@ -40,6 +39,7 @@ export default async function PracticeSessionPage({
   }
 
   const instituteName = institute?.name ?? "Institute";
+  const instituteLogoUrl = institute?.logoUrl ?? null;
 
   // --- In progress: run the timed test (no correct answers sent to client) ---
   if (session.status === SessionStatus.IN_PROGRESS) {
@@ -53,6 +53,7 @@ export default async function PracticeSessionPage({
       <AppShell
         user={student}
         instituteName={instituteName}
+        instituteLogoUrl={instituteLogoUrl}
         title={session.level.name}
         subtitle="Answer as many as you can before time runs out."
       >
@@ -72,6 +73,7 @@ export default async function PracticeSessionPage({
     <AppShell
       user={student}
       instituteName={instituteName}
+      instituteLogoUrl={instituteLogoUrl}
       title="Results"
       subtitle={session.level.name}
     >

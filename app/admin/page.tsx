@@ -9,7 +9,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
@@ -18,7 +17,7 @@ import { StatCard } from "@/components/stat-card";
 import { Card } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: `Admin · ${APP_NAME}`,
+  title: "Admin",
 };
 
 /**
@@ -68,7 +67,7 @@ export default async function AdminDashboardPage() {
   const [institute, teachers, students, groups, levels] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: instituteId },
-      select: { name: true },
+      select: { name: true, logoUrl: true },
     }),
     prisma.user.count({ where: { instituteId, role: Role.TEACHER } }),
     prisma.user.count({ where: { instituteId, role: Role.STUDENT } }),
@@ -80,6 +79,7 @@ export default async function AdminDashboardPage() {
     <AppShell
       user={user}
       instituteName={institute?.name ?? "Institute"}
+      instituteLogoUrl={institute?.logoUrl}
       title="Admin dashboard"
       subtitle="Overview of your institute."
     >

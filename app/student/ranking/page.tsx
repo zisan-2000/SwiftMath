@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Trophy } from "lucide-react";
 
-import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
@@ -21,7 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
-  title: `Ranking · ${APP_NAME}`,
+  title: "Ranking",
 };
 
 export default async function StudentRankingPage() {
@@ -30,7 +29,7 @@ export default async function StudentRankingPage() {
   const [institute, leaderboard] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: student.instituteId },
-      select: { name: true },
+      select: { name: true, logoUrl: true },
     }),
     getInstituteLeaderboard(student.instituteId),
   ]);
@@ -41,6 +40,7 @@ export default async function StudentRankingPage() {
     <AppShell
       user={student}
       instituteName={institute?.name ?? "Institute"}
+      instituteLogoUrl={institute?.logoUrl}
       title="Ranking"
       subtitle={
         myRank

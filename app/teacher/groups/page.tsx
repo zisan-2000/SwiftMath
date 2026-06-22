@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Boxes } from "lucide-react";
 
-import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
@@ -13,7 +12,7 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata: Metadata = {
-  title: `Groups · ${APP_NAME}`,
+  title: "Groups",
 };
 
 export default async function TeacherGroupsPage() {
@@ -22,7 +21,7 @@ export default async function TeacherGroupsPage() {
   const [institute, groups] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: teacher.instituteId },
-      select: { name: true },
+      select: { name: true, logoUrl: true },
     }),
     listTeacherGroups(teacher.id),
   ]);
@@ -31,6 +30,7 @@ export default async function TeacherGroupsPage() {
     <AppShell
       user={teacher}
       instituteName={institute?.name ?? "Institute"}
+      instituteLogoUrl={institute?.logoUrl}
       title="Groups"
       subtitle="Create groups and manage the students in them."
       actions={<CreateGroupDialog />}

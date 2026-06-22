@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Boxes, GraduationCap } from "lucide-react";
 
-import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
@@ -11,7 +10,7 @@ import { StatCard } from "@/components/stat-card";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: `Teacher · ${APP_NAME}`,
+  title: "Teacher",
 };
 
 /**
@@ -23,7 +22,7 @@ export default async function TeacherDashboardPage() {
   const [institute, groupCount, studentCount] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: user.instituteId },
-      select: { name: true },
+      select: { name: true, logoUrl: true },
     }),
     prisma.group.count({ where: { teacherId: user.id } }),
     // Students placed in any group this teacher owns.
@@ -34,6 +33,7 @@ export default async function TeacherDashboardPage() {
     <AppShell
       user={user}
       instituteName={institute?.name ?? "Institute"}
+      instituteLogoUrl={institute?.logoUrl}
       title="Teacher dashboard"
       subtitle="Your groups and students."
     >

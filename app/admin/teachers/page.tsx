@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Users } from "lucide-react";
 
-import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
@@ -22,7 +21,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { resetUserPasswordAction } from "../actions";
 
 export const metadata: Metadata = {
-  title: `Teachers · ${APP_NAME}`,
+  title: "Teachers",
 };
 
 /**
@@ -36,7 +35,7 @@ export default async function AdminTeachersPage() {
   const [institute, teachers] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: admin.instituteId },
-      select: { name: true },
+      select: { name: true, logoUrl: true },
     }),
     listInstituteTeachers(admin.instituteId),
   ]);
@@ -45,6 +44,7 @@ export default async function AdminTeachersPage() {
     <AppShell
       user={admin}
       instituteName={institute?.name ?? "Institute"}
+      instituteLogoUrl={institute?.logoUrl}
       title="Teachers"
       subtitle="Create teacher accounts and see who teaches in your institute."
       actions={<AddTeacherDialog />}

@@ -12,6 +12,8 @@ interface AppShellProps {
   user: { name: string; role: Role };
   /** Display name of the user's institute (white-label brand). */
   instituteName: string;
+  /** Optional white-label logo URL for the institute. */
+  instituteLogoUrl?: string | null;
   /** Page heading shown at the top of the content area. */
   title: string;
   /** Optional sub-heading / description for the page. */
@@ -30,6 +32,7 @@ interface AppShellProps {
 export function AppShell({
   user,
   instituteName,
+  instituteLogoUrl,
   title,
   subtitle,
   actions,
@@ -50,7 +53,11 @@ export function AppShell({
         className="sticky top-0 hidden h-svh w-64 shrink-0 flex-col border-r border-border/80 bg-card/75 backdrop-blur-xl lg:flex"
       >
         <div className="border-b border-border px-4 py-4">
-          <Brand instituteName={instituteName} role={user.role} />
+          <Brand
+            instituteName={instituteName}
+            role={user.role}
+            logoUrl={instituteLogoUrl}
+          />
         </div>
         <div className="flex-1 overflow-y-auto p-3">
           <SidebarNav role={user.role} />
@@ -60,9 +67,17 @@ export function AppShell({
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-border/80 bg-background/70 px-4 backdrop-blur-xl sm:gap-3 lg:px-8">
-          <MobileNav role={user.role} instituteName={instituteName} />
+          <MobileNav
+            role={user.role}
+            instituteName={instituteName}
+            instituteLogoUrl={instituteLogoUrl}
+          />
           <div className="min-w-0 flex-1 lg:hidden">
-            <Brand instituteName={instituteName} role={user.role} />
+            <Brand
+              instituteName={instituteName}
+              role={user.role}
+              logoUrl={instituteLogoUrl}
+            />
           </div>
           <div className="ml-auto flex items-center gap-2">
             <ThemeToggle />

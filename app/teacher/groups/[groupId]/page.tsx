@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Users } from "lucide-react";
 
-import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
@@ -19,7 +18,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { resetStudentPasswordAction } from "./actions";
 
 export const metadata: Metadata = {
-  title: `Group · ${APP_NAME}`,
+  title: "Group",
 };
 
 export default async function GroupDetailPage({
@@ -40,7 +39,7 @@ export default async function GroupDetailPage({
   const [institute, levels] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: teacher.instituteId },
-      select: { name: true },
+      select: { name: true, logoUrl: true },
     }),
     listInstituteLevels(teacher.instituteId),
   ]);
@@ -49,6 +48,7 @@ export default async function GroupDetailPage({
     <AppShell
       user={teacher}
       instituteName={institute?.name ?? "Institute"}
+      instituteLogoUrl={institute?.logoUrl}
       title={group.name}
       subtitle="Students in this group and their assigned level."
       actions={<AddStudentDialog groupId={group.id} />}

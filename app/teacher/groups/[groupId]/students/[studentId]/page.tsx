@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PartyPopper } from "lucide-react";
 
-import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role, SessionStatus } from "@/lib/generated/prisma/enums";
@@ -18,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { moveStudentAction } from "./actions";
 
 export const metadata: Metadata = {
-  title: `Student progress · ${APP_NAME}`,
+  title: "Student progress",
 };
 
 /** Native <select> styled to match the Input component. */
@@ -37,7 +36,7 @@ export default async function StudentProgressPage({
   const [institute, progress, groups] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: teacher.instituteId },
-      select: { name: true },
+      select: { name: true, logoUrl: true },
     }),
     getStudentProgress(teacher, groupId, studentId),
     listTeacherGroups(teacher.id),
@@ -56,6 +55,7 @@ export default async function StudentProgressPage({
     <AppShell
       user={teacher}
       instituteName={institute?.name ?? "Institute"}
+      instituteLogoUrl={institute?.logoUrl}
       title={student.name}
       subtitle={student.email}
     >

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
@@ -13,7 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { updateLevelAction } from "../actions";
 
 export const metadata: Metadata = {
-  title: `Edit level · ${APP_NAME}`,
+  title: "Edit level",
 };
 
 export default async function EditLevelPage({
@@ -29,7 +28,7 @@ export default async function EditLevelPage({
   const [institute, level] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: admin.instituteId },
-      select: { name: true },
+      select: { name: true, logoUrl: true },
     }),
     getLevel(admin, levelId),
   ]);
@@ -46,6 +45,7 @@ export default async function EditLevelPage({
     <AppShell
       user={admin}
       instituteName={institute?.name ?? "Institute"}
+      instituteLogoUrl={institute?.logoUrl}
       title={`Edit: ${level.name}`}
       subtitle="Changes apply to new practice sessions started after saving."
     >

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 
-import { APP_NAME } from "@/lib/constants";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { AppShell } from "@/components/app-shell";
@@ -9,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
 export const metadata: Metadata = {
-  title: `Account · ${APP_NAME}`,
+  title: "Account",
 };
 
 /**
@@ -21,13 +20,14 @@ export default async function AccountPage() {
 
   const institute = await prisma.institute.findUnique({
     where: { id: user.instituteId },
-    select: { name: true },
+    select: { name: true, logoUrl: true },
   });
 
   return (
     <AppShell
       user={user}
       instituteName={institute?.name ?? "Institute"}
+      instituteLogoUrl={institute?.logoUrl}
       title="Account"
       subtitle="Manage your sign-in details."
     >

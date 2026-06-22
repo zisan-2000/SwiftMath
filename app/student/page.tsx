@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Boxes, Layers } from "lucide-react";
 
-import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
@@ -11,7 +10,7 @@ import { StatCard } from "@/components/stat-card";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
-  title: `Student · ${APP_NAME}`,
+  title: "Student",
 };
 
 /**
@@ -25,7 +24,7 @@ export default async function StudentDashboardPage() {
   const profile = await prisma.user.findUnique({
     where: { id: user.id },
     select: {
-      institute: { select: { name: true } },
+      institute: { select: { name: true, logoUrl: true } },
       group: { select: { name: true } },
       currentLevel: { select: { name: true } },
     },
@@ -35,6 +34,7 @@ export default async function StudentDashboardPage() {
     <AppShell
       user={user}
       instituteName={profile?.institute.name ?? "Institute"}
+      instituteLogoUrl={profile?.institute.logoUrl}
       title={`Hello, ${user.name}`}
       subtitle="Your practice home."
     >

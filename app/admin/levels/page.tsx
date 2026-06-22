@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Layers, Plus } from "lucide-react";
 
-import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role, OperationType } from "@/lib/generated/prisma/enums";
@@ -22,7 +21,7 @@ import {
 } from "@/components/ui/table";
 
 export const metadata: Metadata = {
-  title: `Levels · ${APP_NAME}`,
+  title: "Levels",
 };
 
 /** Short symbol per operation for the compact table. */
@@ -44,7 +43,7 @@ export default async function AdminLevelsPage() {
   const [institute, levels] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: admin.instituteId },
-      select: { name: true },
+      select: { name: true, logoUrl: true },
     }),
     listLevels(admin.instituteId),
   ]);
@@ -53,6 +52,7 @@ export default async function AdminLevelsPage() {
     <AppShell
       user={admin}
       instituteName={institute?.name ?? "Institute"}
+      instituteLogoUrl={institute?.logoUrl}
       title="Levels"
       subtitle="The practice curriculum students progress through."
       actions={

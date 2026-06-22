@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 
-import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role, OperationType } from "@/lib/generated/prisma/enums";
@@ -12,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { createLevelAction } from "../actions";
 
 export const metadata: Metadata = {
-  title: `New level · ${APP_NAME}`,
+  title: "New level",
 };
 
 /**
@@ -26,7 +25,7 @@ export default async function NewLevelPage() {
   const [institute, levels] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: admin.instituteId },
-      select: { name: true },
+      select: { name: true, logoUrl: true },
     }),
     listLevels(admin.instituteId),
   ]);
@@ -39,6 +38,7 @@ export default async function NewLevelPage() {
     <AppShell
       user={admin}
       instituteName={institute?.name ?? "Institute"}
+      instituteLogoUrl={institute?.logoUrl}
       title="New level"
       subtitle="Add a level to your institute's practice curriculum."
     >

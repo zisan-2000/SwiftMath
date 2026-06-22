@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Clock, ListChecks, Target } from "lucide-react";
 
-import { APP_NAME } from "@/lib/constants";
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role, SessionStatus } from "@/lib/generated/prisma/enums";
@@ -14,7 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { startSessionAction } from "./actions";
 
 export const metadata: Metadata = {
-  title: `Practice · ${APP_NAME}`,
+  title: "Practice",
 };
 
 export default async function PracticeHomePage() {
@@ -24,7 +23,7 @@ export default async function PracticeHomePage() {
     prisma.user.findUnique({
       where: { id: student.id },
       select: {
-        institute: { select: { name: true } },
+        institute: { select: { name: true, logoUrl: true } },
         currentLevel: {
           select: {
             name: true,
@@ -44,6 +43,7 @@ export default async function PracticeHomePage() {
     <AppShell
       user={student}
       instituteName={profile?.institute.name ?? "Institute"}
+      instituteLogoUrl={profile?.institute.logoUrl}
       title="Practice"
       subtitle="Timed practice at your current level."
     >
