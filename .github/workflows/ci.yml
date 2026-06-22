@@ -24,13 +24,15 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
 
       - name: Install dependencies
-        # --ignore-scripts skips the postinstall `prisma generate`; we run it
-        # explicitly below so a generate failure is isolated and visible.
-        run: npm ci --ignore-scripts
+        # Use `npm install` (not `npm ci`): the committed lockfile's overrides
+        # representation isn't strict-compatible with `npm ci`, and this matches
+        # what the Vercel deploy uses. --ignore-scripts skips postinstall so we
+        # run prisma generate explicitly below.
+        run: npm install --ignore-scripts
 
       - name: Generate Prisma client
         run: npx prisma generate
