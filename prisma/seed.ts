@@ -80,7 +80,7 @@ async function main() {
     create: { slug: "seft", name: "SEFT Institute" },
   });
 
-  // --- Levels (starter ADD/SUB/MIXED progression, shared with new institutes) ---
+  // --- Levels (starter ADD/SUB/MIXED/MUL/DIV progression, shared with new institutes) ---
   const levelDefs = DEFAULT_STARTER_LEVELS;
 
   const levels = [];

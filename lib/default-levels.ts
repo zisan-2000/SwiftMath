@@ -20,9 +20,10 @@ export interface DefaultLevelDef {
 }
 
 /**
- * Five-level starter curriculum — mirrors the SEFT seed progression. Keeps
+ * Nine-level starter curriculum — mirrors the SEFT seed progression. Keeps
  * new institutes usable on day one (teachers can assign level 1 to students
- * without the admin having to build a curriculum first).
+ * without the admin having to build a curriculum first). Covers +, −, mixed,
+ * ×, and ÷ before admins extend via /admin/levels.
  */
 export const DEFAULT_STARTER_LEVELS: DefaultLevelDef[] = [
   {
@@ -79,5 +80,49 @@ export const DEFAULT_STARTER_LEVELS: DefaultLevelDef[] = [
     questionCount: 10,
     timeLimitSeconds: 180,
     passAccuracy: 70,
+  },
+  {
+    orderIndex: 6,
+    name: "Multiplication I",
+    operation: OperationType.MULTIPLICATION,
+    termsPerQuestion: 2,
+    minNumber: 1,
+    maxNumber: 9,
+    questionCount: 10,
+    timeLimitSeconds: 120,
+    passAccuracy: 70,
+  },
+  {
+    orderIndex: 7,
+    name: "Multiplication II",
+    operation: OperationType.MULTIPLICATION,
+    termsPerQuestion: 3,
+    minNumber: 1,
+    maxNumber: 9,
+    questionCount: 10,
+    timeLimitSeconds: 150,
+    passAccuracy: 75,
+  },
+  {
+    orderIndex: 8,
+    name: "Division I",
+    operation: OperationType.DIVISION,
+    termsPerQuestion: 2,
+    minNumber: 1,
+    maxNumber: 12,
+    questionCount: 10,
+    timeLimitSeconds: 120,
+    passAccuracy: 70,
+  },
+  {
+    orderIndex: 9,
+    name: "Division II",
+    operation: OperationType.DIVISION,
+    termsPerQuestion: 2,
+    minNumber: 2,
+    maxNumber: 12,
+    questionCount: 10,
+    timeLimitSeconds: 150,
+    passAccuracy: 75,
   },
 ];
