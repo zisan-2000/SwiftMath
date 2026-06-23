@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { Users } from "lucide-react";
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
+import { parsePageParam } from "@/lib/pagination";
 import { listInstituteTeachers } from "@/server/admin";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
@@ -18,27 +20,42 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { PaginationNav } from "@/components/ui/pagination-nav";
 import { resetUserPasswordAction } from "../actions";
 
 export const metadata: Metadata = {
   title: "Teachers",
 };
 
+const LIST_PATH = "/admin/teachers";
+
 /**
  * ADMIN → teachers. Lists every teacher in the admin's institute and provides
  * the only Phase 1 way to provision a new teacher account (public sign-up is
  * disabled).
  */
-export default async function AdminTeachersPage() {
+export default async function AdminTeachersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
   const admin = await requireRole(Role.ADMIN);
+  const { page: pageParam } = await searchParams;
+  const page = parsePageParam(pageParam);
 
-  const [institute, teachers] = await Promise.all([
+  const [institute, roster] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: admin.instituteId },
       select: { name: true, logoUrl: true },
     }),
-    listInstituteTeachers(admin.instituteId),
+    listInstituteTeachers(admin.instituteId, page),
   ]);
+
+  if (page > roster.totalPages && roster.total > 0) {
+    redirect(`${LIST_PATH}?page=${roster.totalPages}`);
+  }
+
+  const { items: teachers } = roster;
 
   return (
     <AppShell
@@ -54,7 +71,7 @@ export default async function AdminTeachersPage() {
       <Card>
         <CardHeader className="border-b border-border">
           <CardTitle className="text-base">
-            All teachers ({teachers.length})
+            All teachers ({roster.total})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
@@ -68,39 +85,48 @@ export default async function AdminTeachersPage() {
               />
             </div>
           ) : (
-            <ul className="divide-y divide-border">
-              {teachers.map((teacher) => (
-                <li
-                  key={teacher.id}
-                  className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
-                >
-                  <div className="min-w-0">
-                    <p className="flex items-center gap-2 truncate font-medium text-foreground">
-                      {teacher.name}
-                      {!teacher.isActive && (
-                        <Badge variant="muted">Disabled</Badge>
-                      )}
-                    </p>
-                    <p className="truncate text-sm text-muted-foreground">
-                      {teacher.email}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap items-start gap-3">
-                    <span className="text-sm text-muted-foreground sm:pt-1.5">
-                      {teacher._count.taughtGroups}{" "}
-                      {teacher._count.taughtGroups === 1 ? "group" : "groups"}
-                    </span>
-                    <ResetPasswordForm
-                      action={resetUserPasswordAction.bind(null, teacher.id)}
-                    />
-                    <ActiveToggle
-                      userId={teacher.id}
-                      isActive={teacher.isActive}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="divide-y divide-border">
+                {teachers.map((teacher) => (
+                  <li
+                    key={teacher.id}
+                    className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
+                  >
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-2 truncate font-medium text-foreground">
+                        {teacher.name}
+                        {!teacher.isActive && (
+                          <Badge variant="muted">Disabled</Badge>
+                        )}
+                      </p>
+                      <p className="truncate text-sm text-muted-foreground">
+                        {teacher.email}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-start gap-3">
+                      <span className="text-sm text-muted-foreground sm:pt-1.5">
+                        {teacher._count.taughtGroups}{" "}
+                        {teacher._count.taughtGroups === 1 ? "group" : "groups"}
+                      </span>
+                      <ResetPasswordForm
+                        action={resetUserPasswordAction.bind(null, teacher.id)}
+                      />
+                      <ActiveToggle
+                        userId={teacher.id}
+                        isActive={teacher.isActive}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <PaginationNav
+                basePath={LIST_PATH}
+                page={roster.page}
+                pageSize={roster.pageSize}
+                total={roster.total}
+                totalPages={roster.totalPages}
+              />
+            </>
           )}
         </CardContent>
       </Card>

@@ -11,6 +11,12 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { createUserAccount, setUserPassword } from "@/server/users";
 import { Role, OperationType } from "@/lib/generated/prisma/enums";
+import {
+  buildPaginatedList,
+  DEFAULT_PAGE_SIZE,
+  paginationBounds,
+  type PaginatedList,
+} from "@/lib/pagination";
 
 /** The authenticated admin, as needed for scoping. */
 export interface AdminContext {
@@ -38,21 +44,45 @@ export interface LevelInput {
 
 /**
  * Every teacher in the admin's institute, with how many groups each owns.
- * Ordered by name for a stable list.
+ * Ordered by name for a stable list. Paginated for large institutes.
  */
-export function listInstituteTeachers(instituteId: string) {
-  return prisma.user.findMany({
-    where: { instituteId, role: Role.TEACHER },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      isActive: true,
-      createdAt: true,
-      _count: { select: { taughtGroups: true } },
-    },
-  });
+export async function listInstituteTeachers(
+  instituteId: string,
+  page: number = 1,
+  pageSize: number = DEFAULT_PAGE_SIZE,
+): Promise<PaginatedList<{
+  id: string;
+  name: string;
+  email: string;
+  isActive: boolean;
+  createdAt: Date;
+  _count: { taughtGroups: number };
+}>> {
+  const { skip, take, page: safePage, pageSize: safeSize } = paginationBounds(
+    page,
+    pageSize,
+  );
+  const where = { instituteId, role: Role.TEACHER };
+
+  const [items, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip,
+      take,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isActive: true,
+        createdAt: true,
+        _count: { select: { taughtGroups: true } },
+      },
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return buildPaginatedList(items, total, safePage, safeSize);
 }
 
 /**
@@ -156,21 +186,45 @@ export function listInstituteGroups(instituteId: string) {
  * Every student in the admin's institute, with their group placement and
  * current level. Read-only institute-wide view; teachers still own day-to-day
  * student management (adding, level assignment) within their groups.
- * Ordered by name for a stable list.
+ * Ordered by name for a stable list. Paginated for large institutes.
  */
-export function listInstituteStudents(instituteId: string) {
-  return prisma.user.findMany({
-    where: { instituteId, role: Role.STUDENT },
-    orderBy: { name: "asc" },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      isActive: true,
-      group: { select: { name: true } },
-      currentLevel: { select: { name: true, orderIndex: true } },
-    },
-  });
+export async function listInstituteStudents(
+  instituteId: string,
+  page: number = 1,
+  pageSize: number = DEFAULT_PAGE_SIZE,
+): Promise<PaginatedList<{
+  id: string;
+  name: string;
+  email: string;
+  isActive: boolean;
+  group: { name: string } | null;
+  currentLevel: { name: string; orderIndex: number } | null;
+}>> {
+  const { skip, take, page: safePage, pageSize: safeSize } = paginationBounds(
+    page,
+    pageSize,
+  );
+  const where = { instituteId, role: Role.STUDENT };
+
+  const [items, total] = await Promise.all([
+    prisma.user.findMany({
+      where,
+      orderBy: { name: "asc" },
+      skip,
+      take,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isActive: true,
+        group: { select: { name: true } },
+        currentLevel: { select: { name: true, orderIndex: true } },
+      },
+    }),
+    prisma.user.count({ where }),
+  ]);
+
+  return buildPaginatedList(items, total, safePage, safeSize);
 }
 
 // ---------------------------------------------------------------------------
