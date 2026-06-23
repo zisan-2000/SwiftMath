@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { SetNewPasswordForm } from "@/components/auth/set-new-password-form";
 
 export const metadata: Metadata = {
-  title: `Reset password · ${APP_NAME}`,
+  title: "Reset password",
 };
 
 /**

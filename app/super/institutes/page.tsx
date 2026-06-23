@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Building2 } from "lucide-react";
 
-import { APP_NAME } from "@/lib/constants";
 import { requireSuperAdmin } from "@/lib/session";
 import { listInstitutesWithStats } from "@/server/super";
 import { AppShell } from "@/components/app-shell";
@@ -20,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata: Metadata = {
-  title: `Institutes · ${APP_NAME}`,
+  title: "Institutes",
 };
 
 /**

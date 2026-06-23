@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ForgotPasswordForm } from "@/components/auth/forgot-password-form";
 
 export const metadata: Metadata = {
-  title: `Forgot password · ${APP_NAME}`,
+  title: "Forgot password",
 };
 
 /**

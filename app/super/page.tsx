@@ -11,7 +11,6 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-import { APP_NAME } from "@/lib/constants";
 import { requireSuperAdmin } from "@/lib/session";
 import { getPlatformStats } from "@/server/super";
 import { getPlatformPracticeAnalytics } from "@/server/analytics";
@@ -21,7 +20,7 @@ import { PracticeActivityChart } from "@/components/practice-activity-chart";
 import { Card } from "@/components/ui/card";
 
 export const metadata: Metadata = {
-  title: `Super Admin · ${APP_NAME}`,
+  title: "Super Admin",
 };
 
 /**

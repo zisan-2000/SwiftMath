@@ -5,6 +5,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { AppBackground } from "@/components/ui/app-background";
+import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,11 +18,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  // SEFT Abacus is the platform brand. Per-institute white-labelling
-  // (e.g. a SEFT-specific title) will be layered on in a later phase.
-  title: "SEFT Abacus",
-  description:
-    "Timed mental-math and abacus practice platform for institutes, teachers, and students.",
+  title: {
+    default: APP_NAME,
+    template: `%s · ${APP_NAME}`,
+  },
+  description: APP_TAGLINE,
+  openGraph: {
+    title: APP_NAME,
+    description: APP_TAGLINE,
+    type: "website",
+  },
 };
 
 export default function RootLayout({

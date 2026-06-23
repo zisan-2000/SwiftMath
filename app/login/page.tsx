@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = {
-  title: `Sign in · ${APP_NAME}`,
+  title: "Sign in",
 };
 
 /**

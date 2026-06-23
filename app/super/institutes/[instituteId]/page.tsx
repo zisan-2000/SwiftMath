@@ -10,7 +10,6 @@ import {
   UsersRound,
 } from "lucide-react";
 
-import { APP_NAME } from "@/lib/constants";
 import { requireSuperAdmin } from "@/lib/session";
 import { getInstituteDetail } from "@/server/super";
 import { AppShell } from "@/components/app-shell";
@@ -37,7 +36,7 @@ export async function generateMetadata({
   const { instituteId } = await params;
   const detail = await getInstituteDetail(instituteId);
   const title = detail?.institute.name ?? "Institute";
-  return { title: `${title} · ${APP_NAME}` };
+  return { title };
 }
 
 /**
