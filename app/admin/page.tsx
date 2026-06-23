@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Boxes,
+  Brain,
   GraduationCap,
   Layers,
+  Target,
+  TrendingUp,
   Users,
   ArrowRight,
   type LucideIcon,
@@ -12,8 +15,10 @@ import {
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
+import { getInstitutePracticeAnalytics } from "@/server/analytics";
 import { AppShell } from "@/components/app-shell";
 import { StatCard } from "@/components/stat-card";
+import { PracticeActivityChart } from "@/components/admin/practice-activity-chart";
 import { Card } from "@/components/ui/card";
 
 export const metadata: Metadata = {
@@ -64,7 +69,8 @@ export default async function AdminDashboardPage() {
   const user = await requireRole(Role.ADMIN);
   const { instituteId } = user;
 
-  const [institute, teachers, students, groups, levels] = await Promise.all([
+  const [institute, teachers, students, groups, levels, practice] =
+    await Promise.all([
     prisma.institute.findUnique({
       where: { id: instituteId },
       select: { name: true, logoUrl: true },
@@ -73,6 +79,7 @@ export default async function AdminDashboardPage() {
     prisma.user.count({ where: { instituteId, role: Role.STUDENT } }),
     prisma.group.count({ where: { instituteId } }),
     prisma.level.count({ where: { instituteId } }),
+    getInstitutePracticeAnalytics(instituteId),
   ]);
 
   return (
@@ -89,6 +96,32 @@ export default async function AdminDashboardPage() {
         <StatCard label="Groups" value={groups} icon={Boxes} />
         <StatCard label="Levels" value={levels} icon={Layers} />
       </div>
+
+      <h2 className="mb-3 mt-10 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        Practice (last 7 days)
+      </h2>
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard
+          label="Sessions"
+          value={practice.totalSessions}
+          icon={Brain}
+        />
+        <StatCard
+          label="Pass rate"
+          value={`${practice.passRate}%`}
+          icon={Target}
+        />
+        <StatCard
+          label="Avg accuracy"
+          value={`${practice.avgAccuracy}%`}
+          icon={TrendingUp}
+        />
+      </div>
+
+      <PracticeActivityChart
+        data={practice.daily}
+        empty={practice.totalSessions === 0}
+      />
 
       <h2 className="mb-3 mt-10 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         Manage
