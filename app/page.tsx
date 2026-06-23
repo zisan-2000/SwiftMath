@@ -176,7 +176,20 @@ export default function Home() {
       </section>
 
       <footer className="relative mt-auto border-t border-border/60 px-6 py-6 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} {APP_NAME}. All rights reserved.
+        <p>
+          © {new Date().getFullYear()} {APP_NAME}. All rights reserved.
+        </p>
+        <nav
+          aria-label="Legal"
+          className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1"
+        >
+          <Link href="/privacy" className="hover:text-foreground">
+            Privacy Policy
+          </Link>
+          <Link href="/terms" className="hover:text-foreground">
+            Terms of Service
+          </Link>
+        </nav>
       </footer>
     </div>
   );
