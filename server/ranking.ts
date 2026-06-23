@@ -7,50 +7,77 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import {
+  leaderboardPeriodStart,
+  rankLeaderboardRows,
+  type LeaderboardPeriod,
+  type RankedLeaderboardRow,
+} from "@/lib/ranking";
 import { Role, SessionStatus } from "@/lib/generated/prisma/enums";
 
-export interface RankedStudent {
-  rank: number;
-  studentId: string;
-  name: string;
-  levelName: string | null;
-  levelOrder: number | null;
-  /** Number of attempts the student has passed. */
-  passedCount: number;
-  /** Average accuracy across finished (non in-progress) attempts, 0–100. */
-  avgAccuracy: number;
+export type { LeaderboardPeriod };
+
+/** Filters applied when building a leaderboard. */
+export interface LeaderboardOptions {
+  /** Limit to students in this group. Omit for the whole institute. */
+  groupId?: string;
+  /** Only count sessions at this level toward passed/accuracy stats. */
+  levelId?: string;
+  /** Time window for session stats. Defaults to all-time. */
+  period?: LeaderboardPeriod;
 }
 
+export type RankedStudent = RankedLeaderboardRow;
+
 /**
- * Leaderboard for every student in an institute, ordered by:
- *   1. how far they've progressed (current level order, desc),
- *   2. passed attempts (desc),
- *   3. average accuracy (desc),
- *   4. name (asc) as a stable final tie-break.
- * Students with no level yet sort last.
+ * Leaderboard for students in an institute, optionally filtered by group,
+ * level, and time period. Ordering rules live in `lib/ranking.ts`.
  */
 export async function getInstituteLeaderboard(
   instituteId: string,
+  options: LeaderboardOptions = {},
 ): Promise<RankedStudent[]> {
+  const period = options.period ?? "all";
+  const since = leaderboardPeriodStart(period);
+
+  if (options.levelId) {
+    const level = await prisma.level.findFirst({
+      where: { id: options.levelId, instituteId },
+      select: { id: true },
+    });
+    if (!level) {
+      return [];
+    }
+  }
+
+  const sessionScope = {
+    instituteId,
+    ...(options.levelId && { levelId: options.levelId }),
+    ...(since && { submittedAt: { gte: since } }),
+  };
+
   const [students, passedGroups, accuracyGroups] = await Promise.all([
     prisma.user.findMany({
-      where: { instituteId, role: Role.STUDENT, isActive: true },
+      where: {
+        instituteId,
+        role: Role.STUDENT,
+        isActive: true,
+        ...(options.groupId && { groupId: options.groupId }),
+      },
       select: {
         id: true,
         name: true,
         currentLevel: { select: { name: true, orderIndex: true } },
       },
     }),
-    // Passed attempts per student.
     prisma.practiceSession.groupBy({
       by: ["studentId"],
-      where: { instituteId, passed: true },
+      where: { ...sessionScope, passed: true },
       _count: { _all: true },
     }),
-    // Average accuracy over finished attempts per student.
     prisma.practiceSession.groupBy({
       by: ["studentId"],
-      where: { instituteId, status: { not: SessionStatus.IN_PROGRESS } },
+      where: { ...sessionScope, status: { not: SessionStatus.IN_PROGRESS } },
       _avg: { accuracy: true },
     }),
   ]);
@@ -71,14 +98,5 @@ export async function getInstituteLeaderboard(
     avgAccuracy: accuracyByStudent.get(s.id) ?? 0,
   }));
 
-  rows.sort((a, b) => {
-    const ao = a.levelOrder ?? -1;
-    const bo = b.levelOrder ?? -1;
-    if (bo !== ao) return bo - ao;
-    if (b.passedCount !== a.passedCount) return b.passedCount - a.passedCount;
-    if (b.avgAccuracy !== a.avgAccuracy) return b.avgAccuracy - a.avgAccuracy;
-    return a.name.localeCompare(b.name);
-  });
-
-  return rows.map((row, index) => ({ rank: index + 1, ...row }));
+  return rankLeaderboardRows(rows);
 }

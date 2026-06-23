@@ -4,8 +4,10 @@ import { Trophy } from "lucide-react";
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
+import { parseLeaderboardPeriod } from "@/lib/ranking";
 import { getInstituteLeaderboard } from "@/server/ranking";
 import { AppShell } from "@/components/app-shell";
+import { RankingFilters } from "@/components/student/ranking-filters";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -23,18 +25,94 @@ export const metadata: Metadata = {
   title: "Ranking",
 };
 
-export default async function StudentRankingPage() {
-  const student = await requireRole(Role.STUDENT);
+function buildRankingSubtitle(
+  myRank: number | undefined,
+  total: number,
+  filters: {
+    scope: "all" | "group";
+    groupName: string | null;
+    period: "all" | "week" | "month";
+    levelName: string | null;
+  },
+): string {
+  const parts: string[] = [];
 
-  const [institute, leaderboard] = await Promise.all([
+  if (myRank !== undefined) {
+    parts.push(`You're ranked #${myRank} of ${total}`);
+  } else {
+    parts.push("Institute leaderboard");
+  }
+
+  if (filters.scope === "group" && filters.groupName) {
+    parts.push(`in ${filters.groupName}`);
+  }
+
+  if (filters.period === "week") parts.push("(last 7 days)");
+  else if (filters.period === "month") parts.push("(last 30 days)");
+
+  if (filters.levelName) {
+    parts.push(`· stats for ${filters.levelName}`);
+  }
+
+  return parts.join(" ") + ".";
+}
+
+export default async function StudentRankingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ period?: string; scope?: string; level?: string }>;
+}) {
+  const student = await requireRole(Role.STUDENT);
+  const params = await searchParams;
+
+  const period = parseLeaderboardPeriod(params.period);
+  const scope = params.scope === "group" ? "group" : "all";
+  const levelParam = params.level && params.level !== "all" ? params.level : "all";
+
+  const [institute, studentRow, levels] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: student.instituteId },
       select: { name: true, logoUrl: true },
     }),
-    getInstituteLeaderboard(student.instituteId),
+    prisma.user.findUnique({
+      where: { id: student.id },
+      select: {
+        groupId: true,
+        group: { select: { name: true } },
+      },
+    }),
+    prisma.level.findMany({
+      where: { instituteId: student.instituteId },
+      orderBy: { orderIndex: "asc" },
+      select: { id: true, name: true },
+    }),
   ]);
 
+  const groupName = studentRow?.group?.name ?? null;
+  const useGroupScope = scope === "group" && studentRow?.groupId;
+
+  const validLevelId =
+    levelParam !== "all" && levels.some((l) => l.id === levelParam)
+      ? levelParam
+      : undefined;
+
+  const leaderboard = await getInstituteLeaderboard(student.instituteId, {
+    period,
+    ...(useGroupScope && { groupId: studentRow!.groupId! }),
+    ...(validLevelId && { levelId: validLevelId }),
+  });
+
   const myRank = leaderboard.find((row) => row.studentId === student.id);
+  const selectedLevelName =
+    validLevelId != null
+      ? (levels.find((l) => l.id === validLevelId)?.name ?? null)
+      : null;
+
+  const filterValues = {
+    period,
+    scope: useGroupScope ? ("group" as const) : ("all" as const),
+    levelId: validLevelId ?? "all",
+  };
 
   return (
     <AppShell
@@ -42,12 +120,23 @@ export default async function StudentRankingPage() {
       instituteName={institute?.name ?? "Institute"}
       instituteLogoUrl={institute?.logoUrl}
       title="Ranking"
-      subtitle={
-        myRank
-          ? `You're ranked #${myRank.rank} of ${leaderboard.length}.`
-          : "Institute leaderboard."
-      }
+      subtitle={buildRankingSubtitle(
+        myRank?.rank,
+        leaderboard.length,
+        {
+          scope: filterValues.scope,
+          groupName,
+          period,
+          levelName: selectedLevelName,
+        },
+      )}
     >
+      <RankingFilters
+        values={filterValues}
+        levels={levels}
+        groupName={groupName}
+      />
+
       {leaderboard.length === 0 ? (
         <EmptyState
           icon={Trophy}
