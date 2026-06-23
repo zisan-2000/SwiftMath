@@ -21,9 +21,9 @@ export default async function LoginPage({
   searchParams,
 }: {
   // Next.js 16: searchParams is async.
-  searchParams: Promise<{ disabled?: string }>;
+  searchParams: Promise<{ disabled?: string; reset?: string }>;
 }) {
-  const { disabled } = await searchParams;
+  const { disabled, reset } = await searchParams;
 
   // Send genuinely signed-in users to their dashboard. This uses a REAL session
   // lookup (not just cookie presence) so a stale cookie shows the form instead
@@ -60,6 +60,15 @@ export default async function LoginPage({
             className="mb-4 rounded-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning-foreground"
           >
             Your account has been disabled. Contact your institute administrator.
+          </div>
+        )}
+
+        {reset && (
+          <div
+            role="status"
+            className="mb-4 rounded-md border border-success/30 bg-success/10 px-4 py-3 text-sm text-success-foreground"
+          >
+            Your password was updated. Sign in with your new password.
           </div>
         )}
 

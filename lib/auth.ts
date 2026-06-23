@@ -18,6 +18,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 
 import { prisma } from "@/lib/prisma";
+import { sendPasswordResetEmail } from "@/lib/email";
 import { Role } from "@/lib/generated/prisma/enums";
 
 export const auth = betterAuth({
@@ -29,6 +30,17 @@ export const auth = betterAuth({
     enabled: true,
     // Public sign-up is closed; accounts are provisioned server-side.
     disableSignUp: true,
+    // Self-service forgot password (Phase 2.4). Requires `sendResetPassword`;
+    // without it better-auth rejects `/request-password-reset`.
+    sendResetPassword: async ({ user, url }) => {
+      await sendPasswordResetEmail({
+        to: user.email,
+        userName: user.name,
+        resetUrl: url,
+      });
+    },
+    // Sign the user out everywhere once they set a new password.
+    revokeSessionsOnPasswordReset: true,
   },
 
   user: {
