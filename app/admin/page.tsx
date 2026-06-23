@@ -14,9 +14,14 @@ import {
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/generated/prisma/enums";
+import { Role, SessionStatus } from "@/lib/generated/prisma/enums";
 import { getInstitutePracticeAnalytics } from "@/server/analytics";
+import {
+  buildAdminOnboardingSteps,
+  isAdminOnboardingComplete,
+} from "@/lib/admin-onboarding";
 import { AppShell } from "@/components/app-shell";
+import { AdminOnboardingChecklist } from "@/components/admin/onboarding-checklist";
 import { StatCard } from "@/components/stat-card";
 import { PracticeActivityChart } from "@/components/practice-activity-chart";
 import { Card } from "@/components/ui/card";
@@ -69,7 +74,7 @@ export default async function AdminDashboardPage() {
   const user = await requireRole(Role.ADMIN);
   const { instituteId } = user;
 
-  const [institute, teachers, students, groups, levels, practice] =
+  const [institute, teachers, students, groups, levels, practice, finishedSessions] =
     await Promise.all([
     prisma.institute.findUnique({
       where: { id: instituteId },
@@ -80,7 +85,21 @@ export default async function AdminDashboardPage() {
     prisma.group.count({ where: { instituteId } }),
     prisma.level.count({ where: { instituteId } }),
     getInstitutePracticeAnalytics(instituteId),
+    prisma.practiceSession.count({
+      where: {
+        instituteId,
+        status: { not: SessionStatus.IN_PROGRESS },
+      },
+    }),
   ]);
+
+  const onboardingSteps = buildAdminOnboardingSteps({
+    teachers,
+    groups,
+    students,
+    practiceSessions: finishedSessions,
+  });
+  const showOnboarding = !isAdminOnboardingComplete(onboardingSteps);
 
   return (
     <AppShell
@@ -96,6 +115,12 @@ export default async function AdminDashboardPage() {
         <StatCard label="Groups" value={groups} icon={Boxes} />
         <StatCard label="Levels" value={levels} icon={Layers} />
       </div>
+
+      {showOnboarding && (
+        <div className="mt-8">
+          <AdminOnboardingChecklist steps={onboardingSteps} />
+        </div>
+      )}
 
       <h2 className="mb-3 mt-10 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         Practice (last 7 days)
