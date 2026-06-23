@@ -1,23 +1,30 @@
 import type { Metadata } from "next";
-import { Clock, ListChecks, Target } from "lucide-react";
+import { Clock, ListChecks, Lock, Target } from "lucide-react";
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { Role, SessionStatus } from "@/lib/generated/prisma/enums";
+import { Role, SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
 import { listRecentSessions } from "@/server/practice";
+import { checkStudentLevelAccess } from "@/server/level-access";
 import { AppShell } from "@/components/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { FormMessage } from "@/components/ui/form-message";
 import { startSessionAction } from "./actions";
 
 export const metadata: Metadata = {
   title: "Practice",
 };
 
-export default async function PracticeHomePage() {
+export default async function PracticeHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ locked?: string }>;
+}) {
   const student = await requireRole(Role.STUDENT);
+  const params = await searchParams;
 
   const [profile, sessions] = await Promise.all([
     prisma.user.findUnique({
@@ -26,6 +33,7 @@ export default async function PracticeHomePage() {
         institute: { select: { name: true, logoUrl: true } },
         currentLevel: {
           select: {
+            id: true,
             name: true,
             questionCount: true,
             timeLimitSeconds: true,
@@ -38,6 +46,14 @@ export default async function PracticeHomePage() {
   ]);
 
   const level = profile?.currentLevel;
+  const access = level
+    ? await checkStudentLevelAccess(
+        student.id,
+        student.instituteId,
+        level.id,
+      )
+    : null;
+  const isLocked = access != null && !access.allowed;
 
   return (
     <AppShell
@@ -47,6 +63,12 @@ export default async function PracticeHomePage() {
       title="Practice"
       subtitle="Timed practice at your current level."
     >
+      {params.locked === "1" && isLocked && access?.message && (
+        <FormMessage variant="error" className="mb-6">
+          {access.message}
+        </FormMessage>
+      )}
+
       {level ? (
         <Card className="mb-8 overflow-hidden">
           <CardContent className="p-6">
@@ -67,12 +89,33 @@ export default async function PracticeHomePage() {
                 <Target className="h-3.5 w-3.5" />
                 pass at {level.passAccuracy}%
               </Badge>
+              {isLocked && (
+                <Badge variant="warning">
+                  <Lock className="h-3.5 w-3.5" />
+                  Locked
+                </Badge>
+              )}
             </div>
-            <form action={startSessionAction} className="mt-6">
-              <Button type="submit" size="lg">
-                Start practice
-              </Button>
-            </form>
+
+            {isLocked && access?.message ? (
+              <p className="mt-6 text-sm text-muted-foreground">
+                {access.message} Ask your teacher if you think this is a mistake.
+              </p>
+            ) : (
+              <div className="mt-6 flex flex-wrap gap-3">
+                <form action={startSessionAction}>
+                  <Button type="submit" size="lg">
+                    Start practice
+                  </Button>
+                </form>
+                <form action={startSessionAction}>
+                  <input type="hidden" name="mode" value="review" />
+                  <Button type="submit" size="lg" variant="outline">
+                    Review (no timer)
+                  </Button>
+                </form>
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (
@@ -104,6 +147,9 @@ export default async function PracticeHomePage() {
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                  {s.mode === PracticeMode.REVIEW && (
+                    <Badge variant="secondary">Review</Badge>
+                  )}
                   {s.status === SessionStatus.IN_PROGRESS ? (
                     <Badge variant="warning">In progress</Badge>
                   ) : (

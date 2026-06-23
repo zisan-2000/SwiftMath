@@ -13,7 +13,7 @@ import {
   type LeaderboardPeriod,
   type RankedLeaderboardRow,
 } from "@/lib/ranking";
-import { Role, SessionStatus } from "@/lib/generated/prisma/enums";
+import { Role, SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
 
 export type { LeaderboardPeriod };
 
@@ -52,6 +52,7 @@ export async function getInstituteLeaderboard(
 
   const sessionScope = {
     instituteId,
+    mode: PracticeMode.STANDARD,
     ...(options.levelId && { levelId: options.levelId }),
     ...(since && { submittedAt: { gte: since } }),
   };

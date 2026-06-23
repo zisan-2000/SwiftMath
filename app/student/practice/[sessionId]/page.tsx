@@ -5,7 +5,7 @@ import { Check, X } from "lucide-react";
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { Role, SessionStatus } from "@/lib/generated/prisma/enums";
+import { Role, SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
 import { getStudentSession } from "@/server/practice";
 import { AppShell } from "@/components/app-shell";
 import { PracticeRunner } from "@/components/student/practice-runner";
@@ -41,8 +41,9 @@ export default async function PracticeSessionPage({
   const instituteName = institute?.name ?? "Institute";
   const instituteLogoUrl = institute?.logoUrl ?? null;
 
-  // --- In progress: run the timed test (no correct answers sent to client) ---
+  // --- In progress: run the test (no correct answers sent to client) ---
   if (session.status === SessionStatus.IN_PROGRESS) {
+    const isReview = session.mode === PracticeMode.REVIEW;
     const safeQuestions = session.questions.map((q) => ({
       id: q.id,
       index: q.index,
@@ -55,10 +56,15 @@ export default async function PracticeSessionPage({
         instituteName={instituteName}
         instituteLogoUrl={instituteLogoUrl}
         title={session.level.name}
-        subtitle="Answer as many as you can before time runs out."
+        subtitle={
+          isReview
+            ? "Review mode — no timer, no level-up. Submit when you're ready."
+            : "Answer as many as you can before time runs out."
+        }
       >
         <PracticeRunner
           sessionId={session.id}
+          timed={!isReview}
           expiresAt={session.expiresAt.toISOString()}
           questions={safeQuestions}
         />
@@ -68,6 +74,7 @@ export default async function PracticeSessionPage({
 
   // --- Finished: show the result + per-question review ---
   const expired = session.status === SessionStatus.EXPIRED;
+  const isReview = session.mode === PracticeMode.REVIEW;
 
   return (
     <AppShell
@@ -88,6 +95,7 @@ export default async function PracticeSessionPage({
           </p>
 
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            {isReview && <Badge variant="secondary">Review</Badge>}
             {expired && <Badge variant="warning">Time expired</Badge>}
             <Badge variant={session.passed ? "success" : "muted"}>
               {session.passed ? "Passed" : "Not passed"}
@@ -97,7 +105,12 @@ export default async function PracticeSessionPage({
 
           <div className="mt-6 flex justify-center gap-3">
             <form action={startSessionAction}>
-              <Button type="submit">Practice again</Button>
+              {isReview && (
+                <input type="hidden" name="mode" value="review" />
+              )}
+              <Button type="submit">
+                {isReview ? "Review again" : "Practice again"}
+              </Button>
             </form>
             <Button asChild variant="outline">
               <Link href="/student/practice">Back</Link>

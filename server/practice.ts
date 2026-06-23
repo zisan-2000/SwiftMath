@@ -11,7 +11,12 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
-import { SessionStatus } from "@/lib/generated/prisma/enums";
+import { PracticeMode, SessionStatus } from "@/lib/generated/prisma/enums";
+import { assertStudentLevelAccess } from "@/server/level-access";
+import {
+  collectAnomalyFlags,
+  sanitizeTabBlurCount,
+} from "@/lib/practice-anomaly";
 import {
   computeAccuracy,
   didPass,
@@ -26,13 +31,37 @@ export interface StudentContext {
   instituteId: string;
 }
 
+export interface PracticeSubmitTelemetry {
+  /** Untrusted hint from the browser — logged only, never affects grading. */
+  tabBlurCount?: number;
+}
+
+/** Structured log line when anomaly flags are recorded (ops / future audit). */
+function logPracticeAnomalies(
+  sessionId: string,
+  studentId: string,
+  flags: string[],
+) {
+  if (flags.length === 0) return;
+  console.warn(
+    JSON.stringify({
+      event: "practice.anomaly",
+      sessionId,
+      studentId,
+      flags,
+      at: new Date().toISOString(),
+    }),
+  );
+}
+
 /**
- * Start a timed session at the student's *current* level (read fresh from the
- * DB, never trusted from the session). Returns the new session id.
- * Throws if the student has no level assigned.
+ * Start a session at the student's *current* level (read fresh from the DB).
+ * STANDARD runs against the level time limit and can level up; REVIEW is
+ * untimed drill-only. Returns the new session id.
  */
 export async function startPracticeSession(
   student: StudentContext,
+  mode: PracticeMode = PracticeMode.STANDARD,
 ): Promise<string> {
   const row = await prisma.user.findUnique({
     where: { id: student.id },
@@ -56,8 +85,13 @@ export async function startPracticeSession(
     throw new Error("No level assigned.");
   }
 
+  await assertStudentLevelAccess(student.id, student.instituteId, level.id);
+
   const startedAt = new Date();
-  const expiresAt = new Date(startedAt.getTime() + level.timeLimitSeconds * 1000);
+  const expiresAt =
+    mode === PracticeMode.REVIEW
+      ? new Date(startedAt.getTime() + 24 * 60 * 60 * 1000)
+      : new Date(startedAt.getTime() + level.timeLimitSeconds * 1000);
 
   const questions = Array.from({ length: level.questionCount }, (_, index) => {
     const q = generateQuestion(level);
@@ -69,6 +103,7 @@ export async function startPracticeSession(
       instituteId: student.instituteId,
       studentId: student.id,
       levelId: level.id,
+      mode,
       startedAt,
       expiresAt,
       totalQuestions: questions.length,
@@ -91,6 +126,7 @@ export function getStudentSession(studentId: string, sessionId: string) {
     select: {
       id: true,
       status: true,
+      mode: true,
       startedAt: true,
       expiresAt: true,
       submittedAt: true,
@@ -124,6 +160,7 @@ export function listRecentSessions(studentId: string, take = 10) {
     select: {
       id: true,
       status: true,
+      mode: true,
       accuracy: true,
       passed: true,
       leveledUp: true,
@@ -151,6 +188,7 @@ export async function submitPracticeSession(
   student: StudentContext,
   sessionId: string,
   answers: { id: string; answer: number | null }[],
+  telemetry: PracticeSubmitTelemetry = {},
 ): Promise<SubmitResult> {
   const now = new Date();
 
@@ -160,6 +198,8 @@ export async function submitPracticeSession(
       select: {
         id: true,
         status: true,
+        mode: true,
+        startedAt: true,
         expiresAt: true,
         levelId: true,
         totalQuestions: true,
@@ -202,12 +242,14 @@ export async function submitPracticeSession(
 
     const total = session.totalQuestions;
     const accuracy = computeAccuracy(correct, total);
-    const expired = isExpired(now.getTime(), session.expiresAt.getTime());
+    const isReview = session.mode === PracticeMode.REVIEW;
+    const expired =
+      !isReview && isExpired(now.getTime(), session.expiresAt.getTime());
     const passed = didPass(expired, accuracy, session.level.passAccuracy);
 
-    // Level-up: only when this attempt was at the student's *current* level.
+    // Level-up: timed standard passes at the student's current level only.
     let leveledUp = false;
-    if (passed) {
+    if (passed && !isReview) {
       const studentRow = await tx.user.findUnique({
         where: { id: student.id },
         select: { currentLevelId: true },
@@ -232,6 +274,20 @@ export async function submitPracticeSession(
     }
 
     const status = expired ? SessionStatus.EXPIRED : SessionStatus.COMPLETED;
+
+    const tabBlurCount = sanitizeTabBlurCount(telemetry.tabBlurCount);
+    const anomalyFlags = collectAnomalyFlags({
+      startedAtMs: session.startedAt.getTime(),
+      submittedAtMs: now.getTime(),
+      questionCount: total,
+      checkFastSubmit:
+        !isReview && session.mode === PracticeMode.STANDARD && !expired,
+      tabBlurCount,
+    });
+    if (anomalyFlags.length > 0) {
+      logPracticeAnomalies(sessionId, student.id, anomalyFlags);
+    }
+
     await tx.practiceSession.update({
       where: { id: sessionId },
       data: {
@@ -241,6 +297,7 @@ export async function submitPracticeSession(
         accuracy,
         passed,
         leveledUp,
+        anomalyFlags,
       },
     });
 

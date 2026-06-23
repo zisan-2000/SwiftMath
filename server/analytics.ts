@@ -13,7 +13,7 @@ import {
   computePassRate,
   type DailySessionCount,
 } from "@/lib/analytics";
-import { SessionStatus } from "@/lib/generated/prisma/enums";
+import { SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
 
 /** Summary + daily breakdown for the admin practice-activity chart. */
 export interface InstitutePracticeAnalytics {
@@ -69,6 +69,7 @@ export async function getInstitutePracticeAnalytics(
   const sessions = await prisma.practiceSession.findMany({
     where: {
       instituteId,
+      mode: PracticeMode.STANDARD,
       status: { not: SessionStatus.IN_PROGRESS },
       createdAt: { gte: windowStart(windowDays) },
     },
@@ -91,6 +92,7 @@ export async function getTeacherPracticeAnalytics(
   const windowDays = Math.max(1, days);
   const sessions = await prisma.practiceSession.findMany({
     where: {
+      mode: PracticeMode.STANDARD,
       status: { not: SessionStatus.IN_PROGRESS },
       createdAt: { gte: windowStart(windowDays) },
       student: { group: { teacherId } },
@@ -112,6 +114,7 @@ export async function getPlatformPracticeAnalytics(
   const windowDays = Math.max(1, days);
   const sessions = await prisma.practiceSession.findMany({
     where: {
+      mode: PracticeMode.STANDARD,
       status: { not: SessionStatus.IN_PROGRESS },
       createdAt: { gte: windowStart(windowDays) },
     },
@@ -134,6 +137,7 @@ export async function getStudentPracticeAnalytics(
   const sessions = await prisma.practiceSession.findMany({
     where: {
       studentId,
+      mode: PracticeMode.STANDARD,
       status: { not: SessionStatus.IN_PROGRESS },
       createdAt: { gte: windowStart(windowDays) },
     },

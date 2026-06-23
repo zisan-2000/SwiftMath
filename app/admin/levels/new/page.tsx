@@ -59,6 +59,7 @@ export default async function NewLevelPage() {
               questionCount: 10,
               timeLimitSeconds: 120,
               passAccuracy: 70,
+              requiresPreviousPass: true,
             }}
           />
         </CardContent>

@@ -66,6 +66,7 @@ export default async function EditLevelPage({
               questionCount: level.questionCount,
               timeLimitSeconds: level.timeLimitSeconds,
               passAccuracy: level.passAccuracy,
+              requiresPreviousPass: level.requiresPreviousPass,
             }}
           />
         </CardContent>

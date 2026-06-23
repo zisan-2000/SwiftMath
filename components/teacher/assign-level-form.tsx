@@ -47,7 +47,11 @@ export function AssignLevelForm({
   return (
     <form
       action={async (formData) => {
-        await assignLevelAction(formData);
+        const result = await assignLevelAction(formData);
+        if (result.error) {
+          toast.error(result.error);
+          return;
+        }
         toast.success("Level updated");
       }}
       className="flex flex-col gap-2 sm:flex-row sm:items-end"

@@ -81,6 +81,8 @@ function parseLevelInput(
     return { error: "Pass accuracy must be between 0 and 100." };
   }
 
+  const requiresPreviousPass = formData.get("requiresPreviousPass") === "on";
+
   return {
     input: {
       name,
@@ -92,6 +94,7 @@ function parseLevelInput(
       questionCount,
       timeLimitSeconds,
       passAccuracy,
+      requiresPreviousPass,
     },
   };
 }

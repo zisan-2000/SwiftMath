@@ -112,6 +112,10 @@ export default async function AdminLevelsPage() {
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {level.termsPerQuestion} terms · {level.minNumber}–
                         {level.maxNumber} · {level._count.studentsOnLevel} students
+                        {level.orderIndex > 1 &&
+                          (level.requiresPreviousPass
+                            ? " · requires previous pass"
+                            : " · open entry")}
                       </p>
                     </div>
                     <Button variant="ghost" size="sm" asChild className="shrink-0">

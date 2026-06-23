@@ -10,6 +10,7 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { createUserAccount, setUserPassword } from "@/server/users";
+import { checkStudentLevelAccess } from "@/server/level-access";
 import { Role, SessionStatus } from "@/lib/generated/prisma/enums";
 
 /** The authenticated teacher, as needed for scoping. */
@@ -103,16 +104,20 @@ export async function addStudentToGroup(
   });
 }
 
+export type AssignLevelResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
 /**
  * Set (or clear) a student's current level. Verifies the student is in one of
  * the teacher's groups and the level belongs to the teacher's institute.
- * Pass `null` to unassign.
+ * Pass `null` to unassign. Enforces level prerequisites when configured.
  */
 export async function assignStudentLevel(
   teacher: TeacherContext,
   studentId: string,
   levelId: string | null,
-) {
+): Promise<AssignLevelResult> {
   // Student must be a STUDENT inside a group this teacher owns.
   const student = await prisma.user.findFirst({
     where: {
@@ -132,14 +137,24 @@ export async function assignStudentLevel(
       select: { id: true },
     });
     if (!level) {
-      throw new Error("Level not found in this institute.");
+      return { ok: false, error: "Level not found in this institute." };
+    }
+
+    const access = await checkStudentLevelAccess(
+      studentId,
+      teacher.instituteId,
+      levelId,
+    );
+    if (!access.allowed) {
+      return { ok: false, error: access.message ?? "This level is locked." };
     }
   }
 
-  return prisma.user.update({
+  await prisma.user.update({
     where: { id: studentId },
     data: { currentLevelId: levelId },
   });
+  return { ok: true };
 }
 
 /**

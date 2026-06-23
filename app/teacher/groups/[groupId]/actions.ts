@@ -63,7 +63,9 @@ export async function addStudentAction(
  * Set or clear a student's current level. Plain <form> action; an empty
  * levelId means "unassign".
  */
-export async function assignLevelAction(formData: FormData) {
+export async function assignLevelAction(
+  formData: FormData,
+): Promise<{ error?: string; ok?: boolean }> {
   const teacher = await requireRole(Role.TEACHER);
 
   const groupId = String(formData.get("groupId") ?? "");
@@ -71,9 +73,13 @@ export async function assignLevelAction(formData: FormData) {
   const levelIdRaw = String(formData.get("levelId") ?? "");
   const levelId = levelIdRaw === "" ? null : levelIdRaw;
 
-  await assignStudentLevel(teacher, studentId, levelId);
+  const result = await assignStudentLevel(teacher, studentId, levelId);
+  if (!result.ok) {
+    return { error: result.error };
+  }
 
   revalidatePath(`/teacher/groups/${groupId}`);
+  return { ok: true };
 }
 
 /**

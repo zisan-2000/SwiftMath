@@ -57,6 +57,13 @@ enum SessionStatus {
   EXPIRED
 }
 
+/// How a practice session is scored. STANDARD is timed and can level up;
+/// REVIEW is untimed drill-only (no expiry, no level-up).
+enum PracticeMode {
+  STANDARD
+  REVIEW
+}
+
 // ---------------------------------------------------------------------------
 // Tenant
 // ---------------------------------------------------------------------------
@@ -256,6 +263,11 @@ model Level {
   /// Inclusive upper bound for each generated number.
   maxNumber Int
 
+  /// When true, a student must pass the previous level (by orderIndex) before
+  /// practising or being assigned here. Level 1 ignores this. Admins can turn
+  /// off to allow skipping ahead.
+  requiresPreviousPass Boolean @default(true)
+
   /// Students currently sitting on this level.
   studentsOnLevel User[] @relation("StudentCurrentLevel")
 
@@ -295,6 +307,9 @@ model PracticeSession {
 
   status SessionStatus @default(IN_PROGRESS)
 
+  /// STANDARD = timed attempt that can level up; REVIEW = untimed drill.
+  mode PracticeMode @default(STANDARD)
+
   /// Server clock. The session must be submitted on or before `expiresAt`.
   startedAt   DateTime  @default(now())
   expiresAt   DateTime
@@ -309,6 +324,9 @@ model PracticeSession {
   passed         Boolean @default(false)
   /// Did passing this attempt advance the student to the next level?
   leveledUp      Boolean @default(false)
+
+  /// Server-detected anomaly flags (informational; no auto-penalty yet).
+  anomalyFlags String[] @default([])
 
   createdAt DateTime @default(now())
 

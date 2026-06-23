@@ -17,7 +17,9 @@ interface RunnerQuestion {
 
 interface PracticeRunnerProps {
   sessionId: string;
-  /** Server deadline (ISO). The server re-checks this on submit. */
+  /** When false, no countdown or auto-submit (review mode). */
+  timed: boolean;
+  /** Server deadline (ISO). Ignored when `timed` is false. */
   expiresAt: string;
   questions: RunnerQuestion[];
 }
@@ -31,6 +33,7 @@ function formatClock(totalSeconds: number): string {
 
 export function PracticeRunner({
   sessionId,
+  timed,
   expiresAt,
   questions,
 }: PracticeRunnerProps) {
@@ -39,10 +42,22 @@ export function PracticeRunner({
 
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [secondsLeft, setSecondsLeft] = useState(() =>
-    Math.round((deadline - Date.now()) / 1000),
+    timed ? Math.round((deadline - Date.now()) / 1000) : 0,
   );
   const [submitting, setSubmitting] = useState(false);
   const submittedRef = useRef(false);
+  const tabBlurCountRef = useRef(0);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        tabBlurCountRef.current += 1;
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () =>
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, []);
 
   const submit = useCallback(async () => {
     if (submittedRef.current) return;
@@ -59,13 +74,16 @@ export function PracticeRunner({
       };
     });
 
-    await submitSessionAction(sessionId, payload);
+    await submitSessionAction(sessionId, payload, {
+      tabBlurCount: tabBlurCountRef.current,
+    });
     // The server flipped the session to COMPLETED/EXPIRED; re-render to results.
     router.refresh();
   }, [answers, questions, router, sessionId]);
 
-  // Countdown; auto-submit when time runs out.
+  // Countdown; auto-submit when time runs out (timed sessions only).
   useEffect(() => {
+    if (!timed) return;
     const tick = () => {
       const remaining = Math.round((deadline - Date.now()) / 1000);
       setSecondsLeft(remaining);
@@ -73,32 +91,33 @@ export function PracticeRunner({
     };
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
-  }, [deadline, submit]);
+  }, [deadline, submit, timed]);
 
-  const lowTime = secondsLeft <= 10;
+  const lowTime = timed && secondsLeft <= 10;
 
   return (
     <div>
-      {/* Sticky timer */}
-      <Card
-        className={cn(
-          "sticky top-16 z-10 mb-6 flex items-center justify-between px-5 py-3 transition-colors",
-          lowTime && "border-destructive/40 bg-destructive/5",
-        )}
-      >
-        <span className="text-sm text-muted-foreground">Time left</span>
-        <span
-          role="timer"
-          aria-live={lowTime ? "assertive" : "polite"}
-          aria-atomic="true"
+      {timed && (
+        <Card
           className={cn(
-            "font-mono text-xl font-bold tabular-nums",
-            lowTime ? "text-destructive" : "text-foreground",
+            "sticky top-16 z-10 mb-6 flex items-center justify-between px-5 py-3 transition-colors",
+            lowTime && "border-destructive/40 bg-destructive/5",
           )}
         >
-          {formatClock(secondsLeft)}
-        </span>
-      </Card>
+          <span className="text-sm text-muted-foreground">Time left</span>
+          <span
+            role="timer"
+            aria-live={lowTime ? "assertive" : "polite"}
+            aria-atomic="true"
+            className={cn(
+              "font-mono text-xl font-bold tabular-nums",
+              lowTime ? "text-destructive" : "text-foreground",
+            )}
+          >
+            {formatClock(secondsLeft)}
+          </span>
+        </Card>
+      )}
 
       <form
         onSubmit={(e) => {

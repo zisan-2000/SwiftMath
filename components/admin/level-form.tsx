@@ -26,6 +26,7 @@ export interface LevelFormDefaults {
   questionCount: number | string;
   timeLimitSeconds: number | string;
   passAccuracy: number | string;
+  requiresPreviousPass: boolean;
 }
 
 interface LevelFormProps {
@@ -169,6 +170,27 @@ export function LevelForm({ action, submitLabel, defaults }: LevelFormProps) {
           min={0}
           hint="0–100"
         />
+      </div>
+
+      <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-4">
+        <input type="hidden" name="requiresPreviousPass" value="off" />
+        <input
+          id="requiresPreviousPass"
+          name="requiresPreviousPass"
+          type="checkbox"
+          value="on"
+          defaultChecked={defaults.requiresPreviousPass}
+          className="mt-1 h-4 w-4 rounded border-input"
+        />
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="requiresPreviousPass" className="font-medium">
+            Require previous level pass
+          </Label>
+          <p className="text-sm text-muted-foreground">
+            When enabled, students must pass the level before this one (by order)
+            before they can practise or be assigned here. Level 1 is always open.
+          </p>
+        </div>
       </div>
 
       {state.error && <FormMessage variant="error">{state.error}</FormMessage>}

@@ -33,6 +33,7 @@ export interface LevelInput {
   questionCount: number;
   timeLimitSeconds: number;
   passAccuracy: number;
+  requiresPreviousPass: boolean;
 }
 
 /**
@@ -196,6 +197,7 @@ export function listLevels(instituteId: string) {
       questionCount: true,
       timeLimitSeconds: true,
       passAccuracy: true,
+      requiresPreviousPass: true,
       _count: { select: { studentsOnLevel: true } },
     },
   });
@@ -219,6 +221,7 @@ export function getLevel(admin: AdminContext, levelId: string) {
       questionCount: true,
       timeLimitSeconds: true,
       passAccuracy: true,
+      requiresPreviousPass: true,
     },
   });
 }
