@@ -18,7 +18,7 @@ import { Role } from "@/lib/generated/prisma/enums";
 import { getInstitutePracticeAnalytics } from "@/server/analytics";
 import { AppShell } from "@/components/app-shell";
 import { StatCard } from "@/components/stat-card";
-import { PracticeActivityChart } from "@/components/admin/practice-activity-chart";
+import { PracticeActivityChart } from "@/components/practice-activity-chart";
 import { Card } from "@/components/ui/card";
 
 export const metadata: Metadata = {

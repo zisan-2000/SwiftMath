@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
+  Brain,
   Building2,
   GraduationCap,
   ShieldCheck,
+  Target,
+  TrendingUp,
   Users,
   ArrowRight,
 } from "lucide-react";
@@ -11,8 +14,10 @@ import {
 import { APP_NAME } from "@/lib/constants";
 import { requireSuperAdmin } from "@/lib/session";
 import { getPlatformStats } from "@/server/super";
+import { getPlatformPracticeAnalytics } from "@/server/analytics";
 import { AppShell } from "@/components/app-shell";
 import { StatCard } from "@/components/stat-card";
+import { PracticeActivityChart } from "@/components/practice-activity-chart";
 import { Card } from "@/components/ui/card";
 
 export const metadata: Metadata = {
@@ -26,7 +31,10 @@ export const metadata: Metadata = {
  */
 export default async function SuperAdminDashboardPage() {
   const user = await requireSuperAdmin();
-  const stats = await getPlatformStats();
+  const [stats, practice] = await Promise.all([
+    getPlatformStats(),
+    getPlatformPracticeAnalytics(),
+  ]);
 
   return (
     <AppShell
@@ -41,6 +49,29 @@ export default async function SuperAdminDashboardPage() {
         <StatCard label="Teachers" value={stats.teachers} icon={Users} />
         <StatCard label="Students" value={stats.students} icon={GraduationCap} />
       </div>
+
+      <h2 className="mb-3 mt-10 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        Practice (last 7 days)
+      </h2>
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard label="Sessions" value={practice.totalSessions} icon={Brain} />
+        <StatCard
+          label="Pass rate"
+          value={`${practice.passRate}%`}
+          icon={Target}
+        />
+        <StatCard
+          label="Avg accuracy"
+          value={`${practice.avgAccuracy}%`}
+          icon={TrendingUp}
+        />
+      </div>
+
+      <PracticeActivityChart
+        data={practice.daily}
+        empty={practice.totalSessions === 0}
+        description="Platform-wide finished attempts over the last 7 days"
+      />
 
       <h2 className="mb-3 mt-10 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         Manage

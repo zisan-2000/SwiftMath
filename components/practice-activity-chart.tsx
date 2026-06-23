@@ -23,6 +23,8 @@ interface PracticeActivityChartProps {
   data: DailySessionCount[];
   /** Shown when every day has zero sessions. */
   empty?: boolean;
+  /** Optional override for the card description line. */
+  description?: string;
 }
 
 /** Custom tooltip styled to match the app theme. */
@@ -53,18 +55,19 @@ function ChartTooltip({
 }
 
 /**
- * Bar chart of daily practice attempts for the admin dashboard. Client-only
- * because Recharts needs the DOM; data is fetched and scoped server-side.
+ * Bar chart of daily practice attempts. Client-only because Recharts needs the
+ * DOM; data is fetched and scoped server-side (institute- or teacher-scoped).
  */
 export function PracticeActivityChart({
   data,
   empty,
+  description = "Finished attempts over the last 7 days",
 }: PracticeActivityChartProps) {
   return (
     <Card>
       <CardHeader className="border-b border-border">
         <CardTitle className="text-base">Practice activity</CardTitle>
-        <CardDescription>Finished attempts over the last 7 days</CardDescription>
+        <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent className="pt-6">
         {empty ? (
