@@ -12,6 +12,7 @@ import { hashPassword } from "better-auth/crypto";
 
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_STARTER_LEVELS } from "@/lib/default-levels";
+import { setUserPassword } from "@/server/users";
 import { Role } from "@/lib/generated/prisma/enums";
 
 /** Platform-wide headline counts for the Super Admin dashboard. */
@@ -176,5 +177,67 @@ export async function setInstituteActive(
       await tx.session.deleteMany({ where: { user: { instituteId } } });
     }
   });
+  return true;
+}
+
+/**
+ * Full institute detail for the Super Admin drill-in page: identity, branding,
+ * role counts, and every ADMIN account in the tenant (for support actions like
+ * password reset).
+ */
+export async function getInstituteDetail(instituteId: string) {
+  const institute = await prisma.institute.findUnique({
+    where: { id: instituteId },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      tagline: true,
+      logoUrl: true,
+      isActive: true,
+      createdAt: true,
+    },
+  });
+  if (!institute) return null;
+
+  const [admins, teachers, students, groups, levels] = await Promise.all([
+    prisma.user.findMany({
+      where: { instituteId, role: Role.ADMIN },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        isActive: true,
+        createdAt: true,
+      },
+    }),
+    prisma.user.count({ where: { instituteId, role: Role.TEACHER } }),
+    prisma.user.count({ where: { instituteId, role: Role.STUDENT } }),
+    prisma.group.count({ where: { instituteId } }),
+    prisma.level.count({ where: { instituteId } }),
+  ]);
+
+  return { institute, admins, teachers, students, groups, levels };
+}
+
+/**
+ * Reset the password of an ADMIN in a specific institute. Verifies the target
+ * belongs to that institute and is an ADMIN before delegating to the trusted
+ * `setUserPassword` primitive. Returns false if the user isn't a valid admin
+ * of this institute.
+ */
+export async function resetInstituteAdminPassword(
+  instituteId: string,
+  userId: string,
+  newPassword: string,
+): Promise<boolean> {
+  const target = await prisma.user.findFirst({
+    where: { id: userId, instituteId, role: Role.ADMIN },
+    select: { id: true },
+  });
+  if (!target) return false;
+
+  await setUserPassword(userId, newPassword);
   return true;
 }

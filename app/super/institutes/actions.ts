@@ -151,9 +151,15 @@ export async function updateInstituteAction(
     throw error;
   }
 
-  revalidatePath("/super/institutes");
-  revalidatePath("/super");
+  revalidateInstitutePaths(instituteId);
   return { ok: true };
+}
+
+/** Revalidate list + dashboard + institute drill-in after edits. */
+function revalidateInstitutePaths(instituteId: string) {
+  revalidatePath("/super/institutes");
+  revalidatePath(`/super/institutes/${instituteId}`);
+  revalidatePath("/super");
 }
 
 /**
@@ -169,6 +175,5 @@ export async function setInstituteActiveAction(
 
   await setInstituteActive(instituteId, isActive);
 
-  revalidatePath("/super/institutes");
-  revalidatePath("/super");
+  revalidateInstitutePaths(instituteId);
 }

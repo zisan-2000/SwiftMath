@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Building2 } from "lucide-react";
 
 import { APP_NAME } from "@/lib/constants";
@@ -82,7 +83,12 @@ export default async function SuperInstitutesPage() {
                     )}
                     <div className="min-w-0">
                       <p className="flex items-center gap-2 truncate font-medium text-foreground">
-                        {institute.name}
+                        <Link
+                          href={`/super/institutes/${institute.id}`}
+                          className="truncate hover:underline"
+                        >
+                          {institute.name}
+                        </Link>
                         {!institute.isActive && (
                           <Badge variant="muted">Disabled</Badge>
                         )}
