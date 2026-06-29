@@ -35,6 +35,7 @@ cp .env.example .env
 | `DATABASE_URL` | Yes | PostgreSQL connection string. Managed hosts usually need `?sslmode=require` at the end. |
 | `BETTER_AUTH_SECRET` | Yes | Random secret for signing sessions. **Must be unique per environment.** Generate with `openssl rand -base64 32`. |
 | `BETTER_AUTH_URL` | Yes | Public origin of the app **with no trailing slash**. Must match the URL users open in the browser. |
+| `BLOB_READ_WRITE_TOKEN` | Prod (logo upload) | [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) token for institute logo uploads. Omit locally to store under `public/uploads/` instead. |
 | `NODE_ENV` | Set by host | `production` on Vercel/Railway automatically. Do not set manually in `.env` for local dev. |
 
 ### Local development

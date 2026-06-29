@@ -32,7 +32,11 @@ export function InstituteSettingsForm({
   }, [state.ok]);
 
   return (
-    <form action={formAction} className="flex max-w-lg flex-col gap-4">
+    <form
+      action={formAction}
+      encType="multipart/form-data"
+      className="flex max-w-lg flex-col gap-4"
+    >
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="settings-institute-name">Institute name</Label>
         <Input
@@ -71,9 +75,36 @@ export function InstituteSettingsForm({
         />
       </div>
 
+      <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/20 p-4">
+        <Label htmlFor="settings-institute-logo-file">Logo upload</Label>
+        {institute.logoUrl ? (
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={institute.logoUrl}
+              alt=""
+              className="size-12 rounded-md border border-border bg-background object-contain"
+            />
+            <p className="text-xs text-muted-foreground">
+              Current logo — upload a new file to replace it.
+            </p>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            No logo yet. Upload PNG, JPEG, WebP, or GIF (max 1 MB).
+          </p>
+        )}
+        <Input
+          id="settings-institute-logo-file"
+          name="logoFile"
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+        />
+      </div>
+
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="settings-institute-logo">
-          Logo URL{" "}
+          Or logo URL{" "}
           <span className="font-normal text-muted-foreground">(optional)</span>
         </Label>
         <Input
@@ -84,6 +115,9 @@ export function InstituteSettingsForm({
           placeholder="https://example.com/logo.png"
           autoComplete="off"
         />
+        <p className="text-xs text-muted-foreground">
+          If you upload a file above, it takes priority over this URL.
+        </p>
       </div>
 
       {state.error && <FormMessage variant="error">{state.error}</FormMessage>}

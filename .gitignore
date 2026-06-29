@@ -38,6 +38,10 @@ yarn-error.log*
 # vercel
 .vercel
 
+# locally uploaded institute logos (dev fallback when Blob is not configured)
+/public/uploads/*
+!/public/uploads/.gitkeep
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

@@ -36,20 +36,6 @@ export default async function AdminSettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {institute.logoUrl ? (
-            <div className="mb-6 flex items-center gap-3 rounded-lg border border-border bg-muted/30 p-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={institute.logoUrl}
-                alt=""
-                className="size-10 rounded-md object-contain"
-              />
-              <p className="text-sm text-muted-foreground">
-                Current logo preview — shown in the sidebar for your institute.
-              </p>
-            </div>
-          ) : null}
-
           <InstituteSettingsForm institute={institute} />
         </CardContent>
       </Card>

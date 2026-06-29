@@ -9,6 +9,7 @@ import {
 import { requireRole } from "@/lib/session";
 import { Role } from "@/lib/generated/prisma/enums";
 import { updateInstituteBranding } from "@/server/admin";
+import { uploadInstituteLogo } from "@/server/institute-logo";
 
 /** Result of the institute settings form, surfaced via useActionState. */
 export interface UpdateInstituteSettingsState {
@@ -25,7 +26,14 @@ export async function updateInstituteSettingsAction(
 
   const name = String(formData.get("name") ?? "").trim();
   const tagline = String(formData.get("tagline") ?? "").trim();
-  const logoUrl = String(formData.get("logoUrl") ?? "").trim();
+  let logoUrl = String(formData.get("logoUrl") ?? "").trim();
+
+  const logoFile = formData.get("logoFile");
+  if (logoFile instanceof File && logoFile.size > 0) {
+    const upload = await uploadInstituteLogo(admin, logoFile);
+    if ("error" in upload) return { error: upload.error };
+    logoUrl = upload.url;
+  }
 
   const fieldError = validateInstituteBranding({ name, tagline, logoUrl });
   if (fieldError) return { error: fieldError };
@@ -33,10 +41,14 @@ export async function updateInstituteSettingsAction(
   const ok = await updateInstituteBranding(admin, { name, tagline, logoUrl });
   if (!ok) return { error: "Institute not found." };
 
+  revalidateInstituteBrandingPaths();
+
+  return { ok: true };
+}
+
+function revalidateInstituteBrandingPaths() {
   revalidatePath("/admin", "layout");
   revalidatePath("/teacher", "layout");
   revalidatePath("/student", "layout");
   revalidatePath("/account");
-
-  return { ok: true };
 }
