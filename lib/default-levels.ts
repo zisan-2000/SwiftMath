@@ -19,12 +19,6 @@ export interface DefaultLevelDef {
   passAccuracy: number;
 }
 
-/**
- * Nine-level starter curriculum — mirrors the SEFT seed progression. Keeps
- * new institutes usable on day one (teachers can assign level 1 to students
- * without the admin having to build a curriculum first). Covers +, −, mixed,
- * ×, and ÷ before admins extend via /admin/levels.
- */
 export const DEFAULT_STARTER_LEVELS: DefaultLevelDef[] = [
   {
     orderIndex: 1,
@@ -126,3 +120,10 @@ export const DEFAULT_STARTER_LEVELS: DefaultLevelDef[] = [
     passAccuracy: 75,
   },
 ];
+
+/** Look up the platform default level definition for a curriculum step. */
+export function getDefaultLevelByOrderIndex(
+  orderIndex: number,
+): DefaultLevelDef | undefined {
+  return DEFAULT_STARTER_LEVELS.find((level) => level.orderIndex === orderIndex);
+}

@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
 import {
   getGlobalRankingLevelName,
+  formatCanonicalLevelRules,
   globalRankingHref,
   parseGlobalRankingLevelStep,
 } from "@/lib/global-ranking";
@@ -64,6 +65,7 @@ export default async function StudentGlobalRankingPage({
   }
 
   const levelStepName = getGlobalRankingLevelName(levelStep);
+  const canonicalRules = formatCanonicalLevelRules(levelStep);
 
   const [institute, leaderboard] = await Promise.all([
     prisma.institute.findUnique({
@@ -101,8 +103,10 @@ export default async function StudentGlobalRankingPage({
       />
 
       <p className="mb-4 text-sm text-muted-foreground">
-        Comparing {levelStepName} across all active institutes · only timed 100%
-        accuracy passes, ranked by fastest finish
+        Comparing {levelStepName} across all active institutes
+        {canonicalRules ? ` (${canonicalRules})` : ""} · only standard platform
+        rules count — admin-edited levels are excluded · timed 100% passes
+        ranked by fastest finish
         {period === "week"
           ? " in the last 7 days"
           : period === "month"
@@ -134,7 +138,8 @@ export default async function StudentGlobalRankingPage({
 
       <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
         <Globe className="size-3.5 shrink-0" aria-hidden />
-        Pick a level tab above to compare the same step across institutes.
+        Global ranking uses the default curriculum rules for each step so times
+        stay fair across institutes.
       </p>
     </AppShell>
   );
