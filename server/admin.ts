@@ -178,10 +178,145 @@ export function listInstituteGroups(instituteId: string) {
     select: {
       id: true,
       name: true,
+      teacherId: true,
       teacher: { select: { name: true, email: true } },
       _count: { select: { students: true } },
     },
   });
+}
+
+/** Active teachers for group create/edit dropdowns. */
+export function listInstituteTeacherOptions(
+  instituteId: string,
+  includeTeacherId?: string,
+) {
+  return prisma.user.findMany({
+    where: {
+      instituteId,
+      role: Role.TEACHER,
+      OR: [
+        { isActive: true },
+        ...(includeTeacherId ? [{ id: includeTeacherId }] : []),
+      ],
+    },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, email: true },
+  });
+}
+
+/**
+ * A single group in the admin's institute. Returns null when missing or out of
+ * scope.
+ */
+export function getAdminGroup(admin: AdminContext, groupId: string) {
+  return prisma.group.findFirst({
+    where: { id: groupId, instituteId: admin.instituteId },
+    select: {
+      id: true,
+      name: true,
+      teacherId: true,
+      teacher: { select: { name: true, email: true } },
+      _count: { select: { students: true } },
+    },
+  });
+}
+
+export type AdminGroupMutationResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/** Create a group owned by a teacher in the admin's institute. */
+export async function createAdminGroup(
+  admin: AdminContext,
+  input: { name: string; teacherId: string },
+): Promise<AdminGroupMutationResult> {
+  const name = input.name.trim();
+  if (!name) {
+    return { ok: false, error: "Group name is required." };
+  }
+
+  const teacher = await prisma.user.findFirst({
+    where: {
+      id: input.teacherId,
+      instituteId: admin.instituteId,
+      role: Role.TEACHER,
+      isActive: true,
+    },
+    select: { id: true },
+  });
+  if (!teacher) {
+    return { ok: false, error: "Teacher not found in this institute." };
+  }
+
+  await prisma.group.create({
+    data: {
+      name,
+      teacherId: teacher.id,
+      instituteId: admin.instituteId,
+    },
+  });
+
+  return { ok: true };
+}
+
+/** Update a group's name and/or owning teacher. */
+export async function updateAdminGroup(
+  admin: AdminContext,
+  groupId: string,
+  input: { name: string; teacherId: string },
+): Promise<AdminGroupMutationResult> {
+  const name = input.name.trim();
+  if (!name) {
+    return { ok: false, error: "Group name is required." };
+  }
+
+  const group = await prisma.group.findFirst({
+    where: { id: groupId, instituteId: admin.instituteId },
+    select: { id: true },
+  });
+  if (!group) {
+    return { ok: false, error: "Group not found." };
+  }
+
+  const teacher = await prisma.user.findFirst({
+    where: {
+      id: input.teacherId,
+      instituteId: admin.instituteId,
+      role: Role.TEACHER,
+      isActive: true,
+    },
+    select: { id: true },
+  });
+  if (!teacher) {
+    return { ok: false, error: "Teacher not found in this institute." };
+  }
+
+  await prisma.group.update({
+    where: { id: group.id },
+    data: { name, teacherId: teacher.id },
+  });
+
+  return { ok: true };
+}
+
+export type DeleteAdminGroupResult =
+  | { ok: true }
+  | { ok: false; reason: "not-found" | "not-empty" };
+
+/** Delete an empty group in the admin's institute. */
+export async function deleteAdminGroup(
+  admin: AdminContext,
+  groupId: string,
+): Promise<DeleteAdminGroupResult> {
+  const group = await prisma.group.findFirst({
+    where: { id: groupId, instituteId: admin.instituteId },
+    select: { id: true, _count: { select: { students: true } } },
+  });
+  if (!group) return { ok: false, reason: "not-found" };
+  if (group._count.students > 0) return { ok: false, reason: "not-empty" };
+
+  await prisma.group.delete({ where: { id: group.id } });
+  return { ok: true };
 }
 
 /**
