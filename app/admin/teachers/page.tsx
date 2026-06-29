@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Users } from "lucide-react";
 
@@ -10,8 +11,6 @@ import { listInstituteTeachers } from "@/server/admin";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { AddTeacherDialog } from "@/components/admin/add-teacher-dialog";
-import { ActiveToggle } from "@/components/admin/active-toggle";
-import { ResetPasswordForm } from "@/components/reset-password-form";
 import {
   Card,
   CardContent,
@@ -21,7 +20,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PaginationNav } from "@/components/ui/pagination-nav";
-import { resetUserPasswordAction } from "../actions";
 
 export const metadata: Metadata = {
   title: "Teachers",
@@ -30,9 +28,7 @@ export const metadata: Metadata = {
 const LIST_PATH = "/admin/teachers";
 
 /**
- * ADMIN → teachers. Lists every teacher in the admin's institute and provides
- * the only Phase 1 way to provision a new teacher account (public sign-up is
- * disabled).
+ * ADMIN → teachers. List, create, and edit teacher accounts in the institute.
  */
 export default async function AdminTeachersPage({
   searchParams,
@@ -63,7 +59,7 @@ export default async function AdminTeachersPage({
       instituteName={institute?.name ?? "Institute"}
       instituteLogoUrl={institute?.logoUrl}
       title="Teachers"
-      subtitle="Create teacher accounts and see who teaches in your institute."
+      subtitle="Create and edit teacher accounts in your institute."
       actions={<AddTeacherDialog />}
     >
       <BackLink href="/admin">Admin dashboard</BackLink>
@@ -93,12 +89,15 @@ export default async function AdminTeachersPage({
                     className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
                   >
                     <div className="min-w-0">
-                      <p className="flex items-center gap-2 truncate font-medium text-foreground">
+                      <Link
+                        href={`/admin/teachers/${teacher.id}`}
+                        className="flex items-center gap-2 truncate font-medium text-foreground transition-colors hover:text-primary hover:underline"
+                      >
                         {teacher.name}
                         {!teacher.isActive && (
                           <Badge variant="muted">Disabled</Badge>
                         )}
-                      </p>
+                      </Link>
                       <p className="truncate text-sm text-muted-foreground">
                         {teacher.email}
                       </p>
@@ -108,13 +107,12 @@ export default async function AdminTeachersPage({
                         {teacher._count.taughtGroups}{" "}
                         {teacher._count.taughtGroups === 1 ? "group" : "groups"}
                       </span>
-                      <ResetPasswordForm
-                        action={resetUserPasswordAction.bind(null, teacher.id)}
-                      />
-                      <ActiveToggle
-                        userId={teacher.id}
-                        isActive={teacher.isActive}
-                      />
+                      <Link
+                        href={`/admin/teachers/${teacher.id}`}
+                        className="text-sm text-primary hover:underline sm:pt-1.5"
+                      >
+                        Edit
+                      </Link>
                     </div>
                   </li>
                 ))}

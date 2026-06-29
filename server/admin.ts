@@ -109,6 +109,85 @@ export function createTeacher(
 }
 
 /**
+ * A single teacher in the admin's institute. Returns null when missing or out of
+ * scope.
+ */
+export function getAdminTeacher(admin: AdminContext, teacherId: string) {
+  return prisma.user.findFirst({
+    where: {
+      id: teacherId,
+      instituteId: admin.instituteId,
+      role: Role.TEACHER,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      isActive: true,
+      createdAt: true,
+      _count: { select: { taughtGroups: true } },
+    },
+  });
+}
+
+export type UpdateAdminTeacherResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/** Update a teacher's name and email in the admin's institute. */
+export async function updateAdminTeacher(
+  admin: AdminContext,
+  teacherId: string,
+  input: { name: string; email: string },
+): Promise<UpdateAdminTeacherResult> {
+  const name = input.name.trim();
+  const email = input.email.trim().toLowerCase();
+
+  if (!name) {
+    return { ok: false, error: "Name is required." };
+  }
+  if (!email.includes("@")) {
+    return { ok: false, error: "Enter a valid email address." };
+  }
+
+  const teacher = await prisma.user.findFirst({
+    where: {
+      id: teacherId,
+      instituteId: admin.instituteId,
+      role: Role.TEACHER,
+    },
+    select: { id: true, email: true },
+  });
+  if (!teacher) {
+    return { ok: false, error: "Teacher not found." };
+  }
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: teacher.id },
+        data: { name, email },
+      });
+      if (email !== teacher.email) {
+        await tx.session.deleteMany({ where: { userId: teacher.id } });
+      }
+    });
+  } catch (error) {
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code?: unknown }).code === "P2002"
+    ) {
+      return { ok: false, error: "That email is already in use." };
+    }
+    throw error;
+  }
+
+  return { ok: true };
+}
+
+/**
  * Reset the password of a TEACHER or STUDENT in the admin's own institute.
  * Verifies the target belongs to this institute (and isn't another admin)
  * before delegating to the trusted setUserPassword primitive. Returns false if
