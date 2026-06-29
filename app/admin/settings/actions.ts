@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import {
+  normalizeInstitutePrimaryColor,
   validateInstituteBranding,
-  type InstituteBrandingSettings,
 } from "@/lib/institute-branding";
 import { requireRole } from "@/lib/session";
 import { Role } from "@/lib/generated/prisma/enums";
@@ -26,6 +26,7 @@ export async function updateInstituteSettingsAction(
 
   const name = String(formData.get("name") ?? "").trim();
   const tagline = String(formData.get("tagline") ?? "").trim();
+  const primaryColorRaw = String(formData.get("primaryColor") ?? "").trim();
   let logoUrl = String(formData.get("logoUrl") ?? "").trim();
 
   const logoFile = formData.get("logoFile");
@@ -35,10 +36,20 @@ export async function updateInstituteSettingsAction(
     logoUrl = upload.url;
   }
 
-  const fieldError = validateInstituteBranding({ name, tagline, logoUrl });
+  const fieldError = validateInstituteBranding({
+    name,
+    tagline,
+    logoUrl,
+    primaryColor: primaryColorRaw,
+  });
   if (fieldError) return { error: fieldError };
 
-  const ok = await updateInstituteBranding(admin, { name, tagline, logoUrl });
+  const ok = await updateInstituteBranding(admin, {
+    name,
+    tagline,
+    logoUrl,
+    primaryColor: normalizeInstitutePrimaryColor(primaryColorRaw),
+  });
   if (!ok) return { error: "Institute not found." };
 
   revalidateInstituteBrandingPaths();

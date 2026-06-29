@@ -1,9 +1,12 @@
 // Shared validation for institute white-label fields (name, tagline, logo).
 
+import { validatePrimaryColor, normalizeHexColor } from "@/lib/institute-theme";
+
 export interface InstituteBrandingInput {
   name: string;
   tagline: string;
   logoUrl: string;
+  primaryColor: string;
 }
 
 /** White-label fields shown on the institute admin settings page. */
@@ -13,6 +16,7 @@ export interface InstituteBrandingSettings {
   slug: string;
   tagline: string | null;
   logoUrl: string | null;
+  primaryColor: string | null;
 }
 
 /** True if `value` parses as an absolute http(s) URL. */
@@ -39,5 +43,12 @@ export function validateInstituteBranding(
   if (fields.logoUrl && !isValidHttpUrl(fields.logoUrl)) {
     return "Logo URL must be a valid http(s) URL.";
   }
+  const colorError = validatePrimaryColor(fields.primaryColor);
+  if (colorError) return colorError;
   return null;
+}
+
+/** Normalize branding color for storage (null = platform default). */
+export function normalizeInstitutePrimaryColor(value: string): string | null {
+  return normalizeHexColor(value);
 }

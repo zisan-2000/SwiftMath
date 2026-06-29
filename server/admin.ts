@@ -325,6 +325,7 @@ export async function getInstituteBranding(
       slug: true,
       tagline: true,
       logoUrl: true,
+      primaryColor: true,
     },
   });
 }
@@ -333,6 +334,7 @@ export interface UpdateInstituteBrandingInput {
   name: string;
   tagline?: string | null;
   logoUrl?: string | null;
+  primaryColor?: string | null;
 }
 
 /**
@@ -349,6 +351,7 @@ export async function updateInstituteBranding(
       name: input.name.trim(),
       tagline: input.tagline?.trim() || null,
       logoUrl: input.logoUrl?.trim() || null,
+      primaryColor: input.primaryColor?.trim() || null,
     },
   });
   return result.count === 1;

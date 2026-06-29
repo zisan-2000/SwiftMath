@@ -8,6 +8,7 @@ import {
   type UpdateInstituteSettingsState,
 } from "@/app/admin/settings/actions";
 import type { InstituteBrandingSettings } from "@/lib/institute-branding";
+import { PrimaryColorField } from "@/components/admin/primary-color-field";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -73,6 +74,11 @@ export function InstituteSettingsForm({
           placeholder="Mental-math mastery for every student"
           maxLength={120}
         />
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Label>Primary color</Label>
+        <PrimaryColorField defaultValue={institute.primaryColor} />
       </div>
 
       <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/20 p-4">

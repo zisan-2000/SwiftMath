@@ -80,6 +80,8 @@ model Institute {
   tagline   String?
   /// Absolute URL to the institute's logo image.
   logoUrl   String?
+  /// Optional brand accent as `#RRGGBB`. Drives `--primary` in the authenticated UI.
+  primaryColor String?
   /// Lets an institute be disabled without deleting its data.
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
