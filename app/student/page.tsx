@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Boxes, Brain, Layers, Play, Target, TrendingUp, Trophy } from "lucide-react";
+import { Boxes, Brain, Flame, Layers, Play, Target, TrendingUp, Trophy } from "lucide-react";
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -8,9 +8,11 @@ import { Role, PracticeMode } from "@/lib/generated/prisma/enums";
 import { getStudentPracticeAnalytics } from "@/server/analytics";
 import { getStudentInProgressSession } from "@/server/practice";
 import { getStudentInstituteRank } from "@/server/ranking";
+import { getStudentGamificationSummary } from "@/server/student-gamification";
 import { AppShell } from "@/components/app-shell";
 import { StatCard } from "@/components/stat-card";
 import { PracticeActivityChart } from "@/components/practice-activity-chart";
+import { StudentBadgesPanel } from "@/components/student/student-badges-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -25,7 +27,8 @@ export const metadata: Metadata = {
 export default async function StudentDashboardPage() {
   const user = await requireRole(Role.STUDENT);
 
-  const [profile, practice, pendingSession, instituteRank] = await Promise.all([
+  const [profile, practice, pendingSession, instituteRank, gamification] =
+    await Promise.all([
     prisma.user.findUnique({
       where: { id: user.id },
       select: {
@@ -37,6 +40,7 @@ export default async function StudentDashboardPage() {
     getStudentPracticeAnalytics(user.id),
     getStudentInProgressSession(user.id),
     getStudentInstituteRank(user.id, user.instituteId),
+    getStudentGamificationSummary(user.id),
   ]);
 
   return (
@@ -73,7 +77,7 @@ export default async function StudentDashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard
           label="Current level"
           value={profile?.currentLevel?.name ?? "Not assigned"}
@@ -81,6 +85,22 @@ export default async function StudentDashboardPage() {
           icon={Layers}
         />
         <StatCard label="Group" value={profile?.group?.name ?? "—"} icon={Boxes} />
+        <StatCard
+          label="Practice streak"
+          value={
+            gamification.streakDays > 0
+              ? `${gamification.streakDays} ${
+                  gamification.streakDays === 1 ? "day" : "days"
+                }`
+              : "Start today"
+          }
+          hint={
+            gamification.streakDays > 0
+              ? "Consecutive days with timed practice"
+              : "Finish a timed session to begin a streak"
+          }
+          icon={Flame}
+        />
         <StatCard
           label="Institute rank"
           value={
@@ -117,6 +137,8 @@ export default async function StudentDashboardPage() {
         empty={practice.totalSessions === 0}
         description="Your finished attempts over the last 7 days"
       />
+
+      <StudentBadgesPanel badges={gamification.badges} />
 
       <div className="mt-8 flex flex-wrap gap-3">
         <Button asChild>

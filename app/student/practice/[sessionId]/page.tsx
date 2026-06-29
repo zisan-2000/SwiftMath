@@ -9,6 +9,7 @@ import { Role, SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums"
 import { getStudentSession } from "@/server/practice";
 import { AppShell } from "@/components/app-shell";
 import { PracticeRunner } from "@/components/student/practice-runner";
+import { LevelUpCelebration } from "@/components/student/level-up-celebration";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,11 +27,15 @@ export default async function PracticeSessionPage({
   const { sessionId } = await params;
   const student = await requireRole(Role.STUDENT);
 
-  const [session, institute] = await Promise.all([
+  const [session, institute, profile] = await Promise.all([
     getStudentSession(student.id, sessionId),
     prisma.institute.findUnique({
       where: { id: student.instituteId },
       select: { name: true, logoUrl: true },
+    }),
+    prisma.user.findUnique({
+      where: { id: student.id },
+      select: { currentLevel: { select: { name: true } } },
     }),
   ]);
 
@@ -84,6 +89,10 @@ export default async function PracticeSessionPage({
       title="Results"
       subtitle={session.level.name}
     >
+      {session.leveledUp && (
+        <LevelUpCelebration nextLevelName={profile?.currentLevel?.name} />
+      )}
+
       <Card className="mb-8">
         <CardContent className="p-6 text-center">
           <p className="text-5xl font-bold tracking-tight text-foreground">
@@ -100,7 +109,9 @@ export default async function PracticeSessionPage({
             <Badge variant={session.passed ? "success" : "muted"}>
               {session.passed ? "Passed" : "Not passed"}
             </Badge>
-            {session.leveledUp && <Badge>Leveled up! 🎉</Badge>}
+            {session.leveledUp && (
+              <Badge variant="default">Leveled up</Badge>
+            )}
           </div>
 
           <div className="mt-6 flex justify-center gap-3">
