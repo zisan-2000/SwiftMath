@@ -7,9 +7,11 @@ import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role, SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
 import { getStudentSession } from "@/server/practice";
+import { getPracticeResultMessaging } from "@/lib/practice-result-messaging";
 import { AppShell } from "@/components/app-shell";
 import { PracticeRunner } from "@/components/student/practice-runner";
 import { LevelUpCelebration } from "@/components/student/level-up-celebration";
+import { PracticeRetryPrompt } from "@/components/student/practice-retry-prompt";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -80,6 +82,15 @@ export default async function PracticeSessionPage({
   // --- Finished: show the result + per-question review ---
   const expired = session.status === SessionStatus.EXPIRED;
   const isReview = session.mode === PracticeMode.REVIEW;
+  const resultCopy = getPracticeResultMessaging({
+    passed: session.passed,
+    expired,
+    isReview,
+    leveledUp: session.leveledUp,
+    passAccuracy: session.level.passAccuracy,
+    accuracy: session.accuracy,
+    levelName: session.level.name,
+  });
 
   return (
     <AppShell
@@ -93,6 +104,13 @@ export default async function PracticeSessionPage({
         <LevelUpCelebration nextLevelName={profile?.currentLevel?.name} />
       )}
 
+      {resultCopy.showRetryPrompt && (
+        <PracticeRetryPrompt
+          headline={resultCopy.headline}
+          body={resultCopy.body}
+        />
+      )}
+
       <Card className="mb-8">
         <CardContent className="p-6 text-center">
           <p className="text-5xl font-bold tracking-tight text-foreground">
@@ -102,6 +120,17 @@ export default async function PracticeSessionPage({
             {session.correctCount} of {session.totalQuestions} correct · pass at{" "}
             {session.level.passAccuracy}%
           </p>
+
+          {!resultCopy.showRetryPrompt && (
+            <>
+              <p className="mt-4 text-base font-semibold text-foreground">
+                {resultCopy.headline}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {resultCopy.body}
+              </p>
+            </>
+          )}
 
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             {isReview && <Badge variant="secondary">Review</Badge>}
@@ -119,8 +148,8 @@ export default async function PracticeSessionPage({
               {isReview && (
                 <input type="hidden" name="mode" value="review" />
               )}
-              <Button type="submit">
-                {isReview ? "Review again" : "Practice again"}
+              <Button type="submit" size={resultCopy.showRetryPrompt ? "lg" : "default"}>
+                {resultCopy.primaryActionLabel}
               </Button>
             </form>
             <Button asChild variant="outline">

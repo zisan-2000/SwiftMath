@@ -190,6 +190,7 @@ export function listRecentSessions(studentId: string, take = 10) {
       passed: true,
       leveledUp: true,
       createdAt: true,
+      levelId: true,
       level: { select: { name: true } },
     },
   });

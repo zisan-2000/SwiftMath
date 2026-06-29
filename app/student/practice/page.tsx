@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
-import { Clock, ListChecks, Lock, Target } from "lucide-react";
+import Link from "next/link";
+import { Clock, ListChecks, Lock, RotateCcw, Target } from "lucide-react";
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role, SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
+import { shouldShowPracticeHomeRetryHint } from "@/lib/practice-result-messaging";
 import { listRecentSessions } from "@/server/practice";
 import { resolveStudentPracticeTimeLimit } from "@/server/teacher";
 import { checkStudentLevelAccess } from "@/server/level-access";
@@ -65,6 +67,19 @@ export default async function PracticeHomePage({
       )
     : null;
   const isLocked = access != null && !access.allowed;
+  const lastSession = sessions[0];
+  const showRetryHint = shouldShowPracticeHomeRetryHint({
+    hasLevel: level != null,
+    currentLevelId: level?.id,
+    lastSession: lastSession
+      ? {
+          passed: lastSession.passed,
+          mode: lastSession.mode,
+          status: lastSession.status,
+          levelId: lastSession.levelId,
+        }
+      : null,
+  });
 
   return (
     <AppShell
@@ -78,6 +93,32 @@ export default async function PracticeHomePage({
         <FormMessage variant="error" className="mb-6">
           {access.message}
         </FormMessage>
+      )}
+
+      {showRetryHint && level && (
+        <Card className="mb-6 border-warning/40 bg-warning/5">
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-warning/15 text-warning">
+                <RotateCcw className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div>
+                <p className="font-semibold text-foreground">
+                  Keep going on {level.name}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Your last timed attempt did not pass. You stay on this level —
+                  try again when you are ready.
+                </p>
+              </div>
+            </div>
+            <form action={startSessionAction} className="shrink-0">
+              <Button type="submit" size="lg">
+                Try again
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
       )}
 
       {level ? (
@@ -178,9 +219,16 @@ export default async function PracticeHomePage({
                         {s.accuracy}%
                       </span>
                       <Badge variant={s.passed ? "success" : "muted"}>
-                        {s.passed ? "Passed" : "Not passed"}
+                        {s.passed ? "Passed" : "Try again"}
                       </Badge>
                       {s.leveledUp && <Badge>Leveled up</Badge>}
+                      {!s.passed && s.mode === PracticeMode.STANDARD && (
+                          <Button asChild variant="outline" size="sm">
+                            <Link href={`/student/practice/${s.id}`}>
+                              View results
+                            </Link>
+                          </Button>
+                        )}
                     </>
                   )}
                 </div>
