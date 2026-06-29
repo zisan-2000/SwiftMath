@@ -6,12 +6,14 @@ import {
   GraduationCap,
   RotateCcw,
   Target,
+  Timer,
   TrendingUp,
 } from "lucide-react";
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
+import { formatSpeedDuration } from "@/lib/practice-speed";
 import { getGroupPracticeAnalytics } from "@/server/analytics";
 import { getTeacherGroup } from "@/server/teacher";
 import { AppShell } from "@/components/app-shell";
@@ -65,7 +67,7 @@ export default async function GroupAnalyticsPage({
     >
       <BackLink href={`/teacher/groups/${groupId}`}>Back to group</BackLink>
 
-      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
         <StatCard
           label="Students"
           value={analytics.studentCount}
@@ -93,6 +95,18 @@ export default async function GroupAnalyticsPage({
           hint="Failed timed attempts"
           icon={RotateCcw}
         />
+        <StatCard
+          label="Fastest pass"
+          value={formatSpeedDuration(analytics.speed.fastestPassMs)}
+          hint="In this group (7 days)"
+          icon={Timer}
+        />
+        <StatCard
+          label="Avg pass time"
+          value={formatSpeedDuration(analytics.speed.avgPassMs)}
+          hint="Among passed attempts"
+          icon={Timer}
+        />
       </div>
 
       <PracticeActivityChart
@@ -116,13 +130,15 @@ export default async function GroupAnalyticsPage({
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-sm">
+              <table className="w-full min-w-[760px] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40 text-left text-muted-foreground">
                     <th className="px-5 py-2.5 font-medium">Student</th>
                     <th className="px-5 py-2.5 font-medium">Sessions</th>
                     <th className="px-5 py-2.5 font-medium">Pass rate</th>
                     <th className="px-5 py-2.5 font-medium">Avg accuracy</th>
+                    <th className="px-5 py-2.5 font-medium">Fastest pass</th>
+                    <th className="px-5 py-2.5 font-medium">Avg pass time</th>
                     <th className="px-5 py-2.5 font-medium">Retries</th>
                   </tr>
                 </thead>
@@ -148,6 +164,12 @@ export default async function GroupAnalyticsPage({
                       </td>
                       <td className="px-5 py-3 align-middle tabular-nums">
                         {row.avgAccuracy}%
+                      </td>
+                      <td className="px-5 py-3 align-middle tabular-nums">
+                        {formatSpeedDuration(row.fastestPassMs)}
+                      </td>
+                      <td className="px-5 py-3 align-middle tabular-nums">
+                        {formatSpeedDuration(row.avgPassMs)}
                       </td>
                       <td className="px-5 py-3 align-middle tabular-nums">
                         {row.retries}

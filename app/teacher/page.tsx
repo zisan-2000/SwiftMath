@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Boxes, Brain, GraduationCap, Target, TrendingUp } from "lucide-react";
+import { Boxes, Brain, GraduationCap, Target, Timer, TrendingUp } from "lucide-react";
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
-import { getTeacherPracticeAnalytics } from "@/server/analytics";
+import { formatSpeedDuration } from "@/lib/practice-speed";
+import { getTeacherPracticeAnalytics, getTeacherSpeedAnalytics } from "@/server/analytics";
 import { AppShell } from "@/components/app-shell";
 import { StatCard } from "@/components/stat-card";
 import { PracticeActivityChart } from "@/components/practice-activity-chart";
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
 export default async function TeacherDashboardPage() {
   const user = await requireRole(Role.TEACHER);
 
-  const [institute, groupCount, studentCount, practice] = await Promise.all([
+  const [institute, groupCount, studentCount, practice, speed] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: user.instituteId },
       select: { name: true, logoUrl: true },
@@ -30,6 +31,7 @@ export default async function TeacherDashboardPage() {
     // Students placed in any group this teacher owns.
     prisma.user.count({ where: { group: { teacherId: user.id } } }),
     getTeacherPracticeAnalytics(user.id),
+    getTeacherSpeedAnalytics(user.id),
   ]);
 
   return (
@@ -48,7 +50,7 @@ export default async function TeacherDashboardPage() {
       <h2 className="mb-3 mt-10 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         Practice (last 7 days)
       </h2>
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Sessions" value={practice.totalSessions} icon={Brain} />
         <StatCard
           label="Pass rate"
@@ -59,6 +61,12 @@ export default async function TeacherDashboardPage() {
           label="Avg accuracy"
           value={`${practice.avgAccuracy}%`}
           icon={TrendingUp}
+        />
+        <StatCard
+          label="Avg pass time"
+          value={formatSpeedDuration(speed.speed.avgPassMs)}
+          hint="Among passed attempts"
+          icon={Timer}
         />
       </div>
 

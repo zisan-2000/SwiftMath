@@ -15,8 +15,10 @@ import {
 } from "@/lib/analytics";
 import {
   buildGroupStudentSummaries,
+  buildGroupSpeedSummary,
   type GroupStudentPracticeSummary,
 } from "@/lib/group-analytics";
+import type { SpeedSummary } from "@/lib/practice-speed";
 import { SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
 
 /** Summary + daily breakdown for the admin practice-activity chart. */
@@ -109,6 +111,29 @@ export async function getTeacherPracticeAnalytics(
 }
 
 /**
+ * Finish-time stats for students in a teacher's groups over the last `days`
+ * calendar days (passed attempts only for averages shown on the dashboard).
+ */
+export async function getTeacherSpeedAnalytics(
+  teacherId: string,
+  days: number = DEFAULT_DAYS,
+): Promise<TeacherSpeedAnalytics> {
+  const windowDays = Math.max(1, days);
+  const sessions = await prisma.practiceSession.findMany({
+    where: {
+      mode: PracticeMode.STANDARD,
+      status: { not: SessionStatus.IN_PROGRESS },
+      submittedAt: { not: null },
+      createdAt: { gte: windowStart(windowDays) },
+      student: { group: { teacherId } },
+    },
+    select: { startedAt: true, submittedAt: true, passed: true },
+  });
+
+  return { speed: buildGroupSpeedSummary(sessions) };
+}
+
+/**
  * Platform-wide practice activity over the last `days` calendar days, across
  * every institute. SUPER_ADMIN only — deliberately not scoped by institute.
  */
@@ -134,7 +159,13 @@ export interface GroupPracticeAnalytics extends InstitutePracticeAnalytics {
   studentCount: number;
   /** Finished standard attempts that did not pass in the window. */
   retryCount: number;
+  speed: SpeedSummary;
   studentSummaries: GroupStudentPracticeSummary[];
+}
+
+/** Speed summary for a teacher's students over a time window. */
+export interface TeacherSpeedAnalytics {
+  speed: SpeedSummary;
 }
 
 /**
@@ -172,6 +203,8 @@ export async function getGroupPracticeAnalytics(
       passed: true,
       accuracy: true,
       studentId: true,
+      startedAt: true,
+      submittedAt: true,
     },
     orderBy: { createdAt: "asc" },
   });
@@ -182,6 +215,7 @@ export async function getGroupPracticeAnalytics(
     ...summary,
     studentCount: group.students.length,
     retryCount: summary.totalSessions - summary.passedSessions,
+    speed: buildGroupSpeedSummary(sessions),
     studentSummaries: buildGroupStudentSummaries(group.students, sessions),
   };
 }

@@ -20,7 +20,11 @@ import {
   failedStandardSessionWhere,
   formatRetryCountDisplay,
 } from "@/lib/student-retry-stats";
-import { Role, SessionStatus } from "@/lib/generated/prisma/enums";
+import {
+  buildLevelSpeedRows,
+  buildSpeedSummary,
+} from "@/lib/practice-speed";
+import { PracticeMode, Role, SessionStatus } from "@/lib/generated/prisma/enums";
 
 /** The authenticated teacher, as needed for scoping. */
 export interface TeacherContext {
@@ -318,7 +322,7 @@ export async function getStudentProgress(
   });
   if (!student) return null;
 
-  const [recentSessions, finishedStats, passedCount, leveledUpCount, totalRetries, currentLevelRetries] =
+  const [recentSessions, finishedStats, passedCount, leveledUpCount, totalRetries, currentLevelRetries, speedSessions] =
     await Promise.all([
       // Most recent attempts (any status).
       prisma.practiceSession.findMany({
@@ -334,6 +338,8 @@ export async function getStudentProgress(
           passed: true,
           leveledUp: true,
           createdAt: true,
+          startedAt: true,
+          submittedAt: true,
           level: { select: { name: true } },
         },
       }),
@@ -357,9 +363,42 @@ export async function getStudentProgress(
             ),
           })
         : Promise.resolve(null),
+      prisma.practiceSession.findMany({
+        where: {
+          studentId,
+          mode: PracticeMode.STANDARD,
+          status: { not: SessionStatus.IN_PROGRESS },
+          submittedAt: { not: null },
+        },
+        select: {
+          startedAt: true,
+          submittedAt: true,
+          passed: true,
+          levelId: true,
+          level: { select: { name: true, orderIndex: true } },
+        },
+      }),
     ]);
 
   const retryCount = formatRetryCountDisplay(totalRetries, currentLevelRetries);
+  const speedAll = buildSpeedSummary(speedSessions);
+  const speedAtCurrentLevel = student.currentLevel
+    ? buildSpeedSummary(
+        speedSessions.filter(
+          (session) => session.levelId === student.currentLevel!.id,
+        ),
+      )
+    : null;
+  const levelSpeedRows = buildLevelSpeedRows(
+    speedSessions.map((session) => ({
+      startedAt: session.startedAt,
+      submittedAt: session.submittedAt,
+      passed: session.passed,
+      levelId: session.levelId,
+      levelName: session.level.name,
+      orderIndex: session.level.orderIndex,
+    })),
+  );
 
   return {
     student,
@@ -371,6 +410,9 @@ export async function getStudentProgress(
       passedCount,
       leveledUpCount,
       retryCount,
+      speedAll,
+      speedAtCurrentLevel,
+      levelSpeedRows,
     },
   };
 }
