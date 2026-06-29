@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   filterQualifiedLeaderboardRows,
   formatPassDuration,
+  applyStrictHundredPercentRule,
   leaderboardPeriodStart,
   parseLeaderboardPeriod,
   rankLeaderboardRows,
@@ -74,6 +75,37 @@ describe("filterQualifiedLeaderboardRows", () => {
     expect(filterQualifiedLeaderboardRows(mixed).map((r) => r.studentId)).toEqual([
       "a",
     ]);
+  });
+});
+
+describe("applyStrictHundredPercentRule", () => {
+  it("clears fastest pass when any session in scope was below 100%", () => {
+    const rows: LeaderboardRow[] = [
+      {
+        studentId: "perfect",
+        name: "Perfect",
+        levelName: "L1",
+        levelOrder: 1,
+        passedCount: 2,
+        avgAccuracy: 100,
+        fastestPassMs: 40_000,
+      },
+      {
+        studentId: "mixed",
+        name: "Mixed",
+        levelName: "L1",
+        levelOrder: 1,
+        passedCount: 2,
+        avgAccuracy: 95,
+        fastestPassMs: 30_000,
+      },
+    ];
+
+    const adjusted = applyStrictHundredPercentRule(rows, ["mixed"]);
+    expect(adjusted.find((r) => r.studentId === "perfect")?.fastestPassMs).toBe(
+      40_000,
+    );
+    expect(adjusted.find((r) => r.studentId === "mixed")?.fastestPassMs).toBeNull();
   });
 });
 

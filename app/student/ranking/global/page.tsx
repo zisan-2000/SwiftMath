@@ -104,9 +104,9 @@ export default async function StudentGlobalRankingPage({
 
       <p className="mb-4 text-sm text-muted-foreground">
         Comparing {levelStepName} across all active institutes
-        {canonicalRules ? ` (${canonicalRules})` : ""} · only standard platform
-        rules count — admin-edited levels are excluded · timed 100% passes
-        ranked by fastest finish
+        {canonicalRules ? ` (${canonicalRules})` : ""} · standard platform rules
+        only · every timed attempt here must be 100% accurate, then ranked by
+        fastest pass
         {period === "week"
           ? " in the last 7 days"
           : period === "month"
@@ -117,8 +117,8 @@ export default async function StudentGlobalRankingPage({
 
       {!myRank && leaderboard.length > 0 && (
         <p className="mb-4 text-sm text-muted-foreground">
-          Pass {levelStepName} with 100% accuracy in time to appear on this
-          board.
+          Score 100% on every timed attempt at {levelStepName} in this view and
+          pass at least one in time to appear here.
         </p>
       )}
 
@@ -126,7 +126,7 @@ export default async function StudentGlobalRankingPage({
         <EmptyState
           icon={Trophy}
           title="No qualifying scores yet"
-          description={`No one has a timed 100% pass at ${levelStepName} in this period yet.`}
+          description={`Every timed attempt at ${levelStepName} in this view must be 100% accurate, with at least one in-time pass.`}
         />
       ) : (
         <RankingLeaderboardTable

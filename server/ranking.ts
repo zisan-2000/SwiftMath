@@ -10,7 +10,9 @@ import {
   leaderboardPeriodStart,
   rankLeaderboardRows,
   filterQualifiedLeaderboardRows,
+  applyStrictHundredPercentRule,
   type LeaderboardPeriod,
+  type LeaderboardRow,
   type RankedGlobalLeaderboardRow,
   type RankedLeaderboardRow,
 } from "@/lib/ranking";
@@ -55,6 +57,48 @@ function buildFastestPassMap(
   return fastestByStudent;
 }
 
+/** Students with any finished STANDARD session below 100% accuracy in scope. */
+async function fetchSubPerfectStudentIds(
+  sessionScope: Record<string, unknown>,
+): Promise<Set<string>> {
+  const groups = await prisma.practiceSession.groupBy({
+    by: ["studentId"],
+    where: {
+      ...sessionScope,
+      status: { not: SessionStatus.IN_PROGRESS },
+      accuracy: { lt: 100 },
+    },
+  });
+  return new Set(groups.map((g) => g.studentId));
+}
+
+function buildLeaderboardRows(
+  students: {
+    id: string;
+    name: string;
+    currentLevel: { name: string; orderIndex: number } | null;
+  }[],
+  passedByStudent: Map<string, number>,
+  accuracyByStudent: Map<string, number>,
+  fastestByStudent: Map<string, number>,
+): LeaderboardRow[] {
+  return students.map((s) => ({
+    studentId: s.id,
+    name: s.name,
+    levelName: s.currentLevel?.name ?? null,
+    levelOrder: s.currentLevel?.orderIndex ?? null,
+    passedCount: passedByStudent.get(s.id) ?? 0,
+    avgAccuracy: accuracyByStudent.get(s.id) ?? 0,
+    fastestPassMs: fastestByStudent.get(s.id) ?? null,
+  }));
+}
+
+function finalizeLeaderboardRows<T extends LeaderboardRow>(
+  rows: T[],
+): ReturnType<typeof rankLeaderboardRows> {
+  return rankLeaderboardRows(filterQualifiedLeaderboardRows(rows));
+}
+
 /**
  * Leaderboard for students in an institute, optionally filtered by group,
  * level, and time period. Ordering rules live in `lib/ranking.ts`.
@@ -83,7 +127,8 @@ export async function getInstituteLeaderboard(
     ...(since && { submittedAt: { gte: since } }),
   };
 
-  const [students, passedGroups, accuracyGroups, perfectPasses] = await Promise.all([
+  const [students, passedGroups, accuracyGroups, perfectPasses, subPerfectStudentIds] =
+    await Promise.all([
     prisma.user.findMany({
       where: {
         instituteId,
@@ -120,6 +165,7 @@ export async function getInstituteLeaderboard(
         submittedAt: true,
       },
     }),
+    fetchSubPerfectStudentIds(sessionScope),
   ]);
 
   const passedByStudent = new Map(
@@ -130,17 +176,17 @@ export async function getInstituteLeaderboard(
   );
   const fastestByStudent = buildFastestPassMap(perfectPasses);
 
-  const rows = students.map((s) => ({
-    studentId: s.id,
-    name: s.name,
-    levelName: s.currentLevel?.name ?? null,
-    levelOrder: s.currentLevel?.orderIndex ?? null,
-    passedCount: passedByStudent.get(s.id) ?? 0,
-    avgAccuracy: accuracyByStudent.get(s.id) ?? 0,
-    fastestPassMs: fastestByStudent.get(s.id) ?? null,
-  }));
+  const rows = applyStrictHundredPercentRule(
+    buildLeaderboardRows(
+      students,
+      passedByStudent,
+      accuracyByStudent,
+      fastestByStudent,
+    ),
+    subPerfectStudentIds,
+  );
 
-  return rankLeaderboardRows(filterQualifiedLeaderboardRows(rows));
+  return finalizeLeaderboardRows(rows);
 }
 
 /**
@@ -166,7 +212,8 @@ export async function getGlobalLeaderboard(
     ...(since && { submittedAt: { gte: since } }),
   };
 
-  const [students, passedGroups, accuracyGroups, perfectPasses] = await Promise.all([
+  const [students, passedGroups, accuracyGroups, perfectPasses, subPerfectStudentIds] =
+    await Promise.all([
     prisma.user.findMany({
       where: activeStudentScope,
       select: {
@@ -199,6 +246,7 @@ export async function getGlobalLeaderboard(
         submittedAt: true,
       },
     }),
+    fetchSubPerfectStudentIds(sessionScope),
   ]);
 
   const passedByStudent = new Map(
@@ -208,17 +256,22 @@ export async function getGlobalLeaderboard(
     accuracyGroups.map((g) => [g.studentId, Math.round(g._avg.accuracy ?? 0)]),
   );
   const fastestByStudent = buildFastestPassMap(perfectPasses);
+  const instituteByStudent = new Map(
+    students.map((s) => [s.id, s.institute.name]),
+  );
 
-  const rows = students.map((s) => ({
-    studentId: s.id,
-    name: s.name,
-    instituteName: s.institute.name,
-    levelName: s.currentLevel?.name ?? null,
-    levelOrder: s.currentLevel?.orderIndex ?? null,
-    passedCount: passedByStudent.get(s.id) ?? 0,
-    avgAccuracy: accuracyByStudent.get(s.id) ?? 0,
-    fastestPassMs: fastestByStudent.get(s.id) ?? null,
+  const rows = applyStrictHundredPercentRule(
+    buildLeaderboardRows(
+      students,
+      passedByStudent,
+      accuracyByStudent,
+      fastestByStudent,
+    ),
+    subPerfectStudentIds,
+  ).map((row) => ({
+    ...row,
+    instituteName: instituteByStudent.get(row.studentId)!,
   }));
 
-  return rankLeaderboardRows(filterQualifiedLeaderboardRows(rows)) as RankedGlobalStudent[];
+  return finalizeLeaderboardRows(rows) as RankedGlobalStudent[];
 }

@@ -60,8 +60,22 @@ export function filterQualifiedLeaderboardRows<T extends LeaderboardRow>(
 }
 
 /**
- * Order students for the institute leaderboard:
- *   1. has a 100% accuracy pass in scope (yes before no),
+ * Strict ranking rule: every finished attempt in scope must be 100% accurate.
+ * Students with any sub-100% session lose their fastest-pass time (and rank).
+ */
+export function applyStrictHundredPercentRule<T extends LeaderboardRow>(
+  rows: T[],
+  studentIdsWithSubPerfectSessions: Iterable<string>,
+): T[] {
+  const imperfect = new Set(studentIdsWithSubPerfectSessions);
+  return rows.map((row) =>
+    imperfect.has(row.studentId) ? { ...row, fastestPassMs: null } : row,
+  );
+}
+
+/**
+ * Order students for the leaderboard (after strict 100% filtering):
+ *   1. has a qualifying 100% pass in scope (fastestPassMs set),
  *   2. fastest 100% pass time (asc — lower is better),
  *   3. passed attempts in scope (desc),
  *   4. average accuracy in scope (desc),

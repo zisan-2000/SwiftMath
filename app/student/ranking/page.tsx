@@ -131,8 +131,8 @@ export default async function StudentRankingPage({
       />
 
       <p className="mb-4 text-sm text-muted-foreground">
-        Only students with a timed 100% accuracy pass appear here, ranked by
-        fastest finish
+        Every timed attempt in this view must be 100% accurate, then ranked by
+        fastest pass
         {selectedLevelName ? ` at ${selectedLevelName}` : ""}
         {period === "week"
           ? " in the last 7 days"
@@ -144,7 +144,8 @@ export default async function StudentRankingPage({
 
       {!myRank && leaderboard.length > 0 && (
         <p className="mb-4 text-sm text-muted-foreground">
-          Pass a timed practice with 100% accuracy to appear on this board.
+          Score 100% on every timed attempt in this view and pass at least one
+          in time to appear here.
         </p>
       )}
 
@@ -152,7 +153,7 @@ export default async function StudentRankingPage({
         <EmptyState
           icon={Trophy}
           title="No qualifying scores yet"
-          description="Pass a timed practice with 100% accuracy to appear on the leaderboard."
+          description="Every timed attempt in this view must be 100% accurate, with at least one in-time pass."
         />
       ) : (
         <RankingLeaderboardTable
