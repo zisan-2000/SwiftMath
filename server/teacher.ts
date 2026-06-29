@@ -16,6 +16,10 @@ import {
   resolveTimeLimitSeconds,
   validateGroupTimeLimitSeconds,
 } from "@/lib/group-level-time";
+import {
+  failedStandardSessionWhere,
+  formatRetryCountDisplay,
+} from "@/lib/student-retry-stats";
 import { Role, SessionStatus } from "@/lib/generated/prisma/enums";
 
 /** The authenticated teacher, as needed for scoping. */
@@ -309,12 +313,12 @@ export async function getStudentProgress(
       id: true,
       name: true,
       email: true,
-      currentLevel: { select: { name: true, orderIndex: true } },
+      currentLevel: { select: { id: true, name: true, orderIndex: true } },
     },
   });
   if (!student) return null;
 
-  const [recentSessions, finishedStats, passedCount, leveledUpCount] =
+  const [recentSessions, finishedStats, passedCount, leveledUpCount, totalRetries, currentLevelRetries] =
     await Promise.all([
       // Most recent attempts (any status).
       prisma.practiceSession.findMany({
@@ -342,7 +346,20 @@ export async function getStudentProgress(
       }),
       prisma.practiceSession.count({ where: { studentId, passed: true } }),
       prisma.practiceSession.count({ where: { studentId, leveledUp: true } }),
+      prisma.practiceSession.count({
+        where: failedStandardSessionWhere(studentId),
+      }),
+      student.currentLevel
+        ? prisma.practiceSession.count({
+            where: failedStandardSessionWhere(
+              studentId,
+              student.currentLevel.id,
+            ),
+          })
+        : Promise.resolve(null),
     ]);
+
+  const retryCount = formatRetryCountDisplay(totalRetries, currentLevelRetries);
 
   return {
     student,
@@ -353,6 +370,7 @@ export async function getStudentProgress(
       bestAccuracy: finishedStats._max.accuracy ?? 0,
       passedCount,
       leveledUpCount,
+      retryCount,
     },
   };
 }

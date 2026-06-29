@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { PartyPopper } from "lucide-react";
+import { PartyPopper, RotateCcw } from "lucide-react";
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -61,7 +61,7 @@ export default async function StudentProgressPage({
     >
       <BackLink href={`/teacher/groups/${groupId}`}>Back to group</BackLink>
 
-      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         <StatCard
           label="Current level"
           value={
@@ -72,6 +72,14 @@ export default async function StudentProgressPage({
         />
         <StatCard label="Attempts" value={stats.completed} hint="Finished" />
         <StatCard label="Passed" value={stats.passedCount} />
+        <StatCard
+          label="Retries"
+          value={
+            stats.retryCount.atCurrentLevel ?? stats.retryCount.total
+          }
+          hint={stats.retryCount.hint}
+          icon={RotateCcw}
+        />
         <StatCard label="Avg. accuracy" value={`${stats.avgAccuracy}%`} />
         <StatCard label="Best accuracy" value={`${stats.bestAccuracy}%`} />
       </div>
