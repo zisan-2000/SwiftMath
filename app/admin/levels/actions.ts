@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/session";
 import { Role, OperationType } from "@/lib/generated/prisma/enums";
-import { createLevel, updateLevel, type LevelInput } from "@/server/admin";
+import { createLevel, updateLevel, archiveLevel, unarchiveLevel, type LevelInput } from "@/server/admin";
 
 /** Result of a level create/edit form, surfaced via useActionState. */
 export interface LevelFormState {
@@ -144,10 +144,40 @@ export async function updateLevelAction(
   }
 
   if (changed === 0) {
-    return { error: "Level not found in your institute." };
+    return { error: "Level not found, archived, or not in your institute." };
   }
 
   revalidatePath("/admin/levels");
   revalidatePath(`/admin/levels/${levelId}`);
   return { ok: true };
+}
+
+/** Soft-archive a level in the signed-in admin's institute. */
+export async function archiveLevelAction(
+  levelId: string,
+): Promise<{ error?: string }> {
+  const admin = await requireRole(Role.ADMIN);
+  const result = await archiveLevel(admin, levelId);
+  if (!result.ok) {
+    return { error: result.error };
+  }
+
+  revalidatePath("/admin/levels");
+  revalidatePath(`/admin/levels/${levelId}`);
+  return {};
+}
+
+/** Restore an archived level to the active curriculum. */
+export async function unarchiveLevelAction(
+  levelId: string,
+): Promise<{ error?: string }> {
+  const admin = await requireRole(Role.ADMIN);
+  const result = await unarchiveLevel(admin, levelId);
+  if (!result.ok) {
+    return { error: result.error };
+  }
+
+  revalidatePath("/admin/levels");
+  revalidatePath(`/admin/levels/${levelId}`);
+  return {};
 }

@@ -11,6 +11,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import { ACTIVE_LEVEL_FILTER } from "@/lib/active-levels";
 import { PracticeMode, SessionStatus } from "@/lib/generated/prisma/enums";
 import { assertStudentLevelAccess } from "@/server/level-access";
 import { resolveStudentPracticeTimeLimit } from "@/server/teacher";
@@ -269,6 +270,7 @@ export async function submitPracticeSession(
           where: {
             instituteId: session.level.instituteId,
             orderIndex: { gt: session.level.orderIndex },
+            ...ACTIVE_LEVEL_FILTER,
           },
           orderBy: { orderIndex: "asc" },
           select: { id: true },

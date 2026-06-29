@@ -303,6 +303,10 @@ model Level {
 
   groupLevelRules GroupLevelRule[]
 
+  /// When set, the level is archived (soft-deleted). Hidden from assignment and
+  /// new practice; existing session history is kept.
+  archivedAt DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

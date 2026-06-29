@@ -3,6 +3,7 @@ import { Trophy } from "lucide-react";
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { ACTIVE_LEVEL_FILTER } from "@/lib/active-levels";
 import { Role } from "@/lib/generated/prisma/enums";
 import { parseLeaderboardPeriod } from "@/lib/ranking";
 import { getInstituteLeaderboard } from "@/server/ranking";
@@ -73,7 +74,7 @@ export default async function StudentRankingPage({
       },
     }),
     prisma.level.findMany({
-      where: { instituteId: student.instituteId },
+      where: { instituteId: student.instituteId, ...ACTIVE_LEVEL_FILTER },
       orderBy: { orderIndex: "asc" },
       select: { id: true, name: true },
     }),

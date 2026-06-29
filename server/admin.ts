@@ -19,6 +19,7 @@ import {
   type PaginatedList,
 } from "@/lib/pagination";
 import type { InstituteBrandingSettings } from "@/lib/institute-branding";
+import { ACTIVE_LEVEL_FILTER } from "@/lib/active-levels";
 import { loadStudentProgress } from "@/server/student-progress";
 
 /** The authenticated admin, as needed for scoping. */
@@ -498,7 +499,7 @@ export async function createStudentInGroup(
 
   if (levelId) {
     const level = await prisma.level.findFirst({
-      where: { id: levelId, instituteId: admin.instituteId },
+      where: { id: levelId, instituteId: admin.instituteId, ...ACTIVE_LEVEL_FILTER },
       select: { id: true },
     });
     if (!level) {
@@ -547,9 +548,15 @@ export async function createStudentInGroup(
 // ---------------------------------------------------------------------------
 
 /** Every level in the admin's institute, in progression order. */
-export function listLevels(instituteId: string) {
+export function listLevels(
+  instituteId: string,
+  options?: { includeArchived?: boolean },
+) {
   return prisma.level.findMany({
-    where: { instituteId },
+    where: {
+      instituteId,
+      ...(options?.includeArchived ? {} : ACTIVE_LEVEL_FILTER),
+    },
     orderBy: { orderIndex: "asc" },
     select: {
       id: true,
@@ -563,6 +570,7 @@ export function listLevels(instituteId: string) {
       timeLimitSeconds: true,
       passAccuracy: true,
       requiresPreviousPass: true,
+      archivedAt: true,
       _count: { select: { studentsOnLevel: true } },
     },
   });
@@ -587,8 +595,61 @@ export function getLevel(admin: AdminContext, levelId: string) {
       timeLimitSeconds: true,
       passAccuracy: true,
       requiresPreviousPass: true,
+      archivedAt: true,
+      _count: { select: { studentsOnLevel: true } },
     },
   });
+}
+
+export type ArchiveLevelResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/** Soft-archive a level in the admin's institute. Keeps history and assignments. */
+export async function archiveLevel(
+  admin: AdminContext,
+  levelId: string,
+): Promise<ArchiveLevelResult> {
+  const level = await prisma.level.findFirst({
+    where: {
+      id: levelId,
+      instituteId: admin.instituteId,
+      ...ACTIVE_LEVEL_FILTER,
+    },
+    select: { id: true },
+  });
+  if (!level) {
+    return { ok: false, error: "Level not found or already archived." };
+  }
+
+  await prisma.level.update({
+    where: { id: level.id },
+    data: { archivedAt: new Date() },
+  });
+  return { ok: true };
+}
+
+export type UnarchiveLevelResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/** Restore an archived level to the active curriculum. */
+export async function unarchiveLevel(
+  admin: AdminContext,
+  levelId: string,
+): Promise<UnarchiveLevelResult> {
+  const result = await prisma.level.updateMany({
+    where: {
+      id: levelId,
+      instituteId: admin.instituteId,
+      archivedAt: { not: null },
+    },
+    data: { archivedAt: null },
+  });
+  if (result.count === 0) {
+    return { ok: false, error: "Level not found or not archived." };
+  }
+  return { ok: true };
 }
 
 /**
@@ -614,7 +675,11 @@ export async function updateLevel(
   input: LevelInput,
 ): Promise<number> {
   const result = await prisma.level.updateMany({
-    where: { id: levelId, instituteId: admin.instituteId },
+    where: {
+      id: levelId,
+      instituteId: admin.instituteId,
+      ...ACTIVE_LEVEL_FILTER,
+    },
     data: { ...input, name: input.name.trim() },
   });
   return result.count;

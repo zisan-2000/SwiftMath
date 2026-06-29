@@ -9,6 +9,7 @@ import { listLevels } from "@/server/admin";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
@@ -45,8 +46,11 @@ export default async function AdminLevelsPage() {
       where: { id: admin.instituteId },
       select: { name: true, logoUrl: true },
     }),
-    listLevels(admin.instituteId),
+    listLevels(admin.instituteId, { includeArchived: true }),
   ]);
+
+  const activeLevels = levels.filter((level) => level.archivedAt == null);
+  const archivedLevels = levels.filter((level) => level.archivedAt != null);
 
   return (
     <AppShell
@@ -69,11 +73,11 @@ export default async function AdminLevelsPage() {
       <Card>
         <CardHeader className="border-b border-border">
           <CardTitle className="text-base">
-            All levels ({levels.length})
+            Active levels ({activeLevels.length})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {levels.length === 0 ? (
+          {activeLevels.length === 0 ? (
             <div className="p-6">
               <EmptyState
                 icon={Layers}
@@ -93,7 +97,7 @@ export default async function AdminLevelsPage() {
             <>
               {/* Compact cards on small screens */}
               <ul className="divide-y divide-border md:hidden">
-                {levels.map((level) => (
+                {activeLevels.map((level) => (
                   <li
                     key={level.id}
                     className="flex items-start justify-between gap-3 px-5 py-4"
@@ -143,7 +147,7 @@ export default async function AdminLevelsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {levels.map((level) => (
+                {activeLevels.map((level) => (
                   <TableRow key={level.id}>
                     <TableCell className="font-semibold tabular-nums text-foreground">
                       {level.orderIndex}
@@ -186,6 +190,46 @@ export default async function AdminLevelsPage() {
           )}
         </CardContent>
       </Card>
+
+      {archivedLevels.length > 0 && (
+        <Card className="mt-8">
+          <CardHeader className="border-b border-border">
+            <CardTitle className="text-base">
+              Archived levels ({archivedLevels.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <ul className="divide-y divide-border">
+              {archivedLevels.map((level) => (
+                <li
+                  key={level.id}
+                  className="flex items-start justify-between gap-3 px-5 py-4"
+                >
+                  <div className="min-w-0">
+                    <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
+                      <span className="tabular-nums text-muted-foreground">
+                        {level.orderIndex}.
+                      </span>
+                      {level.name}
+                      <Badge variant="muted">Archived</Badge>
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {level._count.studentsOnLevel}{" "}
+                      {level._count.studentsOnLevel === 1
+                        ? "student"
+                        : "students"}{" "}
+                      still assigned
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="sm" asChild className="shrink-0">
+                    <Link href={`/admin/levels/${level.id}`}>View</Link>
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
     </AppShell>
   );
 }

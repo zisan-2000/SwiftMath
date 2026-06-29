@@ -8,12 +8,27 @@ import { getLevel } from "@/server/admin";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { LevelForm } from "@/components/admin/level-form";
-import { Card, CardContent } from "@/components/ui/card";
+import { ArchiveLevelSection } from "@/components/admin/archive-level-section";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateLevelAction } from "../actions";
 
-export const metadata: Metadata = {
-  title: "Edit level",
-};
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ levelId: string }>;
+}): Promise<Metadata> {
+  const { levelId } = await params;
+  const admin = await requireRole(Role.ADMIN);
+  const level = await getLevel(admin, levelId);
+  return {
+    title: level
+      ? level.archivedAt
+        ? `${level.name} (archived)`
+        : `Edit ${level.name}`
+      : "Edit level",
+  };
+}
 
 export default async function EditLevelPage({
   params,
@@ -24,7 +39,6 @@ export default async function EditLevelPage({
   const { levelId } = await params;
   const admin = await requireRole(Role.ADMIN);
 
-  // Scoped lookup — null if the level isn't in this admin's institute.
   const [institute, level] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: admin.instituteId },
@@ -37,8 +51,7 @@ export default async function EditLevelPage({
     notFound();
   }
 
-  // Bind the level id so the form's action matches the (prevState, formData)
-  // shape useActionState expects.
+  const isArchived = level.archivedAt != null;
   const action = updateLevelAction.bind(null, level.id);
 
   return (
@@ -46,28 +59,56 @@ export default async function EditLevelPage({
       user={admin}
       instituteName={institute?.name ?? "Institute"}
       instituteLogoUrl={institute?.logoUrl}
-      title={`Edit: ${level.name}`}
-      subtitle="Changes apply to new practice sessions started after saving."
+      title={level.name}
+      subtitle={
+        isArchived
+          ? "Archived — restore to edit or assign again."
+          : "Changes apply to new practice sessions started after saving."
+      }
     >
       <BackLink href="/admin/levels">All levels</BackLink>
 
-      <Card>
-        <CardContent className="pt-6">
-          <LevelForm
-            action={action}
-            submitLabel="Save changes"
-            defaults={{
-              name: level.name,
-              operation: level.operation,
-              orderIndex: level.orderIndex,
-              termsPerQuestion: level.termsPerQuestion,
-              minNumber: level.minNumber,
-              maxNumber: level.maxNumber,
-              questionCount: level.questionCount,
-              timeLimitSeconds: level.timeLimitSeconds,
-              passAccuracy: level.passAccuracy,
-              requiresPreviousPass: level.requiresPreviousPass,
-            }}
+      {isArchived && (
+        <div className="mt-4">
+          <Badge variant="muted">Archived</Badge>
+        </div>
+      )}
+
+      {!isArchived && (
+        <Card className="mt-6">
+          <CardContent className="pt-6">
+            <LevelForm
+              action={action}
+              submitLabel="Save changes"
+              defaults={{
+                name: level.name,
+                operation: level.operation,
+                orderIndex: level.orderIndex,
+                termsPerQuestion: level.termsPerQuestion,
+                minNumber: level.minNumber,
+                maxNumber: level.maxNumber,
+                questionCount: level.questionCount,
+                timeLimitSeconds: level.timeLimitSeconds,
+                passAccuracy: level.passAccuracy,
+                requiresPreviousPass: level.requiresPreviousPass,
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle className="text-base">
+            {isArchived ? "Restore level" : "Archive level"}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ArchiveLevelSection
+            levelId={level.id}
+            levelName={level.name}
+            studentCount={level._count.studentsOnLevel}
+            isArchived={isArchived}
           />
         </CardContent>
       </Card>

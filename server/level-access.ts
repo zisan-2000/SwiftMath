@@ -7,6 +7,7 @@ import {
   canAccessLevel,
   levelUnlockMessage,
 } from "@/lib/level-prerequisites";
+import { ACTIVE_LEVEL_FILTER } from "@/lib/active-levels";
 
 /** Thrown when a student tries to practise or be assigned a locked level. */
 export class LevelAccessError extends Error {
@@ -30,16 +31,28 @@ export async function checkStudentLevelAccess(
     select: {
       orderIndex: true,
       requiresPreviousPass: true,
+      archivedAt: true,
     },
   });
   if (!level) {
     return { allowed: false, message: "Level not found." };
   }
+  if (level.archivedAt) {
+    return {
+      allowed: false,
+      message:
+        "This level has been archived. Ask your teacher or admin to assign a new level.",
+    };
+  }
 
   const previous =
     level.orderIndex > 1
       ? await prisma.level.findFirst({
-          where: { instituteId, orderIndex: level.orderIndex - 1 },
+          where: {
+            instituteId,
+            orderIndex: level.orderIndex - 1,
+            ...ACTIVE_LEVEL_FILTER,
+          },
           select: { id: true, name: true },
         })
       : null;

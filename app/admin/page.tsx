@@ -14,6 +14,7 @@ import {
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { ACTIVE_LEVEL_FILTER } from "@/lib/active-levels";
 import { Role, SessionStatus } from "@/lib/generated/prisma/enums";
 import { getInstitutePracticeAnalytics } from "@/server/analytics";
 import {
@@ -83,7 +84,7 @@ export default async function AdminDashboardPage() {
     prisma.user.count({ where: { instituteId, role: Role.TEACHER } }),
     prisma.user.count({ where: { instituteId, role: Role.STUDENT } }),
     prisma.group.count({ where: { instituteId } }),
-    prisma.level.count({ where: { instituteId } }),
+    prisma.level.count({ where: { instituteId, ...ACTIVE_LEVEL_FILTER } }),
     getInstitutePracticeAnalytics(instituteId),
     prisma.practiceSession.count({
       where: {

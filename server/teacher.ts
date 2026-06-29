@@ -9,6 +9,7 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
+import { ACTIVE_LEVEL_FILTER } from "@/lib/active-levels";
 import { createUserAccount, setUserPassword } from "@/server/users";
 import { checkStudentLevelAccess } from "@/server/level-access";
 import { parseGroupTimeLimitField,
@@ -75,7 +76,7 @@ export function getTeacherGroup(teacher: TeacherContext, groupId: string) {
 /** All levels for an institute, in progression order (for assignment menus). */
 export function listInstituteLevels(instituteId: string) {
   return prisma.level.findMany({
-    where: { instituteId },
+    where: { instituteId, ...ACTIVE_LEVEL_FILTER },
     orderBy: { orderIndex: "asc" },
     select: { id: true, name: true, orderIndex: true, timeLimitSeconds: true },
   });
@@ -152,7 +153,7 @@ export async function setGroupLevelTimeRule(
   }
 
   const level = await prisma.level.findFirst({
-    where: { id: levelId, instituteId: group.instituteId },
+    where: { id: levelId, instituteId: group.instituteId, ...ACTIVE_LEVEL_FILTER },
     select: { id: true },
   });
   if (!level) {
@@ -263,7 +264,7 @@ export async function assignStudentLevel(
 
   if (levelId) {
     const level = await prisma.level.findFirst({
-      where: { id: levelId, instituteId: teacher.instituteId },
+      where: { id: levelId, instituteId: teacher.instituteId, ...ACTIVE_LEVEL_FILTER },
       select: { id: true },
     });
     if (!level) {
