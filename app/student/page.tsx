@@ -64,7 +64,9 @@ export default async function StudentDashboardPage() {
               <p className="mt-1 text-sm text-muted-foreground">
                 {pendingSession.mode === PracticeMode.REVIEW
                   ? "Review mode — no timer"
-                  : "Timed practice — pick up where you left off"}
+                  : pendingSession.mode === PracticeMode.CHALLENGE
+                    ? "Challenge mode — harder timed drill"
+                    : "Timed practice — pick up where you left off"}
               </p>
             </div>
             <Button asChild size="lg" className="shrink-0">

@@ -1,10 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Clock, ListChecks, Lock, RotateCcw, Target } from "lucide-react";
+import { Clock, ListChecks, Lock, RotateCcw, Target, Zap } from "lucide-react";
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role, SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
+import {
+  resolveChallengePassAccuracy,
+  resolveChallengeTimeLimitSeconds,
+} from "@/lib/challenge-mode";
 import { shouldShowPracticeHomeRetryHint } from "@/lib/practice-result-messaging";
 import { listRecentSessions } from "@/server/practice";
 import { resolveStudentPracticeTimeLimit } from "@/server/teacher";
@@ -59,6 +63,12 @@ export default async function PracticeHomePage({
       : null;
   const hasTimeOverride =
     level != null && effectiveTimeLimitSeconds !== level.timeLimitSeconds;
+  const challengeTimeLimitSeconds =
+    effectiveTimeLimitSeconds != null
+      ? resolveChallengeTimeLimitSeconds(effectiveTimeLimitSeconds)
+      : null;
+  const challengePassAccuracy =
+    level != null ? resolveChallengePassAccuracy(level.passAccuracy) : null;
   const access = level
     ? await checkStudentLevelAccess(
         student.id,
@@ -163,19 +173,38 @@ export default async function PracticeHomePage({
                 {access.message} Ask your teacher if you think this is a mistake.
               </p>
             ) : (
-              <div className="mt-6 flex flex-wrap gap-3">
-                <form action={startSessionAction}>
-                  <Button type="submit" size="lg">
-                    Start practice
-                  </Button>
-                </form>
-                <form action={startSessionAction}>
-                  <input type="hidden" name="mode" value="review" />
-                  <Button type="submit" size="lg" variant="outline">
-                    Review (no timer)
-                  </Button>
-                </form>
-              </div>
+              <>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <form action={startSessionAction}>
+                    <Button type="submit" size="lg">
+                      Start practice
+                    </Button>
+                  </form>
+                  <form action={startSessionAction}>
+                    <input type="hidden" name="mode" value="challenge" />
+                    <Button type="submit" size="lg" variant="secondary">
+                      <Zap className="h-4 w-4" />
+                      Challenge
+                    </Button>
+                  </form>
+                  <form action={startSessionAction}>
+                    <input type="hidden" name="mode" value="review" />
+                    <Button type="submit" size="lg" variant="outline">
+                      Review (no timer)
+                    </Button>
+                  </form>
+                </div>
+                {challengeTimeLimitSeconds != null &&
+                  challengePassAccuracy != null && (
+                    <p className="mt-4 text-sm text-muted-foreground">
+                      <span className="font-medium text-foreground">
+                        Challenge mode:
+                      </span>{" "}
+                      {challengeTimeLimitSeconds}s timer · pass at{" "}
+                      {challengePassAccuracy}% · no level-up
+                    </p>
+                  )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -210,6 +239,9 @@ export default async function PracticeHomePage({
                 <div className="flex flex-wrap items-center gap-2">
                   {s.mode === PracticeMode.REVIEW && (
                     <Badge variant="secondary">Review</Badge>
+                  )}
+                  {s.mode === PracticeMode.CHALLENGE && (
+                    <Badge variant="secondary">Challenge</Badge>
                   )}
                   {s.status === SessionStatus.IN_PROGRESS ? (
                     <Badge variant="warning">In progress</Badge>

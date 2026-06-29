@@ -4,6 +4,7 @@ export interface PracticeResultContext {
   passed: boolean;
   expired: boolean;
   isReview: boolean;
+  isChallenge: boolean;
   leveledUp: boolean;
   passAccuracy: number;
   accuracy: number;
@@ -31,6 +32,37 @@ export function getPracticeResultMessaging(
       body: "Review mode does not change your level. Use it to drill without a timer.",
       primaryActionLabel: "Review again",
       showRetryPrompt: false,
+    };
+  }
+
+  if (ctx.isChallenge && ctx.passed) {
+    return {
+      headline: "Challenge cleared!",
+      body: `You hit the tougher ${ctx.passAccuracy}% bar in time. Your level stays the same — use standard practice to level up.`,
+      primaryActionLabel: "Challenge again",
+      showRetryPrompt: false,
+    };
+  }
+
+  if (ctx.isChallenge && !ctx.passed) {
+    if (ctx.expired) {
+      return {
+        headline: "Challenge time ran out",
+        body: `You stay on ${ctx.levelName}. Challenge mode uses a shorter timer and does not level you up.`,
+        primaryActionLabel: "Try challenge again",
+        showRetryPrompt: true,
+      };
+    }
+
+    const shortOf = Math.max(0, ctx.passAccuracy - ctx.accuracy);
+    return {
+      headline: "Challenge not cleared",
+      body:
+        shortOf > 0
+          ? `You scored ${ctx.accuracy}% but need ${ctx.passAccuracy}% for this challenge. Your level is unchanged.`
+          : `You stay on ${ctx.levelName}. Challenge mode does not change your level.`,
+      primaryActionLabel: "Try challenge again",
+      showRetryPrompt: true,
     };
   }
 
@@ -80,7 +112,7 @@ export function shouldShowPracticeHomeRetryHint(input: {
   lastSession:
     | {
         passed: boolean;
-        mode: "STANDARD" | "REVIEW";
+        mode: "STANDARD" | "REVIEW" | "CHALLENGE";
         status: "IN_PROGRESS" | "COMPLETED" | "EXPIRED";
         levelId: string;
       }

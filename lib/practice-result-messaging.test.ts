@@ -13,11 +13,16 @@ describe("getPracticeResultMessaging", () => {
     leveledUp: false,
     expired: false,
     isReview: false,
+    isChallenge: false,
     passed: false,
   };
 
   it("uses try again copy for a failed timed attempt", () => {
-    const msg = getPracticeResultMessaging({ ...base, passed: false });
+    const msg = getPracticeResultMessaging({
+      ...base,
+      passed: false,
+      isChallenge: false,
+    });
     expect(msg.primaryActionLabel).toBe("Try again");
     expect(msg.showRetryPrompt).toBe(true);
     expect(msg.body).toContain("stay on Level 2");
@@ -47,13 +52,15 @@ describe("getPracticeResultMessaging", () => {
     expect(msg.showRetryPrompt).toBe(false);
   });
 
-  it("skips retry prompt for review mode", () => {
+  it("uses challenge again for a cleared challenge", () => {
     const msg = getPracticeResultMessaging({
       ...base,
-      isReview: true,
-      passed: false,
+      isChallenge: true,
+      passed: true,
+      passAccuracy: 90,
     });
-    expect(msg.primaryActionLabel).toBe("Review again");
+    expect(msg.headline).toBe("Challenge cleared!");
+    expect(msg.primaryActionLabel).toBe("Challenge again");
     expect(msg.showRetryPrompt).toBe(false);
   });
 });

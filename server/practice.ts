@@ -26,6 +26,10 @@ import {
   gradeAnswers,
   isExpired,
 } from "@/lib/practice-logic";
+import {
+  resolveChallengePassAccuracy,
+  resolveChallengeTimeLimitSeconds,
+} from "@/lib/challenge-mode";
 
 /** The authenticated student, as needed for scoping. */
 export interface StudentContext {
@@ -59,7 +63,7 @@ function logPracticeAnomalies(
 /**
  * Start a session at the student's *current* level (read fresh from the DB).
  * STANDARD runs against the level time limit and can level up; REVIEW is
- * untimed drill-only. Returns the new session id.
+ * untimed drill-only; CHALLENGE is a harder timed drill without level-up.
  */
 export async function startPracticeSession(
   student: StudentContext,
@@ -89,20 +93,28 @@ export async function startPracticeSession(
 
   await assertStudentLevelAccess(student.id, student.instituteId, level.id);
 
-  const timeLimitSeconds =
-    mode === PracticeMode.REVIEW
-      ? level.timeLimitSeconds
-      : await resolveStudentPracticeTimeLimit(
-          student.id,
-          level.id,
-          level.timeLimitSeconds,
-        );
+  const standardTimeLimitSeconds = await resolveStudentPracticeTimeLimit(
+    student.id,
+    level.id,
+    level.timeLimitSeconds,
+  );
 
   const startedAt = new Date();
-  const expiresAt =
-    mode === PracticeMode.REVIEW
-      ? new Date(startedAt.getTime() + 24 * 60 * 60 * 1000)
-      : new Date(startedAt.getTime() + timeLimitSeconds * 1000);
+  let timeLimitSeconds: number;
+  let expiresAt: Date;
+
+  if (mode === PracticeMode.REVIEW) {
+    timeLimitSeconds = level.timeLimitSeconds;
+    expiresAt = new Date(startedAt.getTime() + 24 * 60 * 60 * 1000);
+  } else if (mode === PracticeMode.CHALLENGE) {
+    timeLimitSeconds = resolveChallengeTimeLimitSeconds(
+      standardTimeLimitSeconds,
+    );
+    expiresAt = new Date(startedAt.getTime() + timeLimitSeconds * 1000);
+  } else {
+    timeLimitSeconds = standardTimeLimitSeconds;
+    expiresAt = new Date(startedAt.getTime() + timeLimitSeconds * 1000);
+  }
 
   const questions = Array.from({ length: level.questionCount }, (_, index) => {
     const q = generateQuestion(level);
@@ -269,13 +281,17 @@ export async function submitPracticeSession(
     const total = session.totalQuestions;
     const accuracy = computeAccuracy(correct, total);
     const isReview = session.mode === PracticeMode.REVIEW;
+    const isChallenge = session.mode === PracticeMode.CHALLENGE;
+    const passAccuracy = isChallenge
+      ? resolveChallengePassAccuracy(session.level.passAccuracy)
+      : session.level.passAccuracy;
     const expired =
       !isReview && isExpired(now.getTime(), session.expiresAt.getTime());
-    const passed = didPass(expired, accuracy, session.level.passAccuracy);
+    const passed = didPass(expired, accuracy, passAccuracy);
 
     // Level-up: timed standard passes at the student's current level only.
     let leveledUp = false;
-    if (passed && !isReview) {
+    if (passed && session.mode === PracticeMode.STANDARD) {
       const studentRow = await tx.user.findUnique({
         where: { id: student.id },
         select: { currentLevelId: true },
@@ -308,7 +324,9 @@ export async function submitPracticeSession(
       submittedAtMs: now.getTime(),
       questionCount: total,
       checkFastSubmit:
-        !isReview && session.mode === PracticeMode.STANDARD && !expired,
+        (session.mode === PracticeMode.STANDARD ||
+          session.mode === PracticeMode.CHALLENGE) &&
+        !expired,
       tabBlurCount,
     });
     if (anomalyFlags.length > 0) {

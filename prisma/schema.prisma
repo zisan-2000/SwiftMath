@@ -58,10 +58,12 @@ enum SessionStatus {
 }
 
 /// How a practice session is scored. STANDARD is timed and can level up;
-/// REVIEW is untimed drill-only (no expiry, no level-up).
+/// REVIEW is untimed drill-only (no expiry, no level-up);
+/// CHALLENGE is a harder timed drill (shorter time, higher pass bar, no level-up).
 enum PracticeMode {
   STANDARD
   REVIEW
+  CHALLENGE
 }
 
 // ---------------------------------------------------------------------------
@@ -340,7 +342,8 @@ model PracticeSession {
 
   status SessionStatus @default(IN_PROGRESS)
 
-  /// STANDARD = timed attempt that can level up; REVIEW = untimed drill.
+  /// STANDARD = timed attempt that can level up; REVIEW = untimed drill;
+  /// CHALLENGE = harder timed drill without level-up.
   mode PracticeMode @default(STANDARD)
 
   /// Server clock. The session must be submitted on or before `expiresAt`.

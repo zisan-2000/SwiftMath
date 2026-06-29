@@ -6,6 +6,9 @@ import { Check, X } from "lucide-react";
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role, SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
+import {
+  resolveChallengePassAccuracy,
+} from "@/lib/challenge-mode";
 import { getStudentSession } from "@/server/practice";
 import { getPracticeResultMessaging } from "@/lib/practice-result-messaging";
 import { AppShell } from "@/components/app-shell";
@@ -51,6 +54,7 @@ export default async function PracticeSessionPage({
   // --- In progress: run the test (no correct answers sent to client) ---
   if (session.status === SessionStatus.IN_PROGRESS) {
     const isReview = session.mode === PracticeMode.REVIEW;
+    const isChallenge = session.mode === PracticeMode.CHALLENGE;
     const safeQuestions = session.questions.map((q) => ({
       id: q.id,
       index: q.index,
@@ -66,7 +70,9 @@ export default async function PracticeSessionPage({
         subtitle={
           isReview
             ? "Review mode — no timer, no level-up. Submit when you're ready."
-            : "Answer as many as you can before time runs out."
+            : isChallenge
+              ? "Challenge mode — shorter timer, higher pass bar, no level-up."
+              : "Answer as many as you can before time runs out."
         }
       >
         <PracticeRunner
@@ -82,12 +88,17 @@ export default async function PracticeSessionPage({
   // --- Finished: show the result + per-question review ---
   const expired = session.status === SessionStatus.EXPIRED;
   const isReview = session.mode === PracticeMode.REVIEW;
+  const isChallenge = session.mode === PracticeMode.CHALLENGE;
+  const effectivePassAccuracy = isChallenge
+    ? resolveChallengePassAccuracy(session.level.passAccuracy)
+    : session.level.passAccuracy;
   const resultCopy = getPracticeResultMessaging({
     passed: session.passed,
     expired,
     isReview,
+    isChallenge,
     leveledUp: session.leveledUp,
-    passAccuracy: session.level.passAccuracy,
+    passAccuracy: effectivePassAccuracy,
     accuracy: session.accuracy,
     levelName: session.level.name,
   });
@@ -118,7 +129,8 @@ export default async function PracticeSessionPage({
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
             {session.correctCount} of {session.totalQuestions} correct · pass at{" "}
-            {session.level.passAccuracy}%
+            {effectivePassAccuracy}%
+            {isChallenge ? " (challenge)" : ""}
           </p>
 
           {!resultCopy.showRetryPrompt && (
@@ -134,6 +146,7 @@ export default async function PracticeSessionPage({
 
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             {isReview && <Badge variant="secondary">Review</Badge>}
+            {isChallenge && <Badge variant="secondary">Challenge</Badge>}
             {expired && <Badge variant="warning">Time expired</Badge>}
             <Badge variant={session.passed ? "success" : "muted"}>
               {session.passed ? "Passed" : "Not passed"}
@@ -147,6 +160,9 @@ export default async function PracticeSessionPage({
             <form action={startSessionAction}>
               {isReview && (
                 <input type="hidden" name="mode" value="review" />
+              )}
+              {isChallenge && (
+                <input type="hidden" name="mode" value="challenge" />
               )}
               <Button type="submit" size={resultCopy.showRetryPrompt ? "lg" : "default"}>
                 {resultCopy.primaryActionLabel}

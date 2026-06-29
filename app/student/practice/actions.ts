@@ -15,9 +15,10 @@ import { LevelAccessError } from "@/server/level-access";
 
 /** Parse the optional mode field from a start-practice form. */
 function parsePracticeMode(formData: FormData): PracticeMode {
-  return formData.get("mode") === "review"
-    ? PracticeMode.REVIEW
-    : PracticeMode.STANDARD;
+  const raw = String(formData.get("mode") ?? "").trim().toLowerCase();
+  if (raw === "review") return PracticeMode.REVIEW;
+  if (raw === "challenge") return PracticeMode.CHALLENGE;
+  return PracticeMode.STANDARD;
 }
 
 /**
