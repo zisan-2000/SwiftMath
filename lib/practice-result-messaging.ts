@@ -112,7 +112,7 @@ export function shouldShowPracticeHomeRetryHint(input: {
   lastSession:
     | {
         passed: boolean;
-        mode: "STANDARD" | "REVIEW" | "CHALLENGE";
+        mode: "STANDARD" | "REVIEW" | "CHALLENGE" | "EXAM";
         status: "IN_PROGRESS" | "COMPLETED" | "EXPIRED";
         levelId: string;
       }

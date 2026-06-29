@@ -59,11 +59,13 @@ enum SessionStatus {
 
 /// How a practice session is scored. STANDARD is timed and can level up;
 /// REVIEW is untimed drill-only (no expiry, no level-up);
-/// CHALLENGE is a harder timed drill (shorter time, higher pass bar, no level-up).
+/// CHALLENGE is a harder timed drill (shorter time, higher pass bar, no level-up);
+/// EXAM is a teacher-scheduled timed attempt during an exam window (can level up).
 enum PracticeMode {
   STANDARD
   REVIEW
   CHALLENGE
+  EXAM
 }
 
 // ---------------------------------------------------------------------------
@@ -93,6 +95,7 @@ model Institute {
   groups           Group[]
   levels           Level[]
   practiceSessions PracticeSession[]
+  scheduledExams   ScheduledExam[]
 
   @@map("institute")
 }
@@ -144,6 +147,9 @@ model User {
 
   /// Timed practice attempts made by this STUDENT.
   practiceSessions PracticeSession[] @relation("StudentSessions")
+
+  /// Scheduled exams created by this teacher or admin.
+  scheduledExamsCreated ScheduledExam[] @relation("ScheduledExamCreator")
 
   // --- better-auth relations ---
   sessions Session[]
@@ -227,6 +233,8 @@ model Group {
   /// Optional per-level time limits for students in this group.
   levelRules GroupLevelRule[]
 
+  scheduledExams ScheduledExam[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -305,6 +313,8 @@ model Level {
 
   groupLevelRules GroupLevelRule[]
 
+  scheduledExams ScheduledExam[]
+
   /// When set, the level is archived (soft-deleted). Hidden from assignment and
   /// new practice; existing session history is kept.
   archivedAt DateTime?
@@ -316,6 +326,46 @@ model Level {
   @@unique([instituteId, orderIndex])
   @@index([instituteId])
   @@map("level")
+}
+
+// ---------------------------------------------------------------------------
+// Scheduled exams
+//
+// A teacher schedules a timed exam window for a group at a specific level.
+// Students in that group may start one attempt while the window is open.
+// ---------------------------------------------------------------------------
+
+model ScheduledExam {
+  id String @id @default(cuid())
+
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  groupId String
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  levelId String
+  level   Level @relation(fields: [levelId], references: [id])
+
+  /// Optional label shown on the student dashboard (e.g. "Weekly test").
+  title String?
+
+  /// Inclusive window when students may start the exam (server clock).
+  opensAt  DateTime
+  closesAt DateTime
+
+  createdById String
+  createdBy   User @relation("ScheduledExamCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  practiceSessions PracticeSession[]
+
+  @@index([instituteId])
+  @@index([groupId])
+  @@index([opensAt, closesAt])
+  @@map("scheduled_exam")
 }
 
 // ---------------------------------------------------------------------------
@@ -343,8 +393,13 @@ model PracticeSession {
   status SessionStatus @default(IN_PROGRESS)
 
   /// STANDARD = timed attempt that can level up; REVIEW = untimed drill;
-  /// CHALLENGE = harder timed drill without level-up.
+  /// CHALLENGE = harder timed drill without level-up;
+  /// EXAM = scheduled timed attempt linked to a ScheduledExam.
   mode PracticeMode @default(STANDARD)
+
+  /// Set when `mode` is EXAM — links this attempt to the scheduled exam slot.
+  scheduledExamId String?
+  scheduledExam   ScheduledExam? @relation(fields: [scheduledExamId], references: [id], onDelete: SetNull)
 
   /// Server clock. The session must be submitted on or before `expiresAt`.
   startedAt   DateTime  @default(now())
@@ -368,9 +423,11 @@ model PracticeSession {
 
   questions PracticeQuestion[]
 
+  @@unique([studentId, scheduledExamId])
   @@index([studentId])
   @@index([instituteId])
   @@index([levelId])
+  @@index([scheduledExamId])
   @@map("practice_session")
 }
 

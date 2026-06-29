@@ -157,10 +157,44 @@ async function main() {
     });
   }
 
+  // --- Demo scheduled exam (open window for manual 6.7 testing) ---
+  const examOpens = new Date(Date.now() - 60 * 60 * 1000);
+  const examCloses = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const demoExamLevel = levels[2]!;
+
+  let demoExam = await prisma.scheduledExam.findFirst({
+    where: {
+      groupId: group.id,
+      levelId: demoExamLevel.id,
+      title: "Demo weekly exam",
+    },
+    select: { id: true },
+  });
+  if (!demoExam) {
+    demoExam = await prisma.scheduledExam.create({
+      data: {
+        instituteId: seft.id,
+        groupId: group.id,
+        levelId: demoExamLevel.id,
+        title: "Demo weekly exam",
+        opensAt: examOpens,
+        closesAt: examCloses,
+        createdById: teacher.id,
+      },
+      select: { id: true },
+    });
+  } else {
+    await prisma.scheduledExam.update({
+      where: { id: demoExam.id },
+      data: { opensAt: examOpens, closesAt: examCloses },
+    });
+  }
+
   console.log("\n✅ Seed complete.\n");
   console.log(`Institute: ${seft.name} (slug: ${seft.slug})`);
   console.log(`Levels:    ${levels.length}`);
-  console.log(`Students:  ${students.length} in "Demo Group A"\n`);
+  console.log(`Students:  ${students.length} in "Demo Group A"`);
+  console.log(`Demo exam: "${demoExamLevel.name}" (open for 7 days — student aisha@seft.test)\n`);
   console.log(`All demo accounts use the password: ${DEMO_PASSWORD}`);
   console.log("Sign-in emails:");
   console.log("  SUPER    super@seft.test");

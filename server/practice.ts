@@ -150,6 +150,8 @@ export function getStudentSession(studentId: string, sessionId: string) {
       id: true,
       status: true,
       mode: true,
+      scheduledExamId: true,
+      scheduledExam: { select: { title: true } },
       startedAt: true,
       expiresAt: true,
       submittedAt: true,
@@ -289,9 +291,13 @@ export async function submitPracticeSession(
       !isReview && isExpired(now.getTime(), session.expiresAt.getTime());
     const passed = didPass(expired, accuracy, passAccuracy);
 
-    // Level-up: timed standard passes at the student's current level only.
+    // Level-up: timed standard or exam passes at the student's current level only.
     let leveledUp = false;
-    if (passed && session.mode === PracticeMode.STANDARD) {
+    if (
+      passed &&
+      (session.mode === PracticeMode.STANDARD ||
+        session.mode === PracticeMode.EXAM)
+    ) {
       const studentRow = await tx.user.findUnique({
         where: { id: student.id },
         select: { currentLevelId: true },
@@ -325,7 +331,8 @@ export async function submitPracticeSession(
       questionCount: total,
       checkFastSubmit:
         (session.mode === PracticeMode.STANDARD ||
-          session.mode === PracticeMode.CHALLENGE) &&
+          session.mode === PracticeMode.CHALLENGE ||
+          session.mode === PracticeMode.EXAM) &&
         !expired,
       tabBlurCount,
     });
