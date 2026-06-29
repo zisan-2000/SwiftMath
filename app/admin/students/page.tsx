@@ -11,6 +11,7 @@ import { listInstituteGroups, listInstituteStudents, listLevels } from "@/server
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { AddStudentDialog } from "@/components/admin/add-student-dialog";
+import { ExportStudentsButton } from "@/components/admin/export-students-button";
 import { ActiveToggle } from "@/components/admin/active-toggle";
 import { ResetPasswordForm } from "@/components/reset-password-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,7 +74,10 @@ export default async function AdminStudentsPage({
       title="Students"
       subtitle="Create students, view progress, and manage accounts across your institute."
       actions={
-        <AddStudentDialog groups={groupOptions} levels={levelOptions} />
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportStudentsButton />
+          <AddStudentDialog groups={groupOptions} levels={levelOptions} />
+        </div>
       }
     >
       <BackLink href="/admin">Admin dashboard</BackLink>
