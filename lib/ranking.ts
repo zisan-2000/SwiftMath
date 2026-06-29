@@ -12,10 +12,19 @@ export interface LeaderboardRow {
   levelOrder: number | null;
   passedCount: number;
   avgAccuracy: number;
+  /** Fastest finish (ms) among passed sessions with 100% accuracy in scope. */
+  fastestPassMs: number | null;
 }
 
 /** Row with a 1-based rank after sorting. */
 export type RankedLeaderboardRow = LeaderboardRow & { rank: number };
+
+/** Institute leaderboard row extended with tenant name (global ranking). */
+export type GlobalLeaderboardRow = LeaderboardRow & {
+  instituteName: string;
+};
+
+export type RankedGlobalLeaderboardRow = GlobalLeaderboardRow & { rank: number };
 
 const PERIOD_DAYS: Record<Exclude<LeaderboardPeriod, "all">, number> = {
   week: 7,
@@ -43,23 +52,42 @@ export function leaderboardPeriodStart(
   return start;
 }
 
+/** Keep only students with a qualifying 100% accuracy pass in the current scope. */
+export function filterQualifiedLeaderboardRows<T extends LeaderboardRow>(
+  rows: T[],
+): T[] {
+  return rows.filter((row) => row.fastestPassMs !== null);
+}
+
 /**
  * Order students for the institute leaderboard:
- *   1. current level order (desc),
- *   2. passed attempts in scope (desc),
- *   3. average accuracy in scope (desc),
- *   4. name (asc).
- * Students with no assigned level sort last.
+ *   1. has a 100% accuracy pass in scope (yes before no),
+ *   2. fastest 100% pass time (asc — lower is better),
+ *   3. passed attempts in scope (desc),
+ *   4. average accuracy in scope (desc),
+ *   5. name (asc).
  */
 export function rankLeaderboardRows(rows: LeaderboardRow[]): RankedLeaderboardRow[] {
   const sorted = [...rows].sort((a, b) => {
-    const ao = a.levelOrder ?? -1;
-    const bo = b.levelOrder ?? -1;
-    if (bo !== ao) return bo - ao;
+    const aHasPerfect = a.fastestPassMs !== null;
+    const bHasPerfect = b.fastestPassMs !== null;
+    if (aHasPerfect !== bHasPerfect) return aHasPerfect ? -1 : 1;
+    if (aHasPerfect && bHasPerfect && a.fastestPassMs !== b.fastestPassMs) {
+      return a.fastestPassMs! - b.fastestPassMs!;
+    }
     if (b.passedCount !== a.passedCount) return b.passedCount - a.passedCount;
     if (b.avgAccuracy !== a.avgAccuracy) return b.avgAccuracy - a.avgAccuracy;
     return a.name.localeCompare(b.name);
   });
 
   return sorted.map((row, index) => ({ rank: index + 1, ...row }));
+}
+
+/** Human-readable finish time for the leaderboard (e.g. "1m 23s"). */
+export function formatPassDuration(ms: number): string {
+  const totalSeconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if (minutes > 0) return `${minutes}m ${seconds}s`;
+  return `${seconds}s`;
 }

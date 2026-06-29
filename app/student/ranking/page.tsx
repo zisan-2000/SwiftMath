@@ -7,19 +7,10 @@ import { Role } from "@/lib/generated/prisma/enums";
 import { parseLeaderboardPeriod } from "@/lib/ranking";
 import { getInstituteLeaderboard } from "@/server/ranking";
 import { AppShell } from "@/components/app-shell";
+import { RankingTabs } from "@/components/student/ranking-tabs";
 import { RankingFilters } from "@/components/student/ranking-filters";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { RankingLeaderboardTable } from "@/components/student/ranking-leaderboard-table";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Ranking",
@@ -131,64 +122,43 @@ export default async function StudentRankingPage({
         },
       )}
     >
+      <RankingTabs active="institute" />
+
       <RankingFilters
         values={filterValues}
         levels={levels}
         groupName={groupName}
       />
 
+      <p className="mb-4 text-sm text-muted-foreground">
+        Only students with a timed 100% accuracy pass appear here, ranked by
+        fastest finish
+        {selectedLevelName ? ` at ${selectedLevelName}` : ""}
+        {period === "week"
+          ? " in the last 7 days"
+          : period === "month"
+            ? " in the last 30 days"
+            : ""}
+        .
+      </p>
+
+      {!myRank && leaderboard.length > 0 && (
+        <p className="mb-4 text-sm text-muted-foreground">
+          Pass a timed practice with 100% accuracy to appear on this board.
+        </p>
+      )}
+
       {leaderboard.length === 0 ? (
         <EmptyState
           icon={Trophy}
-          title="No students to rank yet"
-          description="Once students start practising, the leaderboard fills up here."
+          title="No qualifying scores yet"
+          description="Pass a timed practice with 100% accuracy to appear on the leaderboard."
         />
       ) : (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>#</TableHead>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Level</TableHead>
-                  <TableHead className="text-right">Passed</TableHead>
-                  <TableHead className="text-right">Avg. accuracy</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {leaderboard.map((row) => {
-                  const isMe = row.studentId === student.id;
-                  return (
-                    <TableRow
-                      key={row.studentId}
-                      className={cn(isMe && "bg-primary/5 hover:bg-primary/10")}
-                    >
-                      <TableCell className="font-semibold tabular-nums text-foreground">
-                        {row.rank}
-                      </TableCell>
-                      <TableCell className="text-foreground">
-                        <span className="flex items-center gap-2">
-                          {row.name}
-                          {isMe && <Badge>You</Badge>}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {row.levelName ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-foreground">
-                        {row.passedCount}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-foreground">
-                        {row.avgAccuracy}%
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <RankingLeaderboardTable
+          rows={leaderboard}
+          currentStudentId={student.id}
+        />
       )}
     </AppShell>
   );
