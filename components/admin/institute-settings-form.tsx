@@ -33,11 +33,7 @@ export function InstituteSettingsForm({
   }, [state.ok]);
 
   return (
-    <form
-      action={formAction}
-      encType="multipart/form-data"
-      className="flex max-w-lg flex-col gap-4"
-    >
+    <form action={formAction} className="flex max-w-lg flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="settings-institute-name">Institute name</Label>
         <Input
