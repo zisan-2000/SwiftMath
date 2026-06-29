@@ -1,15 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Boxes, Brain, Layers, Target, TrendingUp } from "lucide-react";
+import { Boxes, Brain, Layers, Play, Target, TrendingUp, Trophy } from "lucide-react";
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/generated/prisma/enums";
+import { Role, PracticeMode } from "@/lib/generated/prisma/enums";
 import { getStudentPracticeAnalytics } from "@/server/analytics";
+import { getStudentInProgressSession } from "@/server/practice";
+import { getStudentInstituteRank } from "@/server/ranking";
 import { AppShell } from "@/components/app-shell";
 import { StatCard } from "@/components/stat-card";
 import { PracticeActivityChart } from "@/components/practice-activity-chart";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata: Metadata = {
   title: "Student",
@@ -22,7 +25,7 @@ export const metadata: Metadata = {
 export default async function StudentDashboardPage() {
   const user = await requireRole(Role.STUDENT);
 
-  const [profile, practice] = await Promise.all([
+  const [profile, practice, pendingSession, instituteRank] = await Promise.all([
     prisma.user.findUnique({
       where: { id: user.id },
       select: {
@@ -32,6 +35,8 @@ export default async function StudentDashboardPage() {
       },
     }),
     getStudentPracticeAnalytics(user.id),
+    getStudentInProgressSession(user.id),
+    getStudentInstituteRank(user.id, user.instituteId),
   ]);
 
   return (
@@ -42,7 +47,33 @@ export default async function StudentDashboardPage() {
       title={`Hello, ${user.name}`}
       subtitle="Your practice home."
     >
-      <div className="grid grid-cols-2 gap-4">
+      {pendingSession && (
+        <Card className="mb-8 border-primary/30 bg-primary/5">
+          <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-primary">
+                Practice in progress
+              </p>
+              <p className="mt-1 font-semibold text-foreground">
+                {pendingSession.level.name}
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {pendingSession.mode === PracticeMode.REVIEW
+                  ? "Review mode — no timer"
+                  : "Timed practice — pick up where you left off"}
+              </p>
+            </div>
+            <Button asChild size="lg" className="shrink-0">
+              <Link href={`/student/practice/${pendingSession.id}`}>
+                <Play className="h-4 w-4" />
+                Resume practice
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <StatCard
           label="Current level"
           value={profile?.currentLevel?.name ?? "Not assigned"}
@@ -50,6 +81,18 @@ export default async function StudentDashboardPage() {
           icon={Layers}
         />
         <StatCard label="Group" value={profile?.group?.name ?? "—"} icon={Boxes} />
+        <StatCard
+          label="Institute rank"
+          value={
+            instituteRank.rank != null ? `#${instituteRank.rank}` : "Not ranked"
+          }
+          hint={
+            instituteRank.rank != null
+              ? `Of ${instituteRank.totalQualified} on the all-time leaderboard`
+              : "Score 100% on every timed attempt and pass in time to rank"
+          }
+          icon={Trophy}
+        />
       </div>
 
       <h2 className="mb-3 mt-10 text-sm font-semibold uppercase tracking-wide text-muted-foreground">

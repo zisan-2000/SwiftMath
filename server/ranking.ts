@@ -195,6 +195,27 @@ export async function getInstituteLeaderboard(
   return finalizeLeaderboardRows(rows);
 }
 
+/** Summary of a student's position on the institute leaderboard. */
+export interface StudentInstituteRankSummary {
+  rank: number | null;
+  /** Qualified students on the leaderboard (100% accuracy + in-time pass). */
+  totalQualified: number;
+}
+
+/** Look up a student's institute rank using the same rules as the ranking page. */
+export async function getStudentInstituteRank(
+  studentId: string,
+  instituteId: string,
+  options: LeaderboardOptions = { period: "all" },
+): Promise<StudentInstituteRankSummary> {
+  const leaderboard = await getInstituteLeaderboard(instituteId, options);
+  const myRow = leaderboard.find((row) => row.studentId === studentId);
+  return {
+    rank: myRow?.rank ?? null,
+    totalQualified: leaderboard.length,
+  };
+}
+
 /**
  * Cross-institute leaderboard for all active students at active institutes.
  * Always scoped to one curriculum step so finish times are comparable.

@@ -162,6 +162,20 @@ export function getStudentSession(studentId: string, sessionId: string) {
   });
 }
 
+/** The student's most recent unfinished session, if any. */
+export function getStudentInProgressSession(studentId: string) {
+  return prisma.practiceSession.findFirst({
+    where: { studentId, status: SessionStatus.IN_PROGRESS },
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      mode: true,
+      expiresAt: true,
+      level: { select: { name: true } },
+    },
+  });
+}
+
 /** Recent attempts for the practice home history list. */
 export function listRecentSessions(studentId: string, take = 10) {
   return prisma.practiceSession.findMany({

@@ -61,5 +61,6 @@ export async function submitSessionAction(
 
   revalidatePath(`/student/practice/${sessionId}`);
   revalidatePath("/student/practice");
+  revalidatePath("/student");
   return result;
 }
