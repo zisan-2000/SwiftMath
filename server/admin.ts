@@ -17,6 +17,7 @@ import {
   paginationBounds,
   type PaginatedList,
 } from "@/lib/pagination";
+import type { InstituteBrandingSettings } from "@/lib/institute-branding";
 
 /** The authenticated admin, as needed for scoping. */
 export interface AdminContext {
@@ -307,4 +308,48 @@ export async function updateLevel(
     data: { ...input, name: input.name.trim() },
   });
   return result.count;
+}
+
+/** White-label fields an institute admin may view and edit. */
+export type InstituteBranding = InstituteBrandingSettings;
+
+/** Read branding for the signed-in admin's institute. */
+export async function getInstituteBranding(
+  admin: AdminContext,
+): Promise<InstituteBranding | null> {
+  return prisma.institute.findFirst({
+    where: { id: admin.instituteId },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      tagline: true,
+      logoUrl: true,
+    },
+  });
+}
+
+export interface UpdateInstituteBrandingInput {
+  name: string;
+  tagline?: string | null;
+  logoUrl?: string | null;
+}
+
+/**
+ * Update name, tagline, and logo for the admin's institute. Slug is read-only
+ * here — only Super Admin can change it.
+ */
+export async function updateInstituteBranding(
+  admin: AdminContext,
+  input: UpdateInstituteBrandingInput,
+): Promise<boolean> {
+  const result = await prisma.institute.updateMany({
+    where: { id: admin.instituteId },
+    data: {
+      name: input.name.trim(),
+      tagline: input.tagline?.trim() || null,
+      logoUrl: input.logoUrl?.trim() || null,
+    },
+  });
+  return result.count === 1;
 }
