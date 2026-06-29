@@ -1,15 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Boxes, Brain, GraduationCap, Target, Timer, TrendingUp } from "lucide-react";
+import {
+  Boxes,
+  Brain,
+  GraduationCap,
+  Target,
+  Timer,
+  TrendingUp,
+} from "lucide-react";
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
 import { formatSpeedDuration } from "@/lib/practice-speed";
-import { getTeacherPracticeAnalytics, getTeacherSpeedAnalytics } from "@/server/analytics";
+import { getTeacherDashboardAnalytics } from "@/server/analytics";
 import { AppShell } from "@/components/app-shell";
 import { StatCard } from "@/components/stat-card";
 import { PracticeActivityChart } from "@/components/practice-activity-chart";
+import { GroupCompletionTable } from "@/components/teacher/group-completion-table";
+import { TeacherGroupComparisonChart } from "@/components/teacher/teacher-group-comparison-chart";
+import { TeacherProgressChart } from "@/components/teacher/teacher-progress-chart";
 import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
@@ -22,17 +32,18 @@ export const metadata: Metadata = {
 export default async function TeacherDashboardPage() {
   const user = await requireRole(Role.TEACHER);
 
-  const [institute, groupCount, studentCount, practice, speed] = await Promise.all([
+  const [institute, groupCount, studentCount, dashboard] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: user.instituteId },
       select: { name: true, logoUrl: true },
     }),
     prisma.group.count({ where: { teacherId: user.id } }),
-    // Students placed in any group this teacher owns.
     prisma.user.count({ where: { group: { teacherId: user.id } } }),
-    getTeacherPracticeAnalytics(user.id),
-    getTeacherSpeedAnalytics(user.id),
+    getTeacherDashboardAnalytics(user.id),
   ]);
+
+  const { practice, speed, dailyProgress, groupComparison, groupCompletion } =
+    dashboard;
 
   return (
     <AppShell
@@ -55,6 +66,7 @@ export default async function TeacherDashboardPage() {
         <StatCard
           label="Pass rate"
           value={`${practice.passRate}%`}
+          hint="Attempt completion"
           icon={Target}
         />
         <StatCard
@@ -64,17 +76,35 @@ export default async function TeacherDashboardPage() {
         />
         <StatCard
           label="Avg pass time"
-          value={formatSpeedDuration(speed.speed.avgPassMs)}
+          value={formatSpeedDuration(speed.avgPassMs)}
           hint="Among passed attempts"
           icon={Timer}
         />
       </div>
 
-      <PracticeActivityChart
-        data={practice.daily}
-        empty={practice.totalSessions === 0}
-        description="Your students' finished attempts over the last 7 days"
-      />
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <PracticeActivityChart
+          data={practice.daily}
+          empty={practice.totalSessions === 0}
+          description="Finished attempts over the last 7 days"
+        />
+        <TeacherProgressChart
+          data={dailyProgress}
+          empty={practice.totalSessions === 0}
+        />
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-6">
+        <TeacherGroupComparisonChart
+          data={groupComparison}
+          empty={groupCount === 0}
+        />
+      </div>
+
+      <h2 className="mb-3 mt-10 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        Completion by group
+      </h2>
+      <GroupCompletionTable rows={groupCompletion} />
 
       <div className="mt-8">
         <Button asChild>

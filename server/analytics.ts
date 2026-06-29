@@ -18,7 +18,17 @@ import {
   buildGroupSpeedSummary,
   type GroupStudentPracticeSummary,
 } from "@/lib/group-analytics";
+import {
+  buildGroupCompletionRows,
+  type GroupCompletionRow,
+} from "@/lib/group-completion";
 import type { SpeedSummary } from "@/lib/practice-speed";
+import {
+  buildDailyProgressTrend,
+  buildGroupComparisonPoints,
+  type DailyProgressPoint,
+  type GroupComparisonPoint,
+} from "@/lib/teacher-dashboard-charts";
 import { SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
 
 /** Summary + daily breakdown for the admin practice-activity chart. */
@@ -160,12 +170,120 @@ export interface GroupPracticeAnalytics extends InstitutePracticeAnalytics {
   /** Finished standard attempts that did not pass in the window. */
   retryCount: number;
   speed: SpeedSummary;
+  /** Share of enrolled students who passed at least once in the window. */
+  studentCompletionRate: number;
+  /** Students with at least one pass in the window. */
+  studentsPassed: number;
   studentSummaries: GroupStudentPracticeSummary[];
 }
 
 /** Speed summary for a teacher's students over a time window. */
 export interface TeacherSpeedAnalytics {
   speed: SpeedSummary;
+}
+
+/** Charts + completion breakdown for the teacher dashboard. */
+export interface TeacherDashboardAnalytics {
+  practice: InstitutePracticeAnalytics;
+  speed: SpeedSummary;
+  dailyProgress: DailyProgressPoint[];
+  groupComparison: GroupComparisonPoint[];
+  groupCompletion: GroupCompletionRow[];
+}
+
+const teacherSessionSelect = {
+  createdAt: true,
+  passed: true,
+  accuracy: true,
+  startedAt: true,
+  submittedAt: true,
+  studentId: true,
+  student: { select: { groupId: true } },
+} as const;
+
+type TeacherSessionRow = {
+  createdAt: Date;
+  passed: boolean;
+  accuracy: number;
+  startedAt: Date;
+  submittedAt: Date | null;
+  studentId: string;
+  student: { groupId: string | null };
+};
+
+async function fetchTeacherSessions(
+  teacherId: string,
+  windowDays: number,
+): Promise<TeacherSessionRow[]> {
+  return prisma.practiceSession.findMany({
+    where: {
+      mode: PracticeMode.STANDARD,
+      status: { not: SessionStatus.IN_PROGRESS },
+      createdAt: { gte: windowStart(windowDays) },
+      student: { group: { teacherId } },
+    },
+    select: teacherSessionSelect,
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+/**
+ * Dashboard analytics for a teacher: activity summary, speed, progress trend,
+ * group comparison, and per-group completion rates.
+ */
+export async function getTeacherDashboardAnalytics(
+  teacherId: string,
+  days: number = DEFAULT_DAYS,
+): Promise<TeacherDashboardAnalytics> {
+  const windowDays = Math.max(1, days);
+  const [groups, sessions] = await Promise.all([
+    prisma.group.findMany({
+      where: { teacherId },
+      orderBy: { name: "asc" },
+      select: {
+        id: true,
+        name: true,
+        _count: { select: { students: true } },
+      },
+    }),
+    fetchTeacherSessions(teacherId, windowDays),
+  ]);
+
+  const scopedSessions = sessions.filter(
+    (session): session is TeacherSessionRow & {
+      student: { groupId: string };
+    } => session.student.groupId != null,
+  );
+
+  const practice = summarizeSessions(scopedSessions, windowDays);
+
+  return {
+    practice,
+    speed: buildGroupSpeedSummary(scopedSessions),
+    dailyProgress: buildDailyProgressTrend(scopedSessions, windowDays),
+    groupComparison: buildGroupComparisonPoints(
+      groups.map((group) => ({ id: group.id, name: group.name })),
+      scopedSessions.map((session) => ({
+        groupId: session.student.groupId,
+        passed: session.passed,
+        accuracy: session.accuracy,
+        createdAt: session.createdAt,
+      })),
+    ),
+    groupCompletion: buildGroupCompletionRows(
+      groups.map((group) => ({
+        id: group.id,
+        name: group.name,
+        studentCount: group._count.students,
+      })),
+      scopedSessions.map((session) => ({
+        studentId: session.studentId,
+        groupId: session.student.groupId,
+        passed: session.passed,
+        accuracy: session.accuracy,
+      })),
+    ),
+  };
 }
 
 /**
@@ -210,12 +328,20 @@ export async function getGroupPracticeAnalytics(
   });
 
   const summary = summarizeSessions(sessions, windowDays);
+  const passedStudentIds = new Set(
+    sessions.filter((session) => session.passed).map((session) => session.studentId),
+  );
 
   return {
     ...summary,
     studentCount: group.students.length,
     retryCount: summary.totalSessions - summary.passedSessions,
     speed: buildGroupSpeedSummary(sessions),
+    studentCompletionRate: computePassRate(
+      passedStudentIds.size,
+      group.students.length,
+    ),
+    studentsPassed: passedStudentIds.size,
     studentSummaries: buildGroupStudentSummaries(group.students, sessions),
   };
 }

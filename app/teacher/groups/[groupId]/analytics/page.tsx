@@ -67,7 +67,7 @@ export default async function GroupAnalyticsPage({
     >
       <BackLink href={`/teacher/groups/${groupId}`}>Back to group</BackLink>
 
-      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
+      <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
         <StatCard
           label="Students"
           value={analytics.studentCount}
@@ -80,8 +80,15 @@ export default async function GroupAnalyticsPage({
           icon={Brain}
         />
         <StatCard
-          label="Pass rate"
+          label="Student completion"
+          value={`${analytics.studentCompletionRate}%`}
+          hint={`${analytics.studentsPassed}/${analytics.studentCount} passed at least once`}
+          icon={Target}
+        />
+        <StatCard
+          label="Attempt completion"
           value={`${analytics.passRate}%`}
+          hint="Finished attempts that passed"
           icon={Target}
         />
         <StatCard
@@ -135,7 +142,7 @@ export default async function GroupAnalyticsPage({
                   <tr className="border-b border-border bg-muted/40 text-left text-muted-foreground">
                     <th className="px-5 py-2.5 font-medium">Student</th>
                     <th className="px-5 py-2.5 font-medium">Sessions</th>
-                    <th className="px-5 py-2.5 font-medium">Pass rate</th>
+                    <th className="px-5 py-2.5 font-medium">Completion</th>
                     <th className="px-5 py-2.5 font-medium">Avg accuracy</th>
                     <th className="px-5 py-2.5 font-medium">Fastest pass</th>
                     <th className="px-5 py-2.5 font-medium">Avg pass time</th>
