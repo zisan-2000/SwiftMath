@@ -13,6 +13,7 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { PracticeMode, SessionStatus } from "@/lib/generated/prisma/enums";
 import { assertStudentLevelAccess } from "@/server/level-access";
+import { resolveStudentPracticeTimeLimit } from "@/server/teacher";
 import {
   collectAnomalyFlags,
   sanitizeTabBlurCount,
@@ -87,11 +88,20 @@ export async function startPracticeSession(
 
   await assertStudentLevelAccess(student.id, student.instituteId, level.id);
 
+  const timeLimitSeconds =
+    mode === PracticeMode.REVIEW
+      ? level.timeLimitSeconds
+      : await resolveStudentPracticeTimeLimit(
+          student.id,
+          level.id,
+          level.timeLimitSeconds,
+        );
+
   const startedAt = new Date();
   const expiresAt =
     mode === PracticeMode.REVIEW
       ? new Date(startedAt.getTime() + 24 * 60 * 60 * 1000)
-      : new Date(startedAt.getTime() + level.timeLimitSeconds * 1000);
+      : new Date(startedAt.getTime() + timeLimitSeconds * 1000);
 
   const questions = Array.from({ length: level.questionCount }, (_, index) => {
     const q = generateQuestion(level);

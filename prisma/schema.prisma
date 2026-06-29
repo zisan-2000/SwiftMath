@@ -222,12 +222,37 @@ model Group {
   /// Students placed in this group.
   students User[] @relation("GroupStudents")
 
+  /// Optional per-level time limits for students in this group.
+  levelRules GroupLevelRule[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([instituteId])
   @@index([teacherId])
   @@map("group")
+}
+
+/// Per-group timed-practice override for a curriculum level.
+/// Students in the group use this limit instead of `Level.timeLimitSeconds`.
+model GroupLevelRule {
+  id String @id @default(cuid())
+
+  groupId String
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  levelId String
+  level   Level @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  timeLimitSeconds Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([groupId, levelId])
+  @@index([groupId])
+  @@index([levelId])
+  @@map("group_level_rule")
 }
 
 /// A practice level: the curriculum step a student drills. Levels are ordered
@@ -275,6 +300,8 @@ model Level {
 
   /// Practice attempts made at this level.
   practiceSessions PracticeSession[]
+
+  groupLevelRules GroupLevelRule[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

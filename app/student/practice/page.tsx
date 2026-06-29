@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role, SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
 import { listRecentSessions } from "@/server/practice";
+import { resolveStudentPracticeTimeLimit } from "@/server/teacher";
 import { checkStudentLevelAccess } from "@/server/level-access";
 import { AppShell } from "@/components/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -46,6 +47,16 @@ export default async function PracticeHomePage({
   ]);
 
   const level = profile?.currentLevel;
+  const effectiveTimeLimitSeconds =
+    level != null
+      ? await resolveStudentPracticeTimeLimit(
+          student.id,
+          level.id,
+          level.timeLimitSeconds,
+        )
+      : null;
+  const hasTimeOverride =
+    level != null && effectiveTimeLimitSeconds !== level.timeLimitSeconds;
   const access = level
     ? await checkStudentLevelAccess(
         student.id,
@@ -83,7 +94,10 @@ export default async function PracticeHomePage({
               </Badge>
               <Badge variant="secondary">
                 <Clock className="h-3.5 w-3.5" />
-                {level.timeLimitSeconds}s
+                {effectiveTimeLimitSeconds ?? level.timeLimitSeconds}s
+                {hasTimeOverride && (
+                  <span className="sr-only"> (group override)</span>
+                )}
               </Badge>
               <Badge variant="secondary">
                 <Target className="h-3.5 w-3.5" />
@@ -96,6 +110,12 @@ export default async function PracticeHomePage({
                 </Badge>
               )}
             </div>
+            {hasTimeOverride && (
+              <p className="mt-3 text-sm text-muted-foreground">
+                Your group uses a {effectiveTimeLimitSeconds}s time limit for
+                this level (institute default is {level.timeLimitSeconds}s).
+              </p>
+            )}
 
             {isLocked && access?.message ? (
               <p className="mt-6 text-sm text-muted-foreground">

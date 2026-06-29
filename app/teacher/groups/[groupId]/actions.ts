@@ -8,7 +8,9 @@ import {
   addStudentToGroup,
   assignStudentLevel,
   deleteGroup,
+  parseGroupTimeLimitField,
   resetStudentPassword,
+  setGroupLevelTimeRule,
 } from "@/server/teacher";
 import type { ResetPasswordState } from "@/components/reset-password-form";
 
@@ -109,6 +111,37 @@ export async function resetStudentPasswordAction(
     return { error: "Student not found in your groups." };
   }
 
+  return { ok: true };
+}
+
+/** Set or clear a per-group time override for a curriculum level. */
+export async function setGroupLevelTimeAction(
+  formData: FormData,
+): Promise<{ error?: string; ok?: boolean }> {
+  const teacher = await requireRole(Role.TEACHER);
+
+  const groupId = String(formData.get("groupId") ?? "");
+  const levelId = String(formData.get("levelId") ?? "");
+  const useDefault = formData.get("useDefault") === "true";
+  const rawSeconds = String(formData.get("timeLimitSeconds") ?? "");
+
+  let seconds: number | null;
+  if (useDefault) {
+    seconds = null;
+  } else {
+    const parsed = parseGroupTimeLimitField(rawSeconds);
+    if (parsed == null && rawSeconds.trim()) {
+      return { error: "Enter a valid number of seconds." };
+    }
+    seconds = parsed;
+  }
+
+  const result = await setGroupLevelTimeRule(teacher, groupId, levelId, seconds);
+  if (!result.ok) {
+    return { error: result.error };
+  }
+
+  revalidatePath(`/teacher/groups/${groupId}`);
   return { ok: true };
 }
 

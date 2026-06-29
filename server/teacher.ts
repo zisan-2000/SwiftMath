@@ -11,6 +11,11 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { createUserAccount, setUserPassword } from "@/server/users";
 import { checkStudentLevelAccess } from "@/server/level-access";
+import {
+  parseGroupTimeLimitField,
+  resolveTimeLimitSeconds,
+  validateGroupTimeLimitSeconds,
+} from "@/lib/group-level-time";
 import { Role, SessionStatus } from "@/lib/generated/prisma/enums";
 
 /** The authenticated teacher, as needed for scoping. */
@@ -72,9 +77,134 @@ export function listInstituteLevels(instituteId: string) {
   return prisma.level.findMany({
     where: { instituteId },
     orderBy: { orderIndex: "asc" },
-    select: { id: true, name: true, orderIndex: true },
+    select: { id: true, name: true, orderIndex: true, timeLimitSeconds: true },
   });
 }
+
+export interface GroupLevelTimeRuleRow {
+  levelId: string;
+  name: string;
+  orderIndex: number;
+  defaultSeconds: number;
+  overrideSeconds: number | null;
+  effectiveSeconds: number;
+}
+
+/** Levels plus any per-group time overrides owned by this teacher's group. */
+export async function listGroupLevelTimeRules(
+  teacher: TeacherContext,
+  groupId: string,
+): Promise<GroupLevelTimeRuleRow[] | null> {
+  const group = await prisma.group.findFirst({
+    where: { id: groupId, teacherId: teacher.id },
+    select: { id: true },
+  });
+  if (!group) return null;
+
+  const [levels, rules] = await Promise.all([
+    listInstituteLevels(teacher.instituteId),
+    prisma.groupLevelRule.findMany({
+      where: { groupId },
+      select: { levelId: true, timeLimitSeconds: true },
+    }),
+  ]);
+
+  const overrideByLevel = new Map(
+    rules.map((rule) => [rule.levelId, rule.timeLimitSeconds]),
+  );
+
+  return levels.map((level) => {
+    const overrideSeconds = overrideByLevel.get(level.id) ?? null;
+    return {
+      levelId: level.id,
+      name: level.name,
+      orderIndex: level.orderIndex,
+      defaultSeconds: level.timeLimitSeconds,
+      overrideSeconds,
+      effectiveSeconds: resolveTimeLimitSeconds(
+        level.timeLimitSeconds,
+        overrideSeconds,
+      ),
+    };
+  });
+}
+
+export type SetGroupLevelTimeResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/**
+ * Set or clear a per-group time override for a level. Empty/`null` seconds
+ * removes the override so the institute default applies.
+ */
+export async function setGroupLevelTimeRule(
+  teacher: TeacherContext,
+  groupId: string,
+  levelId: string,
+  timeLimitSeconds: number | null,
+): Promise<SetGroupLevelTimeResult> {
+  const group = await prisma.group.findFirst({
+    where: { id: groupId, teacherId: teacher.id },
+    select: { id: true, instituteId: true },
+  });
+  if (!group) {
+    return { ok: false, error: "Group not found." };
+  }
+
+  const level = await prisma.level.findFirst({
+    where: { id: levelId, instituteId: group.instituteId },
+    select: { id: true },
+  });
+  if (!level) {
+    return { ok: false, error: "Level not found in this institute." };
+  }
+
+  if (timeLimitSeconds == null) {
+    await prisma.groupLevelRule.deleteMany({
+      where: { groupId, levelId },
+    });
+    return { ok: true };
+  }
+
+  const validationError = validateGroupTimeLimitSeconds(timeLimitSeconds);
+  if (validationError) {
+    return { ok: false, error: validationError };
+  }
+
+  await prisma.groupLevelRule.upsert({
+    where: { groupId_levelId: { groupId, levelId } },
+    create: { groupId, levelId, timeLimitSeconds },
+    update: { timeLimitSeconds },
+  });
+
+  return { ok: true };
+}
+
+/** Effective timed limit for a student, honouring their group's override. */
+export async function resolveStudentPracticeTimeLimit(
+  studentId: string,
+  levelId: string,
+  levelDefaultSeconds: number,
+): Promise<number> {
+  const student = await prisma.user.findUnique({
+    where: { id: studentId },
+    select: { groupId: true },
+  });
+  if (!student?.groupId) {
+    return levelDefaultSeconds;
+  }
+
+  const rule = await prisma.groupLevelRule.findUnique({
+    where: {
+      groupId_levelId: { groupId: student.groupId, levelId },
+    },
+    select: { timeLimitSeconds: true },
+  });
+
+  return resolveTimeLimitSeconds(levelDefaultSeconds, rule?.timeLimitSeconds);
+}
+
+export { parseGroupTimeLimitField };
 
 /**
  * Create a STUDENT account and place them in one of the teacher's groups.

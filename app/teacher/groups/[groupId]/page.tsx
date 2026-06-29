@@ -6,11 +6,12 @@ import { Users } from "lucide-react";
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
-import { getTeacherGroup, listInstituteLevels } from "@/server/teacher";
+import { getTeacherGroup, listGroupLevelTimeRules, listInstituteLevels } from "@/server/teacher";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { AddStudentDialog } from "@/components/teacher/add-student-dialog";
 import { AssignLevelForm } from "@/components/teacher/assign-level-form";
+import { GroupLevelTimeRules } from "@/components/teacher/group-level-time-rules";
 import { ResetPasswordForm } from "@/components/reset-password-form";
 import { DeleteGroupSection } from "@/components/teacher/delete-group-section";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,12 +37,13 @@ export default async function GroupDetailPage({
     notFound();
   }
 
-  const [institute, levels] = await Promise.all([
+  const [institute, levels, timeRules] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: teacher.instituteId },
       select: { name: true, logoUrl: true },
     }),
     listInstituteLevels(teacher.instituteId),
+    listGroupLevelTimeRules(teacher, groupId),
   ]);
 
   return (
@@ -117,6 +119,21 @@ export default async function GroupDetailPage({
           )}
         </CardContent>
       </Card>
+
+      {timeRules && timeRules.length > 0 && (
+        <Card className="mt-8">
+          <CardHeader className="border-b border-border">
+            <CardTitle className="text-base">Level time limits</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Override the institute default timer for students in this group.
+              Leave blank and save to use the level default.
+            </p>
+          </CardHeader>
+          <CardContent className="p-0">
+            <GroupLevelTimeRules groupId={group.id} rules={timeRules} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="mt-8 border-destructive/20">
         <CardHeader>
