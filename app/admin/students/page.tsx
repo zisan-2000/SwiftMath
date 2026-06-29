@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { GraduationCap } from "lucide-react";
 
@@ -70,7 +71,7 @@ export default async function AdminStudentsPage({
       instituteName={institute?.name ?? "Institute"}
       instituteLogoUrl={institute?.logoUrl}
       title="Students"
-      subtitle="Create students and see everyone enrolled across your institute."
+      subtitle="Create students, view progress, and manage accounts across your institute."
       actions={
         <AddStudentDialog groups={groupOptions} levels={levelOptions} />
       }
@@ -106,7 +107,12 @@ export default async function AdminStudentsPage({
                   >
                     <div className="min-w-0">
                       <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
-                        {student.name}
+                        <Link
+                          href={`/admin/students/${student.id}`}
+                          className="hover:underline"
+                        >
+                          {student.name}
+                        </Link>
                         {!student.isActive && (
                           <Badge variant="muted">Disabled</Badge>
                         )}
@@ -123,6 +129,12 @@ export default async function AdminStudentsPage({
                       </p>
                     </div>
                     <div className="flex flex-wrap items-start gap-2">
+                      <Link
+                        href={`/admin/students/${student.id}`}
+                        className="text-sm text-primary hover:underline sm:pt-1.5"
+                      >
+                        Progress
+                      </Link>
                       <ResetPasswordForm
                         action={resetUserPasswordAction.bind(null, student.id)}
                       />

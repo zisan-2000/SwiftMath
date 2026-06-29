@@ -19,6 +19,7 @@ import {
   type PaginatedList,
 } from "@/lib/pagination";
 import type { InstituteBrandingSettings } from "@/lib/institute-branding";
+import { loadStudentProgress } from "@/server/student-progress";
 
 /** The authenticated admin, as needed for scoping. */
 export interface AdminContext {
@@ -441,6 +442,35 @@ export async function listInstituteStudents(
   ]);
 
   return buildPaginatedList(items, total, safePage, safeSize);
+}
+
+/**
+ * Read-only progress for a student in the admin's institute. Returns null when
+ * the student is missing or out of scope.
+ */
+export async function getAdminStudentProgress(
+  admin: AdminContext,
+  studentId: string,
+) {
+  const student = await prisma.user.findFirst({
+    where: {
+      id: studentId,
+      instituteId: admin.instituteId,
+      role: Role.STUDENT,
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      isActive: true,
+      group: { select: { name: true } },
+      currentLevel: { select: { id: true, name: true, orderIndex: true } },
+    },
+  });
+  if (!student) return null;
+
+  const progress = await loadStudentProgress(student);
+  return { ...progress, group: student.group, isActive: student.isActive };
 }
 
 export type CreateStudentResult =

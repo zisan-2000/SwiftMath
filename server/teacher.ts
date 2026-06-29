@@ -11,20 +11,12 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import { createUserAccount, setUserPassword } from "@/server/users";
 import { checkStudentLevelAccess } from "@/server/level-access";
-import {
-  parseGroupTimeLimitField,
+import { parseGroupTimeLimitField,
   resolveTimeLimitSeconds,
   validateGroupTimeLimitSeconds,
 } from "@/lib/group-level-time";
-import {
-  failedStandardSessionWhere,
-  formatRetryCountDisplay,
-} from "@/lib/student-retry-stats";
-import {
-  buildLevelSpeedRows,
-  buildSpeedSummary,
-} from "@/lib/practice-speed";
-import { PracticeMode, Role, SessionStatus } from "@/lib/generated/prisma/enums";
+import { Role } from "@/lib/generated/prisma/enums";
+import { loadStudentProgress } from "@/server/student-progress";
 
 /** The authenticated teacher, as needed for scoping. */
 export interface TeacherContext {
@@ -322,99 +314,7 @@ export async function getStudentProgress(
   });
   if (!student) return null;
 
-  const [recentSessions, finishedStats, passedCount, leveledUpCount, totalRetries, currentLevelRetries, speedSessions] =
-    await Promise.all([
-      // Most recent attempts (any status).
-      prisma.practiceSession.findMany({
-        where: { studentId },
-        orderBy: { createdAt: "desc" },
-        take: 20,
-        select: {
-          id: true,
-          status: true,
-          accuracy: true,
-          correctCount: true,
-          totalQuestions: true,
-          passed: true,
-          leveledUp: true,
-          createdAt: true,
-          startedAt: true,
-          submittedAt: true,
-          level: { select: { name: true } },
-        },
-      }),
-      // Accuracy aggregates over finished (graded) attempts only.
-      prisma.practiceSession.aggregate({
-        where: { studentId, status: { not: SessionStatus.IN_PROGRESS } },
-        _avg: { accuracy: true },
-        _max: { accuracy: true },
-        _count: { _all: true },
-      }),
-      prisma.practiceSession.count({ where: { studentId, passed: true } }),
-      prisma.practiceSession.count({ where: { studentId, leveledUp: true } }),
-      prisma.practiceSession.count({
-        where: failedStandardSessionWhere(studentId),
-      }),
-      student.currentLevel
-        ? prisma.practiceSession.count({
-            where: failedStandardSessionWhere(
-              studentId,
-              student.currentLevel.id,
-            ),
-          })
-        : Promise.resolve(null),
-      prisma.practiceSession.findMany({
-        where: {
-          studentId,
-          mode: PracticeMode.STANDARD,
-          status: { not: SessionStatus.IN_PROGRESS },
-          submittedAt: { not: null },
-        },
-        select: {
-          startedAt: true,
-          submittedAt: true,
-          passed: true,
-          levelId: true,
-          level: { select: { name: true, orderIndex: true } },
-        },
-      }),
-    ]);
-
-  const retryCount = formatRetryCountDisplay(totalRetries, currentLevelRetries);
-  const speedAll = buildSpeedSummary(speedSessions);
-  const speedAtCurrentLevel = student.currentLevel
-    ? buildSpeedSummary(
-        speedSessions.filter(
-          (session) => session.levelId === student.currentLevel!.id,
-        ),
-      )
-    : null;
-  const levelSpeedRows = buildLevelSpeedRows(
-    speedSessions.map((session) => ({
-      startedAt: session.startedAt,
-      submittedAt: session.submittedAt,
-      passed: session.passed,
-      levelId: session.levelId,
-      levelName: session.level.name,
-      orderIndex: session.level.orderIndex,
-    })),
-  );
-
-  return {
-    student,
-    recentSessions,
-    stats: {
-      completed: finishedStats._count._all,
-      avgAccuracy: Math.round(finishedStats._avg.accuracy ?? 0),
-      bestAccuracy: finishedStats._max.accuracy ?? 0,
-      passedCount,
-      leveledUpCount,
-      retryCount,
-      speedAll,
-      speedAtCurrentLevel,
-      levelSpeedRows,
-    },
-  };
+  return loadStudentProgress(student);
 }
 
 /**
