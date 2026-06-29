@@ -10,6 +10,7 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import { createUserAccount, setUserPassword } from "@/server/users";
+import { checkStudentLevelAccess } from "@/server/level-access";
 import { Role, OperationType } from "@/lib/generated/prisma/enums";
 import {
   buildPaginatedList,
@@ -226,6 +227,71 @@ export async function listInstituteStudents(
   ]);
 
   return buildPaginatedList(items, total, safePage, safeSize);
+}
+
+export type CreateStudentResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/**
+ * Create a STUDENT in one of the admin's institute groups. Optionally assign a
+ * starting level (same rules as teachers). Email-uniqueness errors bubble up
+ * from createUserAccount for the action to translate.
+ */
+export async function createStudentInGroup(
+  admin: AdminContext,
+  groupId: string,
+  student: { name: string; email: string; password: string },
+  levelId?: string | null,
+): Promise<CreateStudentResult> {
+  const group = await prisma.group.findFirst({
+    where: { id: groupId, instituteId: admin.instituteId },
+    select: { id: true },
+  });
+  if (!group) {
+    return { ok: false, error: "Group not found in this institute." };
+  }
+
+  if (levelId) {
+    const level = await prisma.level.findFirst({
+      where: { id: levelId, instituteId: admin.instituteId },
+      select: { id: true },
+    });
+    if (!level) {
+      return { ok: false, error: "Level not found in this institute." };
+    }
+  }
+
+  const user = await createUserAccount({
+    name: student.name,
+    email: student.email,
+    password: student.password,
+    role: Role.STUDENT,
+    instituteId: admin.instituteId,
+    groupId: group.id,
+  });
+
+  if (levelId) {
+    const access = await checkStudentLevelAccess(
+      user.id,
+      admin.instituteId,
+      levelId,
+    );
+    if (!access.allowed) {
+      await prisma.user.delete({ where: { id: user.id } });
+      return {
+        ok: false,
+        error: access.message ?? "That level is locked for a new student.",
+      };
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { currentLevelId: levelId },
+    });
+  }
+
+  return { ok: true };
 }
 
 // ---------------------------------------------------------------------------

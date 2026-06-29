@@ -6,9 +6,10 @@ import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
 import { parsePageParam } from "@/lib/pagination";
-import { listInstituteStudents } from "@/server/admin";
+import { listInstituteGroups, listInstituteStudents, listLevels } from "@/server/admin";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
+import { AddStudentDialog } from "@/components/admin/add-student-dialog";
 import { ActiveToggle } from "@/components/admin/active-toggle";
 import { ResetPasswordForm } from "@/components/reset-password-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,9 +25,8 @@ export const metadata: Metadata = {
 const LIST_PATH = "/admin/students";
 
 /**
- * ADMIN → students. A read-only, institute-wide roster: who's enrolled, which
- * group they're in, and what level they're on. Adding students and assigning
- * levels stays with teachers (scoped to their own groups).
+ * ADMIN → students. Institute-wide roster plus the ability to create a student
+ * and assign them to a group (optional starting level).
  */
 export default async function AdminStudentsPage({
   searchParams,
@@ -37,13 +37,26 @@ export default async function AdminStudentsPage({
   const { page: pageParam } = await searchParams;
   const page = parsePageParam(pageParam);
 
-  const [institute, roster] = await Promise.all([
+  const [institute, roster, groups, levels] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: admin.instituteId },
       select: { name: true, logoUrl: true },
     }),
     listInstituteStudents(admin.instituteId, page),
+    listInstituteGroups(admin.instituteId),
+    listLevels(admin.instituteId),
   ]);
+
+  const groupOptions = groups.map((group) => ({
+    id: group.id,
+    name: group.name,
+    teacherName: group.teacher.name,
+  }));
+  const levelOptions = levels.map((level) => ({
+    id: level.id,
+    orderIndex: level.orderIndex,
+    name: level.name,
+  }));
 
   if (page > roster.totalPages && roster.total > 0) {
     redirect(`${LIST_PATH}?page=${roster.totalPages}`);
@@ -57,7 +70,10 @@ export default async function AdminStudentsPage({
       instituteName={institute?.name ?? "Institute"}
       instituteLogoUrl={institute?.logoUrl}
       title="Students"
-      subtitle="Everyone enrolled across your institute."
+      subtitle="Create students and see everyone enrolled across your institute."
+      actions={
+        <AddStudentDialog groups={groupOptions} levels={levelOptions} />
+      }
     >
       <BackLink href="/admin">Admin dashboard</BackLink>
 
@@ -73,7 +89,11 @@ export default async function AdminStudentsPage({
               <EmptyState
                 icon={GraduationCap}
                 title="No students yet"
-                description="Teachers add students within their own groups."
+                description={
+                  groups.length === 0
+                    ? "A teacher must create a group before you can add students."
+                    : "Use “Add student” to create the first student account."
+                }
               />
             </div>
           ) : (
