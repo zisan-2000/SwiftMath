@@ -14,6 +14,8 @@ export interface LeaderboardRow {
   avgAccuracy: number;
   /** Fastest finish (ms) among passed sessions with 100% accuracy in scope. */
   fastestPassMs: number | null;
+  /** Present when the student belongs to a group (teacher progress links). */
+  groupId?: string | null;
 }
 
 /** Row with a 1-based rank after sorting. */

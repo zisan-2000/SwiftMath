@@ -25,6 +25,8 @@ export type { LeaderboardPeriod };
 export interface LeaderboardOptions {
   /** Limit to students in this group. Omit for the whole institute. */
   groupId?: string;
+  /** Only students in groups owned by this teacher (same institute). */
+  teacherId?: string;
   /** Only count sessions at this level toward passed/accuracy stats. */
   levelId?: string;
   /** Time window for session stats. Defaults to all-time. */
@@ -76,6 +78,7 @@ function buildLeaderboardRows(
   students: {
     id: string;
     name: string;
+    groupId?: string | null;
     currentLevel: { name: string; orderIndex: number } | null;
   }[],
   passedByStudent: Map<string, number>,
@@ -90,6 +93,7 @@ function buildLeaderboardRows(
     passedCount: passedByStudent.get(s.id) ?? 0,
     avgAccuracy: accuracyByStudent.get(s.id) ?? 0,
     fastestPassMs: fastestByStudent.get(s.id) ?? null,
+    groupId: s.groupId ?? null,
   }));
 }
 
@@ -135,10 +139,12 @@ export async function getInstituteLeaderboard(
         role: Role.STUDENT,
         isActive: true,
         ...(options.groupId && { groupId: options.groupId }),
+        ...(options.teacherId && { group: { teacherId: options.teacherId } }),
       },
       select: {
         id: true,
         name: true,
+        groupId: true,
         currentLevel: { select: { name: true, orderIndex: true } },
       },
     }),
