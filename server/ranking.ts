@@ -32,8 +32,8 @@ export interface LeaderboardOptions {
 export interface GlobalLeaderboardOptions {
   /** Time window for session stats. Defaults to all-time. */
   period?: LeaderboardPeriod;
-  /** Match levels with this curriculum step (orderIndex) at any institute. */
-  levelOrderIndex?: number;
+  /** Curriculum step (orderIndex) compared across all institutes — required. */
+  levelOrderIndex: number;
 }
 
 export type RankedStudent = RankedLeaderboardRow;
@@ -144,11 +144,10 @@ export async function getInstituteLeaderboard(
 
 /**
  * Cross-institute leaderboard for all active students at active institutes.
- * Optional `levelOrderIndex` compares the same curriculum step (e.g. step 1)
- * across tenants — useful when institutes share the default starter levels.
+ * Always scoped to one curriculum step so finish times are comparable.
  */
 export async function getGlobalLeaderboard(
-  options: GlobalLeaderboardOptions = {},
+  options: GlobalLeaderboardOptions,
 ): Promise<RankedGlobalStudent[]> {
   const period = options.period ?? "all";
   const since = leaderboardPeriodStart(period);
@@ -162,9 +161,7 @@ export async function getGlobalLeaderboard(
   const sessionScope = {
     mode: PracticeMode.STANDARD,
     student: activeStudentScope,
-    ...(options.levelOrderIndex != null && {
-      level: { orderIndex: options.levelOrderIndex },
-    }),
+    level: { orderIndex: options.levelOrderIndex },
     ...(since && { submittedAt: { gte: since } }),
   };
 

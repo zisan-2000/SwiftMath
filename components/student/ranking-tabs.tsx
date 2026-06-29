@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { DEFAULT_GLOBAL_RANKING_STEP, globalRankingHref } from "@/lib/global-ranking";
 import { cn } from "@/lib/utils";
 
 interface RankingTabsProps {
@@ -10,7 +11,7 @@ interface RankingTabsProps {
 export function RankingTabs({ active }: RankingTabsProps) {
   const tabs = [
     { id: "institute" as const, label: "Institute", href: "/student/ranking" },
-    { id: "global" as const, label: "Global", href: "/student/ranking/global" },
+    { id: "global" as const, label: "Global", href: globalRankingHref(DEFAULT_GLOBAL_RANKING_STEP) },
   ];
 
   return (

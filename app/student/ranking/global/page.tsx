@@ -1,15 +1,21 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { Globe, Trophy } from "lucide-react";
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
-import { DEFAULT_STARTER_LEVELS } from "@/lib/default-levels";
+import {
+  getGlobalRankingLevelName,
+  globalRankingHref,
+  parseGlobalRankingLevelStep,
+} from "@/lib/global-ranking";
 import { parseLeaderboardPeriod } from "@/lib/ranking";
 import { getGlobalLeaderboard } from "@/server/ranking";
 import { AppShell } from "@/components/app-shell";
 import { RankingTabs } from "@/components/student/ranking-tabs";
 import { GlobalRankingFilters } from "@/components/student/global-ranking-filters";
+import { GlobalRankingStepTabs } from "@/components/student/global-ranking-step-tabs";
 import { RankingLeaderboardTable } from "@/components/student/ranking-leaderboard-table";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -17,22 +23,12 @@ export const metadata: Metadata = {
   title: "Global ranking",
 };
 
-function parseLevelStep(value: string | undefined): number | undefined {
-  if (!value || value === "all") return undefined;
-  const step = Number.parseInt(value, 10);
-  if (!Number.isFinite(step) || step < 1) return undefined;
-  if (!DEFAULT_STARTER_LEVELS.some((level) => level.orderIndex === step)) {
-    return undefined;
-  }
-  return step;
-}
-
 function buildGlobalSubtitle(
   myRank: number | undefined,
   total: number,
   filters: {
     period: "all" | "week" | "month";
-    levelStepName: string | null;
+    levelStepName: string;
   },
 ): string {
   const parts: string[] = [];
@@ -43,12 +39,10 @@ function buildGlobalSubtitle(
     parts.push("Global leaderboard across all institutes");
   }
 
+  parts.push(`· ${filters.levelStepName}`);
+
   if (filters.period === "week") parts.push("(last 7 days)");
   else if (filters.period === "month") parts.push("(last 30 days)");
-
-  if (filters.levelStepName) {
-    parts.push(`· stats for ${filters.levelStepName}`);
-  }
 
   return parts.join(" ") + ".";
 }
@@ -62,12 +56,14 @@ export default async function StudentGlobalRankingPage({
   const params = await searchParams;
 
   const period = parseLeaderboardPeriod(params.period);
-  const levelStep = parseLevelStep(params.step);
-  const levelStepName =
-    levelStep != null
-      ? (DEFAULT_STARTER_LEVELS.find((level) => level.orderIndex === levelStep)
-          ?.name ?? null)
-      : null;
+  const levelStep = parseGlobalRankingLevelStep(params.step);
+
+  // Always compare one curriculum step — redirect missing/invalid URLs.
+  if (!params.step || params.step === "all" || params.step !== String(levelStep)) {
+    redirect(globalRankingHref(levelStep, period));
+  }
+
+  const levelStepName = getGlobalRankingLevelName(levelStep);
 
   const [institute, leaderboard] = await Promise.all([
     prisma.institute.findUnique({
@@ -76,7 +72,7 @@ export default async function StudentGlobalRankingPage({
     }),
     getGlobalLeaderboard({
       period,
-      ...(levelStep != null && { levelOrderIndex: levelStep }),
+      levelOrderIndex: levelStep,
     }),
   ]);
 
@@ -95,17 +91,18 @@ export default async function StudentGlobalRankingPage({
     >
       <RankingTabs active="global" />
 
+      <GlobalRankingStepTabs activeStep={levelStep} period={period} />
+
       <GlobalRankingFilters
         values={{
           period,
-          levelStep: levelStep != null ? String(levelStep) : "all",
+          levelStep,
         }}
       />
 
       <p className="mb-4 text-sm text-muted-foreground">
-        All active institutes · only students with a timed 100% accuracy pass,
-        ranked by fastest finish
-        {levelStepName ? ` at ${levelStepName}` : ""}
+        Comparing {levelStepName} across all active institutes · only timed 100%
+        accuracy passes, ranked by fastest finish
         {period === "week"
           ? " in the last 7 days"
           : period === "month"
@@ -116,7 +113,8 @@ export default async function StudentGlobalRankingPage({
 
       {!myRank && leaderboard.length > 0 && (
         <p className="mb-4 text-sm text-muted-foreground">
-          Pass a timed practice with 100% accuracy to appear on this board.
+          Pass {levelStepName} with 100% accuracy in time to appear on this
+          board.
         </p>
       )}
 
@@ -124,7 +122,7 @@ export default async function StudentGlobalRankingPage({
         <EmptyState
           icon={Trophy}
           title="No qualifying scores yet"
-          description="Pass a timed practice with 100% accuracy to appear on the global leaderboard."
+          description={`No one has a timed 100% pass at ${levelStepName} in this period yet.`}
         />
       ) : (
         <RankingLeaderboardTable
@@ -136,8 +134,7 @@ export default async function StudentGlobalRankingPage({
 
       <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
         <Globe className="size-3.5 shrink-0" aria-hidden />
-        Level step filter compares the same curriculum step (e.g. Addition I)
-        across institutes.
+        Pick a level tab above to compare the same step across institutes.
       </p>
     </AppShell>
   );
