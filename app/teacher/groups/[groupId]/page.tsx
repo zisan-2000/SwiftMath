@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Users } from "lucide-react";
+import { BarChart3, Users } from "lucide-react";
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -15,6 +15,7 @@ import { GroupLevelTimeRules } from "@/components/teacher/group-level-time-rules
 import { ResetPasswordForm } from "@/components/reset-password-form";
 import { DeleteGroupSection } from "@/components/teacher/delete-group-section";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { resetStudentPasswordAction } from "./actions";
 
@@ -56,6 +57,15 @@ export default async function GroupDetailPage({
       actions={<AddStudentDialog groupId={group.id} />}
     >
       <BackLink href="/teacher/groups">All groups</BackLink>
+
+      <div className="mb-6">
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/teacher/groups/${group.id}/analytics`}>
+            <BarChart3 className="h-4 w-4" />
+            Group analytics
+          </Link>
+        </Button>
+      </div>
 
       {levels.length === 0 && (
         <Card className="mb-6 border-warning/30 bg-warning/10">

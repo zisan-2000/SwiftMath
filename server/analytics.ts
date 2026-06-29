@@ -13,6 +13,10 @@ import {
   computePassRate,
   type DailySessionCount,
 } from "@/lib/analytics";
+import {
+  buildGroupStudentSummaries,
+  type GroupStudentPracticeSummary,
+} from "@/lib/group-analytics";
 import { SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
 
 /** Summary + daily breakdown for the admin practice-activity chart. */
@@ -123,6 +127,63 @@ export async function getPlatformPracticeAnalytics(
   });
 
   return summarizeSessions(sessions, windowDays);
+}
+
+/** Per-group practice analytics for a teacher-owned group. */
+export interface GroupPracticeAnalytics extends InstitutePracticeAnalytics {
+  studentCount: number;
+  /** Finished standard attempts that did not pass in the window. */
+  retryCount: number;
+  studentSummaries: GroupStudentPracticeSummary[];
+}
+
+/**
+ * Practice activity for students in one of the teacher's groups over the last
+ * `days` calendar days. Returns null when the group is missing or not owned by
+ * the teacher.
+ */
+export async function getGroupPracticeAnalytics(
+  teacherId: string,
+  groupId: string,
+  days: number = DEFAULT_DAYS,
+): Promise<GroupPracticeAnalytics | null> {
+  const group = await prisma.group.findFirst({
+    where: { id: groupId, teacherId },
+    select: {
+      id: true,
+      students: {
+        orderBy: { name: "asc" },
+        select: { id: true, name: true },
+      },
+    },
+  });
+  if (!group) return null;
+
+  const windowDays = Math.max(1, days);
+  const sessions = await prisma.practiceSession.findMany({
+    where: {
+      mode: PracticeMode.STANDARD,
+      status: { not: SessionStatus.IN_PROGRESS },
+      createdAt: { gte: windowStart(windowDays) },
+      student: { groupId },
+    },
+    select: {
+      createdAt: true,
+      passed: true,
+      accuracy: true,
+      studentId: true,
+    },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const summary = summarizeSessions(sessions, windowDays);
+
+  return {
+    ...summary,
+    studentCount: group.students.length,
+    retryCount: summary.totalSessions - summary.passedSessions,
+    studentSummaries: buildGroupStudentSummaries(group.students, sessions),
+  };
 }
 
 /**
