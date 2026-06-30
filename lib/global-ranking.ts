@@ -95,3 +95,24 @@ export function formatCanonicalLevelRules(orderIndex: number): string | null {
   if (!canonical) return null;
   return `${canonical.questionCount} questions · ${canonical.timeLimitSeconds}s · pass ${canonical.passAccuracy}%`;
 }
+
+/**
+ * Global ranking session composition policy (QB-12, extends 6.4c).
+ *
+ * Only fully dynamic sessions count — every question was generated from the
+ * canonical level rules with no institute bank prompts. Hybrid (bank + dynamic)
+ * and all-bank sessions are excluded so finish times stay comparable across
+ * institutes with different question banks.
+ */
+export function buildGlobalRankingSessionFilter() {
+  return {
+    questions: {
+      none: { sourceQuestionId: { not: null } },
+    },
+  } as const;
+}
+
+/** Short UI hint for students viewing the global board. */
+export function formatGlobalRankingCompositionPolicy(): string {
+  return "fully dynamic sessions only (no fixed bank or mixed sessions)";
+}

@@ -17,7 +17,10 @@ import {
   type RankedLeaderboardRow,
 } from "@/lib/ranking";
 import { Role, SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
-import { buildCanonicalGlobalLevelWhere } from "@/lib/global-ranking";
+import {
+  buildCanonicalGlobalLevelWhere,
+  buildGlobalRankingSessionFilter,
+} from "@/lib/global-ranking";
 
 export type { LeaderboardPeriod };
 
@@ -236,6 +239,7 @@ export async function getGlobalLeaderboard(
     mode: PracticeMode.STANDARD,
     student: activeStudentScope,
     level: buildCanonicalGlobalLevelWhere(options.levelOrderIndex),
+    ...buildGlobalRankingSessionFilter(),
     ...(since && { submittedAt: { gte: since } }),
   };
 

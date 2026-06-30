@@ -8,6 +8,7 @@ import { Role } from "@/lib/generated/prisma/enums";
 import {
   getGlobalRankingLevelName,
   formatCanonicalLevelRules,
+  formatGlobalRankingCompositionPolicy,
   globalRankingHref,
   parseGlobalRankingLevelStep,
 } from "@/lib/global-ranking";
@@ -105,8 +106,8 @@ export default async function StudentGlobalRankingPage({
       <p className="mb-4 text-sm text-muted-foreground">
         Comparing {levelStepName} across all active institutes
         {canonicalRules ? ` (${canonicalRules})` : ""} · standard platform rules
-        only · every timed attempt here must be 100% accurate, then ranked by
-        fastest pass
+        only · {formatGlobalRankingCompositionPolicy()} · every qualifying
+        timed attempt must be 100% accurate, then ranked by fastest pass
         {period === "week"
           ? " in the last 7 days"
           : period === "month"
@@ -126,7 +127,7 @@ export default async function StudentGlobalRankingPage({
         <EmptyState
           icon={Trophy}
           title="No qualifying scores yet"
-          description={`Every timed attempt at ${levelStepName} in this view must be 100% accurate, with at least one in-time pass.`}
+          description={`Every qualifying timed attempt at ${levelStepName} in this view must be 100% accurate, with at least one in-time pass. Only ${formatGlobalRankingCompositionPolicy()} count toward global standings.`}
         />
       ) : (
         <RankingLeaderboardTable
@@ -138,8 +139,9 @@ export default async function StudentGlobalRankingPage({
 
       <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
         <Globe className="size-3.5 shrink-0" aria-hidden />
-        Global ranking uses the default curriculum rules for each step so times
-        stay fair across institutes.
+        Global ranking uses the default curriculum rules for each step and{" "}
+        {formatGlobalRankingCompositionPolicy()} so times stay fair across
+        institutes.
       </p>
     </AppShell>
   );

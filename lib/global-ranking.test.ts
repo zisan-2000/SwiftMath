@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_GLOBAL_RANKING_STEP,
   buildCanonicalGlobalLevelWhere,
+  buildGlobalRankingSessionFilter,
   formatCanonicalLevelRules,
+  formatGlobalRankingCompositionPolicy,
   getGlobalRankingLevelName,
   globalRankingHref,
   parseGlobalRankingLevelStep,
@@ -67,5 +69,22 @@ describe("formatCanonicalLevelRules", () => {
     expect(formatCanonicalLevelRules(1)).toBe(
       "10 questions · 120s · pass 70%",
     );
+  });
+});
+
+describe("buildGlobalRankingSessionFilter", () => {
+  it("excludes sessions with any bank-sourced question", () => {
+    expect(buildGlobalRankingSessionFilter()).toEqual({
+      questions: {
+        none: { sourceQuestionId: { not: null } },
+      },
+    });
+  });
+});
+
+describe("formatGlobalRankingCompositionPolicy", () => {
+  it("describes dynamic-only sessions for UI copy", () => {
+    expect(formatGlobalRankingCompositionPolicy()).toContain("dynamic");
+    expect(formatGlobalRankingCompositionPolicy()).toContain("bank");
   });
 });
