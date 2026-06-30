@@ -22,7 +22,6 @@ import {
 import {
   computeAccuracy,
   didPass,
-  generateQuestion,
   gradeAnswers,
   isExpired,
 } from "@/lib/practice-logic";
@@ -30,6 +29,7 @@ import {
   resolveChallengePassAccuracy,
   resolveChallengeTimeLimitSeconds,
 } from "@/lib/challenge-mode";
+import { buildSessionQuestionsForStudent } from "@/server/question-bank";
 
 /** The authenticated student, as needed for scoping. */
 export interface StudentContext {
@@ -116,9 +116,17 @@ export async function startPracticeSession(
     expiresAt = new Date(startedAt.getTime() + timeLimitSeconds * 1000);
   }
 
-  const questions = Array.from({ length: level.questionCount }, (_, index) => {
-    const q = generateQuestion(level);
-    return { index, prompt: q.prompt, correctAnswer: q.correctAnswer };
+  const questions = await buildSessionQuestionsForStudent({
+    instituteId: student.instituteId,
+    studentId: student.id,
+    level: {
+      id: level.id,
+      questionCount: level.questionCount,
+      operation: level.operation,
+      termsPerQuestion: level.termsPerQuestion,
+      minNumber: level.minNumber,
+      maxNumber: level.maxNumber,
+    },
   });
 
   const session = await prisma.practiceSession.create({
@@ -130,7 +138,14 @@ export async function startPracticeSession(
       startedAt,
       expiresAt,
       totalQuestions: questions.length,
-      questions: { create: questions },
+      questions: {
+        create: questions.map((q, index) => ({
+          index,
+          prompt: q.prompt,
+          correctAnswer: q.correctAnswer,
+          sourceQuestionId: q.sourceQuestionId,
+        })),
+      },
     },
     select: { id: true },
   });

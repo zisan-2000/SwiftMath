@@ -17,6 +17,7 @@ import {
   ScheduledExamError,
 } from "@/server/scheduled-exam";
 import { parseScheduleExamForm } from "@/lib/scheduled-exam-form";
+import { setGroupQuestionEnabled } from "@/server/question-bank";
 import type { ResetPasswordState } from "@/components/reset-password-form";
 
 /** Result of the add-student form, surfaced via useActionState. */
@@ -105,6 +106,33 @@ export async function createScheduledExamAction(
     throw error;
   }
 
+  revalidatePath(`/teacher/groups/${groupId}`);
+  revalidatePath("/student");
+  return { ok: true };
+}
+
+/** Teacher enable/disable for one bank question in their group. */
+export async function setGroupQuestionEnabledAction(
+  formData: FormData,
+): Promise<{ error?: string; ok?: boolean }> {
+  const teacher = await requireRole(Role.TEACHER);
+
+  const groupId = String(formData.get("groupId") ?? "");
+  const levelId = String(formData.get("levelId") ?? "");
+  const questionId = String(formData.get("questionId") ?? "");
+  const enabled = formData.get("enabled") === "true";
+
+  const result = await setGroupQuestionEnabled(
+    teacher,
+    groupId,
+    questionId,
+    enabled,
+  );
+  if (!result.ok) {
+    return { error: result.error };
+  }
+
+  revalidatePath(`/teacher/groups/${groupId}/questions?levelId=${levelId}`);
   revalidatePath(`/teacher/groups/${groupId}`);
   revalidatePath("/student");
   return { ok: true };

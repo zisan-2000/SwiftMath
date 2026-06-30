@@ -12,7 +12,6 @@ import {
   isExamWindowOpen,
   validateScheduledExamWindow,
 } from "@/lib/exam-window";
-import { generateQuestion } from "@/lib/practice-logic";
 import { PracticeMode, SessionStatus } from "@/lib/generated/prisma/enums";
 import {
   assertStudentLevelAccess,
@@ -20,6 +19,7 @@ import {
   LevelAccessError,
 } from "@/server/level-access";
 import { resolveStudentPracticeTimeLimit } from "@/server/teacher";
+import { buildSessionQuestionsForStudent } from "@/server/question-bank";
 
 export { LevelAccessError };
 
@@ -319,13 +319,18 @@ export async function startExamSession(
   const startedAt = now;
   const expiresAt = new Date(startedAt.getTime() + timeLimitSeconds * 1000);
 
-  const questions = Array.from(
-    { length: exam.level.questionCount },
-    (_, index) => {
-      const q = generateQuestion(exam.level);
-      return { index, prompt: q.prompt, correctAnswer: q.correctAnswer };
+  const questions = await buildSessionQuestionsForStudent({
+    instituteId: student.instituteId,
+    studentId: student.id,
+    level: {
+      id: exam.levelId,
+      questionCount: exam.level.questionCount,
+      operation: exam.level.operation,
+      termsPerQuestion: exam.level.termsPerQuestion,
+      minNumber: exam.level.minNumber,
+      maxNumber: exam.level.maxNumber,
     },
-  );
+  });
 
   const session = await prisma.practiceSession.create({
     data: {
@@ -337,7 +342,14 @@ export async function startExamSession(
       startedAt,
       expiresAt,
       totalQuestions: questions.length,
-      questions: { create: questions },
+      questions: {
+        create: questions.map((q, index) => ({
+          index,
+          prompt: q.prompt,
+          correctAnswer: q.correctAnswer,
+          sourceQuestionId: q.sourceQuestionId,
+        })),
+      },
     },
     select: { id: true },
   });

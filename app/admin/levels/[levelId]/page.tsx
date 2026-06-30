@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BookOpen } from "lucide-react";
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -10,6 +12,7 @@ import { BackLink } from "@/components/nav/back-link";
 import { LevelForm } from "@/components/admin/level-form";
 import { ArchiveLevelSection } from "@/components/admin/archive-level-section";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateLevelAction } from "../actions";
 
@@ -96,6 +99,29 @@ export default async function EditLevelPage({
           </CardContent>
         </Card>
       )}
+
+      <Card className="mt-8">
+        <CardHeader className="border-b border-border">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <BookOpen className="h-4 w-4" aria-hidden />
+            Question bank
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Fixed prompts for this level. Teachers can disable specific items
+            per group; empty bank uses dynamic generation.
+          </p>
+        </CardHeader>
+        <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
+          <p className="text-sm text-muted-foreground">
+            Manage institute-owned questions for {level.name}.
+          </p>
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/admin/levels/${level.id}/questions`}>
+              Open question bank
+            </Link>
+          </Button>
+        </CardContent>
+      </Card>
 
       <Card className="mt-8">
         <CardHeader>

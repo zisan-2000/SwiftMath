@@ -68,6 +68,13 @@ enum PracticeMode {
   EXAM
 }
 
+/// Optional difficulty tag on institute question-bank entries.
+enum QuestionDifficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
 // ---------------------------------------------------------------------------
 // Tenant
 // ---------------------------------------------------------------------------
@@ -96,6 +103,7 @@ model Institute {
   levels           Level[]
   practiceSessions PracticeSession[]
   scheduledExams   ScheduledExam[]
+  levelQuestions   LevelQuestion[]
 
   @@map("institute")
 }
@@ -235,6 +243,8 @@ model Group {
 
   scheduledExams ScheduledExam[]
 
+  questionRules GroupQuestionRule[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -315,6 +325,8 @@ model Level {
 
   scheduledExams ScheduledExam[]
 
+  levelQuestions LevelQuestion[]
+
   /// When set, the level is archived (soft-deleted). Hidden from assignment and
   /// new practice; existing session history is kept.
   archivedAt DateTime?
@@ -326,6 +338,74 @@ model Level {
   @@unique([instituteId, orderIndex])
   @@index([instituteId])
   @@map("level")
+}
+
+// ---------------------------------------------------------------------------
+// Institute question bank
+//
+// LevelQuestion entries are owned by the institute Admin. Teachers can disable
+// specific questions for their group via GroupQuestionRule. When the bank is
+// empty or too small, the practice engine falls back to dynamic generation.
+// ---------------------------------------------------------------------------
+
+model LevelQuestion {
+  id String @id @default(cuid())
+
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  levelId String
+  level   Level @relation(fields: [levelId], references: [id], onDelete: Cascade)
+
+  /// Display prompt, e.g. "12 + 7 + 3".
+  prompt String
+
+  /// Trusted answer — never sent to the client during an in-progress session.
+  correctAnswer Int
+
+  /// Optional curriculum tag, e.g. "Carry", "Speed drill".
+  category String?
+
+  difficulty QuestionDifficulty @default(MEDIUM)
+
+  /// Institute-wide active flag (Admin). Inactive questions are never picked.
+  isActive Boolean @default(true)
+
+  /// Sort hint for Admin lists; does not affect random session pick order.
+  orderIndex Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  groupRules         GroupQuestionRule[]
+  practiceQuestions  PracticeQuestion[]
+
+  @@index([instituteId])
+  @@index([levelId])
+  @@index([levelId, isActive])
+  @@map("level_question")
+}
+
+/// Per-group enable/disable override for a bank question (Teacher).
+/// No row means enabled (when the parent LevelQuestion is active).
+model GroupQuestionRule {
+  id String @id @default(cuid())
+
+  groupId String
+  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  questionId String
+  question   LevelQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  enabled Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([groupId, questionId])
+  @@index([groupId])
+  @@index([questionId])
+  @@map("group_question_rule")
 }
 
 // ---------------------------------------------------------------------------
@@ -452,7 +532,12 @@ model PracticeQuestion {
   /// Graded server-side on submit.
   isCorrect Boolean?
 
+  /// When picked from the institute bank, links back for analytics/audit.
+  sourceQuestionId String?
+  sourceQuestion   LevelQuestion? @relation(fields: [sourceQuestionId], references: [id], onDelete: SetNull)
+
   @@unique([sessionId, index])
   @@index([sessionId])
+  @@index([sourceQuestionId])
   @@map("practice_question")
 }

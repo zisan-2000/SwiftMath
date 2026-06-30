@@ -62,11 +62,16 @@ export default async function GroupDetailPage({
     >
       <BackLink href="/teacher/groups">All groups</BackLink>
 
-      <div className="mb-6">
+      <div className="mb-6 flex flex-wrap gap-2">
         <Button asChild variant="outline" size="sm">
           <Link href={`/teacher/groups/${group.id}/analytics`}>
             <BarChart3 className="h-4 w-4" />
             Group analytics
+          </Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/teacher/groups/${group.id}/questions`}>
+            Question bank overrides
           </Link>
         </Button>
       </div>
