@@ -10,6 +10,7 @@ import { listLevelQuestions } from "@/server/question-bank";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { AddLevelQuestionForm } from "@/components/admin/add-level-question-form";
+import { ImportLevelQuestionsForm } from "@/components/admin/import-level-questions-form";
 import { LevelQuestionsList } from "@/components/admin/level-questions-list";
 import { LevelBankCoverageBanner } from "@/components/admin/level-bank-coverage-banner";
 import { Button } from "@/components/ui/button";
@@ -84,14 +85,28 @@ export default async function LevelQuestionsPage({
       </Card>
 
       {!level.archivedAt && (
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle className="text-base">Add question</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <AddLevelQuestionForm levelId={level.id} />
-          </CardContent>
-        </Card>
+        <>
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle className="text-base">Import from CSV</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Bulk-add questions from a spreadsheet export.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <ImportLevelQuestionsForm levelId={level.id} />
+            </CardContent>
+          </Card>
+
+          <Card className="mt-8">
+            <CardHeader>
+              <CardTitle className="text-base">Add question</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AddLevelQuestionForm levelId={level.id} />
+            </CardContent>
+          </Card>
+        </>
       )}
 
       {level.archivedAt && (

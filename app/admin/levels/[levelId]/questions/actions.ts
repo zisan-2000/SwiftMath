@@ -8,12 +8,21 @@ import { parseLevelQuestionForm } from "@/lib/level-question-form";
 import {
   createLevelQuestion,
   deleteLevelQuestion,
+  importLevelQuestions,
   setLevelQuestionActive,
   updateLevelQuestion,
 } from "@/server/question-bank";
+import { parseLevelQuestionImportCsv } from "@/lib/level-question-csv";
 
 export interface LevelQuestionFormState {
   error?: string;
+  ok?: boolean;
+}
+
+export interface LevelQuestionImportState {
+  error?: string;
+  rowErrors?: string[];
+  created?: number;
   ok?: boolean;
 }
 
@@ -82,6 +91,36 @@ export async function updateLevelQuestionAction(
   revalidateLevelQuestions(levelId);
   revalidatePath("/teacher");
   return { ok: true };
+}
+
+/** Bulk import bank questions from an uploaded CSV file. */
+export async function importLevelQuestionsCsvAction(
+  _prevState: LevelQuestionImportState,
+  formData: FormData,
+): Promise<LevelQuestionImportState> {
+  const admin = await requireRole(Role.ADMIN);
+  const levelId = String(formData.get("levelId") ?? "");
+  const file = formData.get("file");
+
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Choose a CSV file to import." };
+  }
+
+  const text = await file.text();
+  const parsed = parseLevelQuestionImportCsv(text);
+
+  if (!parsed.ok) {
+    return { error: parsed.error, rowErrors: parsed.rowErrors };
+  }
+
+  const result = await importLevelQuestions(admin, levelId, parsed.rows);
+  if (!result.ok) {
+    return { error: result.error };
+  }
+
+  revalidateLevelQuestions(levelId);
+  revalidatePath("/teacher");
+  return { ok: true, created: result.created };
 }
 
 /** Toggle institute-wide active flag. */

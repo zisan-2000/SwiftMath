@@ -172,6 +172,48 @@ export async function getLevelBankStats(
   return { totalBankCount, activeBankCount };
 }
 
+export type ImportLevelQuestionsResult =
+  | { ok: true; created: number }
+  | { ok: false; error: string };
+
+/** Bulk-create bank questions from a validated import batch. */
+export async function importLevelQuestions(
+  admin: AdminContext,
+  levelId: string,
+  inputs: LevelQuestionInput[],
+): Promise<ImportLevelQuestionsResult> {
+  await assertAdminOwnsLevel(admin, levelId);
+
+  if (inputs.length === 0) {
+    return { ok: false, error: "No questions to import." };
+  }
+
+  const maxOrder = await prisma.levelQuestion.aggregate({
+    where: { levelId, instituteId: admin.instituteId },
+    _max: { orderIndex: true },
+  });
+
+  let orderIndex = (maxOrder._max.orderIndex ?? -1) + 1;
+
+  await prisma.$transaction(async (tx) => {
+    for (const input of inputs) {
+      await tx.levelQuestion.create({
+        data: {
+          instituteId: admin.instituteId,
+          levelId,
+          prompt: input.prompt.trim(),
+          correctAnswer: input.correctAnswer,
+          category: input.category?.trim() || null,
+          difficulty: input.difficulty ?? QuestionDifficulty.MEDIUM,
+          orderIndex: orderIndex++,
+        },
+      });
+    }
+  });
+
+  return { ok: true, created: inputs.length };
+}
+
 export interface GroupQuestionOverrideRow {
   id: string;
   prompt: string;
