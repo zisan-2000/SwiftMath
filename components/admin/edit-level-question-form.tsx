@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { LevelQuestionRow } from "@/components/admin/level-questions-list";
 import { formatQuestionAnalyticsLabel } from "@/lib/question-analytics";
+import { ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 
 const SELECT_CLASS =
   "h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -120,6 +121,19 @@ export function LevelQuestionRow({
   levelId,
   activeVersionNumber,
   question,
+  position,
+  reorderEnabled = true,
+  reorderPending = false,
+  isDragging = false,
+  isDropTarget = false,
+  canMoveUp = false,
+  canMoveDown = false,
+  onMoveUp,
+  onMoveDown,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
   onToggleActive,
   onPublish,
   onUnpublish,
@@ -128,6 +142,19 @@ export function LevelQuestionRow({
   levelId: string;
   activeVersionNumber: number;
   question: LevelQuestionRow;
+  position: number;
+  reorderEnabled?: boolean;
+  reorderPending?: boolean;
+  isDragging?: boolean;
+  isDropTarget?: boolean;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  onDragStart?: (event: React.DragEvent) => void;
+  onDragOver?: (event: React.DragEvent) => void;
+  onDrop?: () => void;
+  onDragEnd?: () => void;
   onToggleActive: (formData: FormData) => Promise<void>;
   onPublish: (formData: FormData) => Promise<void>;
   onUnpublish: (formData: FormData) => Promise<void>;
@@ -159,8 +186,56 @@ export function LevelQuestionRow({
   const analyticsLabel = formatQuestionAnalyticsLabel(question.analytics);
 
   return (
-    <li className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
-      <div className="min-w-0">
+    <li
+      className={`flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between ${
+        isDragging ? "opacity-50" : ""
+      } ${isDropTarget ? "bg-muted/40" : ""}`}
+      onDragOver={reorderEnabled ? onDragOver : undefined}
+      onDrop={reorderEnabled ? onDrop : undefined}
+    >
+      {reorderEnabled && (
+        <div className="flex shrink-0 items-start gap-1 sm:pt-0.5">
+          <span
+            draggable={!reorderPending}
+            onDragStart={onDragStart}
+            onDragEnd={onDragEnd}
+            aria-label={`Drag question ${position} to reorder`}
+            className="inline-flex h-8 w-8 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+            aria-disabled={reorderPending}
+          >
+            <GripVertical className="h-4 w-4" />
+          </span>
+          <div className="flex flex-col gap-0.5">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              disabled={!canMoveUp || reorderPending}
+              aria-label={`Move question ${position} up`}
+              onClick={onMoveUp}
+            >
+              <ChevronUp className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              disabled={!canMoveDown || reorderPending}
+              aria-label={`Move question ${position} down`}
+              onClick={onMoveDown}
+            >
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </div>
+          <span className="hidden w-6 pt-1 text-center text-xs text-muted-foreground sm:inline">
+            {position}
+          </span>
+        </div>
+      )}
+
+      <div className="min-w-0 flex-1">
         <p className="font-mono text-sm text-foreground">{question.prompt}</p>
         <p className="mt-1 text-xs text-muted-foreground">
           Answer: {question.correctAnswer}

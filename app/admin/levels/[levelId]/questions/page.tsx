@@ -107,10 +107,9 @@ export default async function LevelQuestionsPage({
             Bank questions ({questions.length})
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Sessions pick randomly from active bank entries for each student&apos;s
-            group, then fill any remainder with dynamic questions from level rules.
-            Graded attempts on bank questions show attempt counts and success rates
-            below (review drills excluded).
+            Drag the handle or use the arrows to set list order (admin reference
+            only — sessions still pick randomly). Graded attempts on bank questions
+            show attempt counts and success rates below (review drills excluded).
           </p>
         </CardHeader>
         <CardContent className="p-0">
@@ -125,9 +124,11 @@ export default async function LevelQuestionsPage({
               difficulty: q.difficulty,
               status: q.status,
               isActive: q.isActive,
+              orderIndex: q.orderIndex,
               curriculumVersionNumber: q.curriculumVersion?.versionNumber ?? null,
               analytics: questionAnalytics.get(q.id),
             }))}
+            reorderEnabled={!level.archivedAt}
           />
         </CardContent>
       </Card>

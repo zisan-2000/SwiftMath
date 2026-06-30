@@ -9,6 +9,10 @@ import {
   filterEnabledBankQuestions,
   type SessionQuestionDraft,
 } from "@/lib/question-bank";
+import {
+  applyMoveInOrder,
+  buildOrderIndexUpdates,
+} from "@/lib/level-question-order";
 import type { LevelConfig } from "@/lib/practice-logic";
 import { QuestionDifficulty, QuestionStatus } from "@/lib/generated/prisma/enums";
 import type { AdminContext } from "@/server/admin";
@@ -168,6 +172,69 @@ export async function updateLevelQuestion(
     return { ok: false, error: "Question not found." };
   }
   return { ok: true };
+}
+
+/** Persist a full reorder of bank questions for one level (Admin). */
+export async function reorderLevelQuestions(
+  admin: AdminContext,
+  levelId: string,
+  orderedQuestionIds: string[],
+): Promise<MutateLevelQuestionResult> {
+  await assertAdminOwnsLevel(admin, levelId);
+
+  const existing = await prisma.levelQuestion.findMany({
+    where: { levelId, instituteId: admin.instituteId },
+    select: { id: true },
+    orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
+  });
+
+  if (orderedQuestionIds.length !== existing.length) {
+    return { ok: false, error: "Invalid question order." };
+  }
+
+  const existingIds = new Set(existing.map((row) => row.id));
+  if (new Set(orderedQuestionIds).size !== orderedQuestionIds.length) {
+    return { ok: false, error: "Invalid question order." };
+  }
+  if (!orderedQuestionIds.every((id) => existingIds.has(id))) {
+    return { ok: false, error: "Invalid question order." };
+  }
+
+  const updates = buildOrderIndexUpdates(orderedQuestionIds);
+  await prisma.$transaction(
+    updates.map(({ id, orderIndex }) =>
+      prisma.levelQuestion.updateMany({
+        where: { id, levelId, instituteId: admin.instituteId },
+        data: { orderIndex },
+      }),
+    ),
+  );
+
+  return { ok: true };
+}
+
+/** Move one bank question up or down in the admin list. */
+export async function moveLevelQuestion(
+  admin: AdminContext,
+  levelId: string,
+  questionId: string,
+  direction: "up" | "down",
+): Promise<MutateLevelQuestionResult> {
+  await assertAdminOwnsLevel(admin, levelId);
+
+  const existing = await prisma.levelQuestion.findMany({
+    where: { levelId, instituteId: admin.instituteId },
+    select: { id: true },
+    orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
+  });
+
+  const orderedIds = existing.map((row) => row.id);
+  const nextOrder = applyMoveInOrder(orderedIds, questionId, direction);
+  if (!nextOrder) {
+    return { ok: false, error: "Cannot move question." };
+  }
+
+  return reorderLevelQuestions(admin, levelId, nextOrder);
 }
 
 export interface LevelBankStats {

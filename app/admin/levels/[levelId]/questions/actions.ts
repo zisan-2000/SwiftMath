@@ -9,6 +9,8 @@ import {
   createLevelQuestion,
   deleteLevelQuestion,
   importLevelQuestions,
+  moveLevelQuestion,
+  reorderLevelQuestions,
   setLevelQuestionActive,
   setLevelQuestionStatus,
   updateLevelQuestion,
@@ -203,5 +205,43 @@ export async function deleteLevelQuestionAction(
 
   revalidateLevelQuestions(levelId);
   revalidatePath("/teacher");
+  return { ok: true };
+}
+
+/** Save a full drag-sort order for bank questions. */
+export async function reorderLevelQuestionsAction(
+  levelId: string,
+  orderedQuestionIds: string[],
+): Promise<LevelQuestionFormState> {
+  const admin = await requireRole(Role.ADMIN);
+
+  const result = await reorderLevelQuestions(admin, levelId, orderedQuestionIds);
+  if (!result.ok) {
+    return { error: result.error };
+  }
+
+  revalidateLevelQuestions(levelId);
+  return { ok: true };
+}
+
+/** Move one bank question up or down. */
+export async function moveLevelQuestionAction(
+  formData: FormData,
+): Promise<LevelQuestionFormState> {
+  const admin = await requireRole(Role.ADMIN);
+  const levelId = String(formData.get("levelId") ?? "");
+  const questionId = String(formData.get("questionId") ?? "");
+  const direction = String(formData.get("direction") ?? "");
+
+  if (direction !== "up" && direction !== "down") {
+    return { error: "Invalid move direction." };
+  }
+
+  const result = await moveLevelQuestion(admin, levelId, questionId, direction);
+  if (!result.ok) {
+    return { error: result.error };
+  }
+
+  revalidateLevelQuestions(levelId);
   return { ok: true };
 }
