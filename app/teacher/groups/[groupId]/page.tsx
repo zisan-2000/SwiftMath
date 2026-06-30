@@ -8,12 +8,14 @@ import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
 import { getTeacherGroup, listGroupLevelTimeRules, listInstituteLevels } from "@/server/teacher";
 import { listGroupScheduledExams } from "@/server/scheduled-exam";
+import { listTeacherAuditLogs } from "@/server/audit-log";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { AddStudentDialog } from "@/components/teacher/add-student-dialog";
 import { AssignLevelForm } from "@/components/teacher/assign-level-form";
 import { GroupLevelTimeRules } from "@/components/teacher/group-level-time-rules";
 import { GroupScheduledExamsList } from "@/components/teacher/group-scheduled-exams-list";
+import { GroupRecentActivityCard } from "@/components/teacher/group-recent-activity-card";
 import { ScheduleExamForm } from "@/components/teacher/schedule-exam-form";
 import { ResetPasswordForm } from "@/components/reset-password-form";
 import { DeleteGroupSection } from "@/components/teacher/delete-group-section";
@@ -41,7 +43,8 @@ export default async function GroupDetailPage({
     notFound();
   }
 
-  const [institute, levels, timeRules, scheduledExams] = await Promise.all([
+  const [institute, levels, timeRules, scheduledExams, recentActivity] =
+    await Promise.all([
     prisma.institute.findUnique({
       where: { id: teacher.instituteId },
       select: { name: true, logoUrl: true },
@@ -49,6 +52,7 @@ export default async function GroupDetailPage({
     listInstituteLevels(teacher.instituteId),
     listGroupLevelTimeRules(teacher, groupId),
     listGroupScheduledExams(teacher, groupId),
+    listTeacherAuditLogs(teacher, { groupId, limit: 10 }),
   ]);
 
   return (
@@ -84,6 +88,13 @@ export default async function GroupDetailPage({
           </CardContent>
         </Card>
       )}
+
+      <GroupRecentActivityCard
+        groupId={group.id}
+        groupName={group.name}
+        items={recentActivity.items}
+        total={recentActivity.total}
+      />
 
       <Card className="mt-8">
         <CardHeader className="border-b border-border">

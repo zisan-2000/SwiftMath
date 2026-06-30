@@ -43,6 +43,7 @@ export const NAV_ITEMS: Record<Role, NavItem[]> = {
   TEACHER: [
     { href: "/teacher", label: "Dashboard", icon: LayoutDashboard },
     { href: "/teacher/groups", label: "Groups", icon: Boxes },
+    { href: "/teacher/activity", label: "Your activity", icon: ScrollText },
     { href: "/teacher/ranking", label: "Ranking", icon: Trophy },
   ],
   STUDENT: [

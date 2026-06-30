@@ -124,3 +124,112 @@ export async function listInstituteAuditLogs(
     pageSize,
   );
 }
+
+const TEACHER_GROUP_AUDIT_ACTIONS = [
+  AuditAction.GROUP_QUESTION_ENABLED,
+  AuditAction.GROUP_QUESTION_DISABLED,
+] as const;
+
+function mapAuditRows(
+  rows: Array<{
+    id: string;
+    action: AuditAction;
+    summary: string;
+    actorRole: Role;
+    targetType: string;
+    targetId: string | null;
+    createdAt: Date;
+    actor: { name: string };
+  }>,
+): AuditLogListItem[] {
+  return rows.map((row) => ({
+    id: row.id,
+    action: row.action,
+    summary: row.summary,
+    actorName: row.actor.name,
+    actorRole: row.actorRole,
+    targetType: row.targetType,
+    targetId: row.targetId,
+    createdAt: row.createdAt,
+  }));
+}
+
+const auditLogSelect = {
+  id: true,
+  action: true,
+  summary: true,
+  actorRole: true,
+  targetType: true,
+  targetId: true,
+  createdAt: true,
+  actor: { select: { name: true } },
+} as const;
+
+async function assertTeacherOwnsGroup(
+  teacher: TeacherContext,
+  groupId: string,
+): Promise<boolean> {
+  const group = await prisma.group.findFirst({
+    where: {
+      id: groupId,
+      teacherId: teacher.id,
+      instituteId: teacher.instituteId,
+    },
+    select: { id: true },
+  });
+  return group != null;
+}
+
+/**
+ * Read-only audit log for a teacher — only their own group question overrides.
+ * Optionally scoped to one group via metadata.groupId.
+ */
+export async function listTeacherAuditLogs(
+  teacher: TeacherContext,
+  options: { page?: number; groupId?: string | null; limit?: number } = {},
+): Promise<PaginatedList<AuditLogListItem>> {
+  if (options.groupId) {
+    const ownsGroup = await assertTeacherOwnsGroup(teacher, options.groupId);
+    if (!ownsGroup) {
+      return buildPaginatedList([], 0, 1, options.limit ?? DEFAULT_PAGE_SIZE);
+    }
+  }
+
+  const where = {
+    instituteId: teacher.instituteId,
+    actorUserId: teacher.id,
+    action: { in: [...TEACHER_GROUP_AUDIT_ACTIONS] },
+    ...(options.groupId
+      ? { metadata: { path: ["groupId"], equals: options.groupId } }
+      : {}),
+  };
+
+  if (options.limit) {
+    const [rows, total] = await Promise.all([
+      prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: options.limit,
+        select: auditLogSelect,
+      }),
+      prisma.auditLog.count({ where }),
+    ]);
+
+    return buildPaginatedList(mapAuditRows(rows), total, 1, options.limit);
+  }
+
+  const { skip, take, page, pageSize } = paginationBounds(options.page ?? 1);
+
+  const [rows, total] = await Promise.all([
+    prisma.auditLog.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take,
+      select: auditLogSelect,
+    }),
+    prisma.auditLog.count({ where }),
+  ]);
+
+  return buildPaginatedList(mapAuditRows(rows), total, page, pageSize);
+}

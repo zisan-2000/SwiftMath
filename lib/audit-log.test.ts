@@ -4,6 +4,8 @@ import {
   auditActivityHref,
   formatAuditActionLabel,
   parseAuditActionFilter,
+  parseTeacherActivityGroupFilter,
+  teacherActivityHref,
   truncateAuditPrompt,
 } from "@/lib/audit-log";
 import { AuditAction } from "@/lib/generated/prisma/enums";
@@ -52,5 +54,22 @@ describe("auditActivityHref", () => {
     expect(auditActivityHref("/admin/activity", 1, null)).toBe(
       "/admin/activity",
     );
+  });
+});
+
+describe("teacherActivityHref", () => {
+  it("builds group and page query params", () => {
+    expect(teacherActivityHref({ groupId: "grp-1", page: 2 })).toBe(
+      "/teacher/activity?group=grp-1&page=2",
+    );
+    expect(teacherActivityHref()).toBe("/teacher/activity");
+  });
+});
+
+describe("parseTeacherActivityGroupFilter", () => {
+  it("returns a trimmed group id or null", () => {
+    expect(parseTeacherActivityGroupFilter("grp-1")).toBe("grp-1");
+    expect(parseTeacherActivityGroupFilter(undefined)).toBeNull();
+    expect(parseTeacherActivityGroupFilter("  ")).toBeNull();
   });
 });

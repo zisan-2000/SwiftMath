@@ -73,6 +73,31 @@ export function parseAuditActionFilter(
     : null;
 }
 
+/** Teacher-scoped audit actions (group question overrides only). */
+export const TEACHER_AUDIT_ACTIONS: AuditAction[] = [
+  AuditAction.GROUP_QUESTION_ENABLED,
+  AuditAction.GROUP_QUESTION_DISABLED,
+];
+
+/** Build a teacher activity log URL, optionally filtered to one group. */
+export function teacherActivityHref(
+  options: { groupId?: string | null; page?: number } = {},
+): string {
+  const params = new URLSearchParams();
+  if (options.groupId) params.set("group", options.groupId);
+  if (options.page && options.page > 1) params.set("page", String(options.page));
+  const qs = params.toString();
+  return qs ? `/teacher/activity?${qs}` : "/teacher/activity";
+}
+
+/** Parse `?group=` for teacher activity scope. */
+export function parseTeacherActivityGroupFilter(
+  value: string | undefined,
+): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
 /** Build query string for paginated activity links. */
 export function auditActivityHref(
   basePath: string,

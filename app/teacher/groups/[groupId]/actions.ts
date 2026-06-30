@@ -136,6 +136,7 @@ export async function setGroupQuestionEnabledAction(
   revalidatePath(`/teacher/groups/${groupId}`);
   revalidatePath("/student");
   revalidatePath("/admin/activity");
+  revalidatePath("/teacher/activity");
   return { ok: true };
 }
 
