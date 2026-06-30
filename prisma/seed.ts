@@ -17,6 +17,7 @@ import { hashPassword } from "better-auth/crypto";
 import { PrismaClient } from "../lib/generated/prisma/client";
 import { Role } from "../lib/generated/prisma/enums";
 import { DEFAULT_STARTER_LEVELS } from "../lib/default-levels";
+import { buildStarterQuestionBankRows } from "../lib/default-question-bank";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -97,6 +98,29 @@ async function main() {
     });
     levels.push(level);
   }
+
+  // --- Starter question bank (same fixed prompts as new institutes) ---
+  const levelsNeedingBank: Array<{ id: string; orderIndex: number }> = [];
+  for (const level of levels) {
+    const existingCount = await prisma.levelQuestion.count({
+      where: { instituteId: seft.id, levelId: level.id },
+    });
+    if (existingCount === 0) {
+      levelsNeedingBank.push({ id: level.id, orderIndex: level.orderIndex });
+    }
+  }
+
+  const bankRows = buildStarterQuestionBankRows({
+    instituteId: seft.id,
+    levels: levelsNeedingBank,
+  });
+  if (bankRows.length > 0) {
+    await prisma.levelQuestion.createMany({ data: bankRows });
+  }
+
+  const bankQuestionCount = await prisma.levelQuestion.count({
+    where: { instituteId: seft.id },
+  });
 
   // --- Super Admin (platform-level operator, cross-tenant) ---
   // Their `instituteId` is just a home base; their access spans all institutes.
@@ -193,6 +217,7 @@ async function main() {
   console.log("\n✅ Seed complete.\n");
   console.log(`Institute: ${seft.name} (slug: ${seft.slug})`);
   console.log(`Levels:    ${levels.length}`);
+  console.log(`Bank:      ${bankQuestionCount} question(s) across levels`);
   console.log(`Students:  ${students.length} in "Demo Group A"`);
   console.log(`Demo exam: "${demoExamLevel.name}" (open for 7 days — student aisha@seft.test)\n`);
   console.log(`All demo accounts use the password: ${DEMO_PASSWORD}`);
