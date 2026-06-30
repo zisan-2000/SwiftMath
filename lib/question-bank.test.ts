@@ -4,6 +4,7 @@ import {
   composeSessionQuestions,
   filterEnabledBankQuestions,
   pickBankQuestions,
+  assessLevelBankCoverage,
 } from "@/lib/question-bank";
 import { OperationType } from "@/lib/generated/prisma/enums";
 
@@ -58,5 +59,33 @@ describe("composeSessionQuestions", () => {
   it("generates all dynamically when bank is empty", () => {
     const drafts = composeSessionQuestions(level, 2, [], () => 0.5);
     expect(drafts.every((d) => d.sourceQuestionId == null)).toBe(true);
+  });
+});
+
+describe("assessLevelBankCoverage", () => {
+  it("reports empty, partial, and ok states", () => {
+    expect(
+      assessLevelBankCoverage({
+        sessionQuestionCount: 10,
+        totalBankCount: 0,
+        activeBankCount: 0,
+      }).status,
+    ).toBe("empty");
+
+    expect(
+      assessLevelBankCoverage({
+        sessionQuestionCount: 10,
+        totalBankCount: 5,
+        activeBankCount: 3,
+      }).status,
+    ).toBe("partial");
+
+    expect(
+      assessLevelBankCoverage({
+        sessionQuestionCount: 10,
+        totalBankCount: 12,
+        activeBankCount: 10,
+      }).status,
+    ).toBe("ok");
   });
 });

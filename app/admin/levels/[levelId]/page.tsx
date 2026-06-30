@@ -7,10 +7,12 @@ import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
 import { getLevel } from "@/server/admin";
+import { getLevelBankStats } from "@/server/question-bank";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { LevelForm } from "@/components/admin/level-form";
 import { ArchiveLevelSection } from "@/components/admin/archive-level-section";
+import { LevelBankCoverageBanner } from "@/components/admin/level-bank-coverage-banner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,12 +44,13 @@ export default async function EditLevelPage({
   const { levelId } = await params;
   const admin = await requireRole(Role.ADMIN);
 
-  const [institute, level] = await Promise.all([
+  const [institute, level, bankStats] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: admin.instituteId },
       select: { name: true, logoUrl: true },
     }),
     getLevel(admin, levelId),
+    getLevelBankStats(admin, levelId),
   ]);
 
   if (!level) {
@@ -111,15 +114,24 @@ export default async function EditLevelPage({
             per group; empty bank uses dynamic generation.
           </p>
         </CardHeader>
-        <CardContent className="flex flex-wrap items-center justify-between gap-3 pt-6">
-          <p className="text-sm text-muted-foreground">
-            Manage institute-owned questions for {level.name}.
-          </p>
-          <Button asChild variant="outline" size="sm">
-            <Link href={`/admin/levels/${level.id}/questions`}>
-              Open question bank
-            </Link>
-          </Button>
+        <CardContent className="flex flex-col gap-4 pt-6">
+          {bankStats && (
+            <LevelBankCoverageBanner
+              sessionQuestionCount={level.questionCount}
+              totalBankCount={bankStats.totalBankCount}
+              activeBankCount={bankStats.activeBankCount}
+            />
+          )}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              Manage institute-owned questions for {level.name}.
+            </p>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/admin/levels/${level.id}/questions`}>
+                Open question bank
+              </Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 

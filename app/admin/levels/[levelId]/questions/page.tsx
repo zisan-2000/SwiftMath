@@ -11,6 +11,7 @@ import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { AddLevelQuestionForm } from "@/components/admin/add-level-question-form";
 import { LevelQuestionsList } from "@/components/admin/level-questions-list";
+import { LevelBankCoverageBanner } from "@/components/admin/level-bank-coverage-banner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -48,6 +49,8 @@ export default async function LevelQuestionsPage({
     notFound();
   }
 
+  const activeBankCount = questions.filter((q) => q.isActive).length;
+
   return (
     <AppShell
       user={admin}
@@ -57,6 +60,13 @@ export default async function LevelQuestionsPage({
       subtitle="Institute-owned fixed questions. Teachers can disable items per group."
     >
       <BackLink href={`/admin/levels/${level.id}`}>Back to level</BackLink>
+
+      <LevelBankCoverageBanner
+        className="mt-6"
+        sessionQuestionCount={level.questionCount}
+        totalBankCount={questions.length}
+        activeBankCount={activeBankCount}
+      />
 
       <Card className="mt-6">
         <CardHeader className="border-b border-border">

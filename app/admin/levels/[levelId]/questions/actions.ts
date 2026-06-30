@@ -9,6 +9,7 @@ import {
   createLevelQuestion,
   deleteLevelQuestion,
   setLevelQuestionActive,
+  updateLevelQuestion,
 } from "@/server/question-bank";
 
 export interface LevelQuestionFormState {
@@ -46,6 +47,40 @@ export async function addLevelQuestionAction(
   }
 
   revalidateLevelQuestions(levelId);
+  return { ok: true };
+}
+
+/** Update an existing bank question (Institute Admin). */
+export async function updateLevelQuestionAction(
+  formData: FormData,
+): Promise<LevelQuestionFormState> {
+  const admin = await requireRole(Role.ADMIN);
+  const levelId = String(formData.get("levelId") ?? "");
+  const questionId = String(formData.get("questionId") ?? "");
+
+  const parsed = parseLevelQuestionForm({
+    prompt: String(formData.get("prompt") ?? ""),
+    correctAnswerRaw: String(formData.get("correctAnswer") ?? ""),
+    category: String(formData.get("category") ?? ""),
+    difficultyRaw: String(formData.get("difficulty") ?? "MEDIUM"),
+  });
+
+  if (!parsed.ok) {
+    return { error: parsed.error };
+  }
+
+  const result = await updateLevelQuestion(
+    admin,
+    levelId,
+    questionId,
+    parsed.data,
+  );
+  if (!result.ok) {
+    return { error: result.error };
+  }
+
+  revalidateLevelQuestions(levelId);
+  revalidatePath("/teacher");
   return { ok: true };
 }
 

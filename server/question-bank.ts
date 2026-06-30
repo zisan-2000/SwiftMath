@@ -115,6 +115,63 @@ export async function deleteLevelQuestion(
   return { ok: true };
 }
 
+/** Update an existing bank question (Admin). */
+export async function updateLevelQuestion(
+  admin: AdminContext,
+  levelId: string,
+  questionId: string,
+  input: LevelQuestionInput,
+): Promise<MutateLevelQuestionResult> {
+  await assertAdminOwnsLevel(admin, levelId);
+
+  const result = await prisma.levelQuestion.updateMany({
+    where: {
+      id: questionId,
+      levelId,
+      instituteId: admin.instituteId,
+    },
+    data: {
+      prompt: input.prompt.trim(),
+      correctAnswer: input.correctAnswer,
+      category: input.category?.trim() || null,
+      difficulty: input.difficulty ?? QuestionDifficulty.MEDIUM,
+    },
+  });
+
+  if (result.count === 0) {
+    return { ok: false, error: "Question not found." };
+  }
+  return { ok: true };
+}
+
+export interface LevelBankStats {
+  totalBankCount: number;
+  activeBankCount: number;
+}
+
+/** Count bank rows for admin coverage warnings. */
+export async function getLevelBankStats(
+  admin: AdminContext,
+  levelId: string,
+): Promise<LevelBankStats | null> {
+  const level = await prisma.level.findFirst({
+    where: { id: levelId, instituteId: admin.instituteId },
+    select: { id: true },
+  });
+  if (!level) return null;
+
+  const [totalBankCount, activeBankCount] = await Promise.all([
+    prisma.levelQuestion.count({
+      where: { levelId, instituteId: admin.instituteId },
+    }),
+    prisma.levelQuestion.count({
+      where: { levelId, instituteId: admin.instituteId, isActive: true },
+    }),
+  ]);
+
+  return { totalBankCount, activeBankCount };
+}
+
 export interface GroupQuestionOverrideRow {
   id: string;
   prompt: string;

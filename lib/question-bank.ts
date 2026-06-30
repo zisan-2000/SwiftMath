@@ -84,3 +84,43 @@ export function composeSessionQuestions(
 
   return drafts;
 }
+
+export type LevelBankCoverageStatus = "empty" | "partial" | "ok";
+
+export interface LevelBankCoverage {
+  status: LevelBankCoverageStatus;
+  headline: string;
+  detail: string;
+}
+
+/** Admin-facing coverage check for a level's question bank. */
+export function assessLevelBankCoverage(input: {
+  sessionQuestionCount: number;
+  totalBankCount: number;
+  activeBankCount: number;
+}): LevelBankCoverage {
+  const { sessionQuestionCount, totalBankCount, activeBankCount } = input;
+
+  if (totalBankCount === 0) {
+    return {
+      status: "empty",
+      headline: "No bank questions yet",
+      detail: `Sessions use dynamic generation for all ${sessionQuestionCount} questions until you add fixed prompts.`,
+    };
+  }
+
+  if (activeBankCount < sessionQuestionCount) {
+    const shortBy = sessionQuestionCount - activeBankCount;
+    return {
+      status: "partial",
+      headline: "Bank smaller than session size",
+      detail: `${activeBankCount} active bank question${activeBankCount === 1 ? "" : "s"} for ${sessionQuestionCount}-question sessions — the last ${shortBy} slot${shortBy === 1 ? "" : "s"} will use dynamic generation.`,
+    };
+  }
+
+  return {
+    status: "ok",
+    headline: "Bank covers session size",
+    detail: `${activeBankCount} active bank questions — enough for fully bank-backed ${sessionQuestionCount}-question sessions (before teacher group disables).`,
+  };
+}
