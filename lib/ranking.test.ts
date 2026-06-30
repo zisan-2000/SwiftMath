@@ -4,9 +4,11 @@ import {
   filterQualifiedLeaderboardRows,
   formatPassDuration,
   applyStrictHundredPercentRule,
+  formatStrictHundredPolicy,
   leaderboardPeriodStart,
   parseLeaderboardPeriod,
   rankLeaderboardRows,
+  strictHundredPeriodStart,
   type LeaderboardRow,
 } from "@/lib/ranking";
 
@@ -37,6 +39,32 @@ describe("leaderboardPeriodStart", () => {
     const now = new Date(2026, 5, 23, 15, 30, 0);
     const start = leaderboardPeriodStart("month", now);
     expect(start).toEqual(new Date(2026, 4, 25, 0, 0, 0, 0));
+  });
+});
+
+describe("strictHundredPeriodStart", () => {
+  it("matches the stats window for week and month", () => {
+    const now = new Date(2026, 5, 23, 15, 30, 0);
+    expect(strictHundredPeriodStart("week", now)).toEqual(
+      leaderboardPeriodStart("week", now),
+    );
+    expect(strictHundredPeriodStart("month", now)).toEqual(
+      leaderboardPeriodStart("month", now),
+    );
+  });
+
+  it("uses a rolling 7-day window when stats are all-time", () => {
+    const now = new Date(2026, 5, 23, 15, 30, 0);
+    expect(strictHundredPeriodStart("all", now)).toEqual(
+      new Date(2026, 5, 17, 0, 0, 0, 0),
+    );
+  });
+});
+
+describe("formatStrictHundredPolicy", () => {
+  it("mentions the rolling window for all-time stats", () => {
+    expect(formatStrictHundredPolicy("all")).toContain("7 days");
+    expect(formatStrictHundredPolicy("all")).toContain("all-time");
   });
 });
 

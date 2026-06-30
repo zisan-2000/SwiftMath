@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Globe, Trophy } from "lucide-react";
 
@@ -12,7 +13,7 @@ import {
   globalRankingHref,
   parseGlobalRankingLevelStep,
 } from "@/lib/global-ranking";
-import { parseLeaderboardPeriod } from "@/lib/ranking";
+import { parseLeaderboardPeriod, formatStrictHundredPolicy } from "@/lib/ranking";
 import { getGlobalLeaderboard } from "@/server/ranking";
 import { AppShell } from "@/components/app-shell";
 import { RankingTabs } from "@/components/student/ranking-tabs";
@@ -22,7 +23,7 @@ import { RankingLeaderboardTable } from "@/components/student/ranking-leaderboar
 import { EmptyState } from "@/components/ui/empty-state";
 
 export const metadata: Metadata = {
-  title: "Global ranking",
+  title: "Global elite ranking",
 };
 
 function buildGlobalSubtitle(
@@ -36,9 +37,9 @@ function buildGlobalSubtitle(
   const parts: string[] = [];
 
   if (myRank !== undefined) {
-    parts.push(`You're ranked #${myRank} of ${total} globally`);
+    parts.push(`Elite rank #${myRank} of ${total} globally`);
   } else {
-    parts.push("Global leaderboard across all institutes");
+    parts.push("Bonus elite board across all institutes");
   }
 
   parts.push(`· ${filters.levelStepName}`);
@@ -86,7 +87,7 @@ export default async function StudentGlobalRankingPage({
       user={student}
       instituteName={institute?.name ?? "Institute"}
       instituteLogoUrl={institute?.logoUrl}
-      title="Global ranking"
+      title="Global elite ranking"
       subtitle={buildGlobalSubtitle(myRank?.rank, leaderboard.length, {
         period,
         levelStepName,
@@ -104,10 +105,14 @@ export default async function StudentGlobalRankingPage({
       />
 
       <p className="mb-4 text-sm text-muted-foreground">
-        Comparing {levelStepName} across all active institutes
+        Bonus elite board — stricter than your{" "}
+        <Link href="/student/ranking" className="text-primary hover:underline">
+          institute ranking
+        </Link>
+        . Comparing {levelStepName} across all active institutes
         {canonicalRules ? ` (${canonicalRules})` : ""} · standard platform rules
-        only · {formatGlobalRankingCompositionPolicy()} · every qualifying
-        timed attempt must be 100% accurate, then ranked by fastest pass
+        only · {formatGlobalRankingCompositionPolicy()} ·{" "}
+        {formatStrictHundredPolicy(period)}, then ranked by fastest pass
         {period === "week"
           ? " in the last 7 days"
           : period === "month"
@@ -118,7 +123,7 @@ export default async function StudentGlobalRankingPage({
 
       {!myRank && leaderboard.length > 0 && (
         <p className="mb-4 text-sm text-muted-foreground">
-          Score 100% on every timed attempt at {levelStepName} in this view and
+          {formatStrictHundredPolicy(period)} at {levelStepName} in this view and
           pass at least one in time to appear here.
         </p>
       )}
@@ -126,8 +131,8 @@ export default async function StudentGlobalRankingPage({
       {leaderboard.length === 0 ? (
         <EmptyState
           icon={Trophy}
-          title="No qualifying scores yet"
-          description={`Every qualifying timed attempt at ${levelStepName} in this view must be 100% accurate, with at least one in-time pass. Only ${formatGlobalRankingCompositionPolicy()} count toward global standings.`}
+          title="No elite scores yet"
+          description={`${formatStrictHundredPolicy(period)} at ${levelStepName}, with at least one in-time pass. Only ${formatGlobalRankingCompositionPolicy()} count toward this bonus board.`}
         />
       ) : (
         <RankingLeaderboardTable
@@ -139,9 +144,9 @@ export default async function StudentGlobalRankingPage({
 
       <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
         <Globe className="size-3.5 shrink-0" aria-hidden />
-        Global ranking uses the default curriculum rules for each step and{" "}
+        Global elite ranking uses the default curriculum rules for each step and{" "}
         {formatGlobalRankingCompositionPolicy()} so times stay fair across
-        institutes.
+        institutes. Your institute board remains the main place for daily progress.
       </p>
     </AppShell>
   );

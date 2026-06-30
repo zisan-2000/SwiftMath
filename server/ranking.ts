@@ -11,6 +11,7 @@ import {
   rankLeaderboardRows,
   filterQualifiedLeaderboardRows,
   applyStrictHundredPercentRule,
+  strictHundredPeriodStart,
   type LeaderboardPeriod,
   type LeaderboardRow,
   type RankedGlobalLeaderboardRow,
@@ -134,6 +135,13 @@ export async function getInstituteLeaderboard(
     ...(since && { submittedAt: { gte: since } }),
   };
 
+  const strictScope = {
+    instituteId,
+    mode: PracticeMode.STANDARD,
+    ...(options.levelId && { levelId: options.levelId }),
+    submittedAt: { gte: strictHundredPeriodStart(period) },
+  };
+
   const [students, passedGroups, accuracyGroups, perfectPasses, subPerfectStudentIds] =
     await Promise.all([
     prisma.user.findMany({
@@ -174,7 +182,7 @@ export async function getInstituteLeaderboard(
         submittedAt: true,
       },
     }),
-    fetchSubPerfectStudentIds(sessionScope),
+    fetchSubPerfectStudentIds(strictScope),
   ]);
 
   const passedByStudent = new Map(
@@ -243,6 +251,14 @@ export async function getGlobalLeaderboard(
     ...(since && { submittedAt: { gte: since } }),
   };
 
+  const strictScope = {
+    mode: PracticeMode.STANDARD,
+    student: activeStudentScope,
+    level: buildCanonicalGlobalLevelWhere(options.levelOrderIndex),
+    ...buildGlobalRankingSessionFilter(),
+    submittedAt: { gte: strictHundredPeriodStart(period) },
+  };
+
   const [students, passedGroups, accuracyGroups, perfectPasses, subPerfectStudentIds] =
     await Promise.all([
     prisma.user.findMany({
@@ -277,7 +293,7 @@ export async function getGlobalLeaderboard(
         submittedAt: true,
       },
     }),
-    fetchSubPerfectStudentIds(sessionScope),
+    fetchSubPerfectStudentIds(strictScope),
   ]);
 
   const passedByStudent = new Map(

@@ -33,6 +33,47 @@ const PERIOD_DAYS: Record<Exclude<LeaderboardPeriod, "all">, number> = {
   month: 30,
 };
 
+/**
+ * Rolling window for 6.4d strict-100% disqualification when stats period is
+ * all-time. Recent mistakes only — not every session ever.
+ */
+export const STRICT_HUNDRED_ROLLING_DAYS = 7;
+
+/** Short label for the institute-scoped student board (main ranking). */
+export const INSTITUTE_RANKING_LABEL = "Institute";
+
+/** Short label for the cross-institute elite board (stricter rules). */
+export const GLOBAL_ELITE_RANKING_LABEL = "Global elite";
+
+/**
+ * Start of the window used to disqualify students under the strict 100% rule
+ * (6.4d soften). Matches the stats period for week/month; for all-time stats
+ * only looks back {@link STRICT_HUNDRED_ROLLING_DAYS} calendar days.
+ */
+export function strictHundredPeriodStart(
+  period: LeaderboardPeriod,
+  now: Date = new Date(),
+): Date {
+  const scoped = leaderboardPeriodStart(period, now);
+  if (scoped) return scoped;
+
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - (STRICT_HUNDRED_ROLLING_DAYS - 1));
+  return start;
+}
+
+/** UI copy for the strict 100% accuracy requirement. */
+export function formatStrictHundredPolicy(period: LeaderboardPeriod): string {
+  if (period === "week") {
+    return "Every timed attempt in the last 7 days must be 100% accurate";
+  }
+  if (period === "month") {
+    return "Every timed attempt in the last 30 days must be 100% accurate";
+  }
+  return `Every timed attempt in the last ${STRICT_HUNDRED_ROLLING_DAYS} days must be 100% accurate (pass stats use all-time)`;
+}
+
 /** Parse a period query value, falling back to `all`. */
 export function parseLeaderboardPeriod(value: string | undefined): LeaderboardPeriod {
   if (value === "week" || value === "month") return value;
@@ -62,8 +103,9 @@ export function filterQualifiedLeaderboardRows<T extends LeaderboardRow>(
 }
 
 /**
- * Strict ranking rule: every finished attempt in scope must be 100% accurate.
- * Students with any sub-100% session lose their fastest-pass time (and rank).
+ * Strict ranking rule (6.4d): students with a sub-100% session in the strict
+ * window lose their fastest-pass time (and rank). The strict window matches
+ * the stats period for week/month; for all-time stats it rolls back 7 days.
  */
 export function applyStrictHundredPercentRule<T extends LeaderboardRow>(
   rows: T[],

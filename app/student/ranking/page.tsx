@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Trophy } from "lucide-react";
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { ACTIVE_LEVEL_FILTER } from "@/lib/active-levels";
 import { Role } from "@/lib/generated/prisma/enums";
-import { parseLeaderboardPeriod } from "@/lib/ranking";
+import { parseLeaderboardPeriod, formatStrictHundredPolicy } from "@/lib/ranking";
 import { getInstituteLeaderboard } from "@/server/ranking";
 import { AppShell } from "@/components/app-shell";
 import { RankingTabs } from "@/components/student/ranking-tabs";
@@ -132,21 +133,25 @@ export default async function StudentRankingPage({
       />
 
       <p className="mb-4 text-sm text-muted-foreground">
-        Every timed attempt in this view must be 100% accurate, then ranked by
-        fastest pass
-        {selectedLevelName ? ` at ${selectedLevelName}` : ""}
+        Your main institute leaderboard
+        {selectedLevelName ? ` for ${selectedLevelName}` : ""}.{" "}
+        {formatStrictHundredPolicy(period)}, then ranked by fastest pass
         {period === "week"
           ? " in the last 7 days"
           : period === "month"
             ? " in the last 30 days"
             : ""}
+        . Looking for cross-institute standings? Try{" "}
+        <Link href="/student/ranking/global" className="text-primary hover:underline">
+          Global elite
+        </Link>
         .
       </p>
 
       {!myRank && leaderboard.length > 0 && (
         <p className="mb-4 text-sm text-muted-foreground">
-          Score 100% on every timed attempt in this view and pass at least one
-          in time to appear here.
+          {formatStrictHundredPolicy(period)} and pass at least one in time to
+          appear here.
         </p>
       )}
 
@@ -154,7 +159,7 @@ export default async function StudentRankingPage({
         <EmptyState
           icon={Trophy}
           title="No qualifying scores yet"
-          description="Every timed attempt in this view must be 100% accurate, with at least one in-time pass."
+          description={`${formatStrictHundredPolicy(period)}, with at least one in-time pass.`}
         />
       ) : (
         <RankingLeaderboardTable
