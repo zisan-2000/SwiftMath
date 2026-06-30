@@ -12,6 +12,7 @@ import { hashPassword } from "better-auth/crypto";
 
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_STARTER_LEVELS } from "@/lib/default-levels";
+import { buildStarterQuestionBankRows } from "@/lib/default-question-bank";
 import { setUserPassword } from "@/server/users";
 import { Role } from "@/lib/generated/prisma/enums";
 
@@ -58,11 +59,11 @@ export interface CreateInstituteParams {
 }
 
 /**
- * Create a new institute together with its first ADMIN account and the default
- * starter curriculum (5 practice levels), in a single transaction so we never
- * end up with an institute that has no way in or nothing to practice. The
- * admin's credential row mirrors the better-auth email/password shape (see
- * `server/users.ts`) so they can sign in immediately.
+ * Create a new institute together with its first ADMIN account, the default
+ * starter curriculum (9 practice levels), and a starter question bank, in a
+ * single transaction so we never end up with an institute that has no way in
+ * or nothing to practice. The admin's credential row mirrors the better-auth
+ * email/password shape (see `server/users.ts`) so they can sign in immediately.
  *
  * Throws on a unique-constraint violation (P2002) — either the slug is taken
  * (institute.slug) or the admin email is taken (user.email). The caller maps
@@ -90,6 +91,19 @@ export async function createInstitute(params: CreateInstituteParams) {
         instituteId: institute.id,
       })),
     });
+
+    const levels = await tx.level.findMany({
+      where: { instituteId: institute.id },
+      select: { id: true, orderIndex: true },
+    });
+
+    const bankRows = buildStarterQuestionBankRows({
+      instituteId: institute.id,
+      levels,
+    });
+    if (bankRows.length > 0) {
+      await tx.levelQuestion.createMany({ data: bankRows });
+    }
 
     const admin = await tx.user.create({
       data: {
