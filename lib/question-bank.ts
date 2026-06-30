@@ -20,6 +20,27 @@ export interface SessionQuestionDraft {
   sourceQuestionId: string | null;
 }
 
+/** Thrown when bank-only mode cannot fill a full session from the bank pool. */
+export class InsufficientBankError extends Error {
+  readonly available: number;
+  readonly required: number;
+
+  constructor(available: number, required: number) {
+    super(
+      `Need ${required} bank question${required === 1 ? "" : "s"} but only ${available} available.`,
+    );
+    this.name = "InsufficientBankError";
+    this.available = available;
+    this.required = required;
+  }
+}
+
+export interface ComposeSessionQuestionsOptions {
+  /** When true, never generate dynamic fill — throw if the bank is too small. */
+  bankOnly?: boolean;
+  rng?: Rng;
+}
+
 /** Fisher–Yates shuffle (mutates copy). */
 export function shuffleInPlace<T>(items: T[], rng: Rng = Math.random): T[] {
   for (let i = items.length - 1; i > 0; i -= 1) {
@@ -58,20 +79,31 @@ export function pickBankQuestions(
 
 /**
  * Build session questions: bank first, then dynamic fill for any remainder.
- * When the bank is empty, every question is generated dynamically.
+ * When the bank is empty, every question is generated dynamically unless
+ * `bankOnly` is set — then an InsufficientBankError is thrown.
  */
 export function composeSessionQuestions(
   level: LevelConfig,
   questionCount: number,
   bankPool: BankQuestionRow[],
-  rng: Rng = Math.random,
+  options: ComposeSessionQuestionsOptions = {},
 ): SessionQuestionDraft[] {
+  const rng = options.rng ?? Math.random;
   const picked = pickBankQuestions(bankPool, questionCount, rng);
+
+  if (options.bankOnly && picked.length < questionCount) {
+    throw new InsufficientBankError(picked.length, questionCount);
+  }
+
   const drafts: SessionQuestionDraft[] = picked.map((q) => ({
     prompt: q.prompt,
     correctAnswer: q.correctAnswer,
     sourceQuestionId: q.id,
   }));
+
+  if (options.bankOnly) {
+    return drafts;
+  }
 
   while (drafts.length < questionCount) {
     const generated: GeneratedQuestion = generateQuestion(level, rng);
@@ -85,7 +117,7 @@ export function composeSessionQuestions(
   return drafts;
 }
 
-export type LevelBankCoverageStatus = "empty" | "partial" | "ok";
+export type LevelBankCoverageStatus = "empty" | "partial" | "ok" | "blocked";
 
 export interface LevelBankCoverage {
   status: LevelBankCoverageStatus;
@@ -98,8 +130,33 @@ export function assessLevelBankCoverage(input: {
   sessionQuestionCount: number;
   totalBankCount: number;
   activeBankCount: number;
+  bankOnly?: boolean;
 }): LevelBankCoverage {
-  const { sessionQuestionCount, totalBankCount, activeBankCount } = input;
+  const { sessionQuestionCount, totalBankCount, activeBankCount, bankOnly } =
+    input;
+
+  if (bankOnly) {
+    if (totalBankCount === 0 || activeBankCount < sessionQuestionCount) {
+      const shortBy =
+        activeBankCount >= sessionQuestionCount
+          ? sessionQuestionCount
+          : sessionQuestionCount - activeBankCount;
+      return {
+        status: "blocked",
+        headline: "Bank-only mode — practice blocked",
+        detail:
+          totalBankCount === 0
+            ? `Add at least ${sessionQuestionCount} active bank questions before students can practise this level. Dynamic generation is off.`
+            : `${activeBankCount} active bank question${activeBankCount === 1 ? "" : "s"} for ${sessionQuestionCount}-question sessions — add ${shortBy} more or disable bank-only mode. Teacher group disables count too.`,
+      };
+    }
+
+    return {
+      status: "ok",
+      headline: "Bank-only mode — ready",
+      detail: `${activeBankCount} active bank questions cover ${sessionQuestionCount}-question sessions. Only fixed prompts are used (no dynamic fill).`,
+    };
+  }
 
   if (totalBankCount === 0) {
     return {

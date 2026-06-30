@@ -28,7 +28,7 @@ export const metadata: Metadata = {
 export default async function PracticeHomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ locked?: string }>;
+  searchParams: Promise<{ locked?: string; bank?: string }>;
 }) {
   const student = await requireRole(Role.STUDENT);
   const params = await searchParams;
@@ -102,6 +102,13 @@ export default async function PracticeHomePage({
       {params.locked === "1" && isLocked && access?.message && (
         <FormMessage variant="error" className="mb-6">
           {access.message}
+        </FormMessage>
+      )}
+
+      {params.bank === "1" && (
+        <FormMessage variant="error" className="mb-6">
+          This level requires fixed bank questions, but not enough are available
+          for your group right now. Ask your teacher or institute admin.
         </FormMessage>
       )}
 

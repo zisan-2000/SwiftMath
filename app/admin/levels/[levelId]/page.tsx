@@ -97,6 +97,7 @@ export default async function EditLevelPage({
                 timeLimitSeconds: level.timeLimitSeconds,
                 passAccuracy: level.passAccuracy,
                 requiresPreviousPass: level.requiresPreviousPass,
+                bankOnly: level.bankOnly,
               }}
             />
           </CardContent>
@@ -111,7 +112,10 @@ export default async function EditLevelPage({
           </CardTitle>
           <p className="text-sm text-muted-foreground">
             Fixed prompts for this level. Teachers can disable specific items
-            per group; empty bank uses dynamic generation.
+            per group
+            {level.bankOnly
+              ? "; bank-only mode is on — no dynamic generation."
+              : "; empty bank uses dynamic generation."}
           </p>
         </CardHeader>
         <CardContent className="flex flex-col gap-4 pt-6">
@@ -120,6 +124,7 @@ export default async function EditLevelPage({
               sessionQuestionCount={level.questionCount}
               totalBankCount={bankStats.totalBankCount}
               activeBankCount={bankStats.activeBankCount}
+              bankOnly={level.bankOnly}
             />
           )}
           <div className="flex flex-wrap items-center justify-between gap-3">

@@ -328,11 +328,15 @@ export async function setGroupQuestionEnabled(
   return { ok: true };
 }
 
-/** Build trusted session questions for a student (bank + dynamic fallback). */
+/** Build trusted session questions for a student (bank + optional dynamic fallback). */
 export async function buildSessionQuestionsForStudent(input: {
   instituteId: string;
   studentId: string;
-  level: LevelConfig & { id: string; questionCount: number };
+  level: LevelConfig & {
+    id: string;
+    questionCount: number;
+    bankOnly?: boolean;
+  };
 }): Promise<SessionQuestionDraft[]> {
   const [student, bankRows] = await Promise.all([
     prisma.user.findUnique({
@@ -373,5 +377,6 @@ export async function buildSessionQuestionsForStudent(input: {
     input.level,
     input.level.questionCount,
     pool,
+    { bankOnly: input.level.bankOnly ?? false },
   );
 }

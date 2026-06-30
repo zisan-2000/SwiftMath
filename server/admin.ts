@@ -44,6 +44,7 @@ export interface LevelInput {
   timeLimitSeconds: number;
   passAccuracy: number;
   requiresPreviousPass: boolean;
+  bankOnly: boolean;
 }
 
 /**
@@ -570,6 +571,7 @@ export function listLevels(
       timeLimitSeconds: true,
       passAccuracy: true,
       requiresPreviousPass: true,
+      bankOnly: true,
       archivedAt: true,
       _count: { select: { studentsOnLevel: true } },
     },
@@ -595,6 +597,7 @@ export function getLevel(admin: AdminContext, levelId: string) {
       timeLimitSeconds: true,
       passAccuracy: true,
       requiresPreviousPass: true,
+      bankOnly: true,
       archivedAt: true,
       _count: { select: { studentsOnLevel: true } },
     },

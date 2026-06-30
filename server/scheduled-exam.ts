@@ -20,6 +20,7 @@ import {
 } from "@/server/level-access";
 import { resolveStudentPracticeTimeLimit } from "@/server/teacher";
 import { buildSessionQuestionsForStudent } from "@/server/question-bank";
+import { InsufficientBankError } from "@/lib/question-bank";
 
 export { LevelAccessError };
 
@@ -261,6 +262,7 @@ export async function startExamSession(
           termsPerQuestion: true,
           minNumber: true,
           maxNumber: true,
+          bankOnly: true,
         },
       },
     },
@@ -319,18 +321,29 @@ export async function startExamSession(
   const startedAt = now;
   const expiresAt = new Date(startedAt.getTime() + timeLimitSeconds * 1000);
 
-  const questions = await buildSessionQuestionsForStudent({
-    instituteId: student.instituteId,
-    studentId: student.id,
-    level: {
-      id: exam.levelId,
-      questionCount: exam.level.questionCount,
-      operation: exam.level.operation,
-      termsPerQuestion: exam.level.termsPerQuestion,
-      minNumber: exam.level.minNumber,
-      maxNumber: exam.level.maxNumber,
-    },
-  });
+  let questions;
+  try {
+    questions = await buildSessionQuestionsForStudent({
+      instituteId: student.instituteId,
+      studentId: student.id,
+      level: {
+        id: exam.levelId,
+        questionCount: exam.level.questionCount,
+        operation: exam.level.operation,
+        termsPerQuestion: exam.level.termsPerQuestion,
+        minNumber: exam.level.minNumber,
+        maxNumber: exam.level.maxNumber,
+        bankOnly: exam.level.bankOnly,
+      },
+    });
+  } catch (error) {
+    if (error instanceof InsufficientBankError) {
+      throw new ScheduledExamError(
+        "This exam needs more bank questions than are available for your group. Ask your teacher.",
+      );
+    }
+    throw error;
+  }
 
   const session = await prisma.practiceSession.create({
     data: {

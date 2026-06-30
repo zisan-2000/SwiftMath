@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   composeSessionQuestions,
   filterEnabledBankQuestions,
+  InsufficientBankError,
   pickBankQuestions,
   assessLevelBankCoverage,
 } from "@/lib/question-bank";
@@ -48,7 +49,7 @@ describe("composeSessionQuestions", () => {
       level,
       3,
       [{ id: "q1", prompt: "4 + 5", correctAnswer: 9, isActive: true }],
-      () => 0.5,
+      { rng: () => 0.5 },
     );
     expect(drafts).toHaveLength(3);
     expect(drafts[0]?.sourceQuestionId).toBe("q1");
@@ -57,8 +58,32 @@ describe("composeSessionQuestions", () => {
   });
 
   it("generates all dynamically when bank is empty", () => {
-    const drafts = composeSessionQuestions(level, 2, [], () => 0.5);
+    const drafts = composeSessionQuestions(level, 2, [], { rng: () => 0.5 });
     expect(drafts.every((d) => d.sourceQuestionId == null)).toBe(true);
+  });
+
+  it("throws when bank-only and pool is too small", () => {
+    expect(() =>
+      composeSessionQuestions(
+        level,
+        3,
+        [{ id: "q1", prompt: "4 + 5", correctAnswer: 9, isActive: true }],
+        { bankOnly: true },
+      ),
+    ).toThrow(InsufficientBankError);
+  });
+
+  it("uses only bank rows when bank-only and pool is large enough", () => {
+    const pool = [
+      { id: "a", prompt: "1 + 1", correctAnswer: 2, isActive: true },
+      { id: "b", prompt: "2 + 2", correctAnswer: 4, isActive: true },
+    ];
+    const drafts = composeSessionQuestions(level, 2, pool, {
+      bankOnly: true,
+      rng: () => 0,
+    });
+    expect(drafts).toHaveLength(2);
+    expect(drafts.every((d) => d.sourceQuestionId != null)).toBe(true);
   });
 });
 
@@ -85,6 +110,26 @@ describe("assessLevelBankCoverage", () => {
         sessionQuestionCount: 10,
         totalBankCount: 12,
         activeBankCount: 10,
+      }).status,
+    ).toBe("ok");
+  });
+
+  it("reports blocked when bank-only and coverage is insufficient", () => {
+    expect(
+      assessLevelBankCoverage({
+        sessionQuestionCount: 10,
+        totalBankCount: 5,
+        activeBankCount: 5,
+        bankOnly: true,
+      }).status,
+    ).toBe("blocked");
+
+    expect(
+      assessLevelBankCoverage({
+        sessionQuestionCount: 10,
+        totalBankCount: 12,
+        activeBankCount: 10,
+        bankOnly: true,
       }).status,
     ).toBe("ok");
   });

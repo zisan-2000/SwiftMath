@@ -27,6 +27,7 @@ export interface LevelFormDefaults {
   timeLimitSeconds: number | string;
   passAccuracy: number | string;
   requiresPreviousPass: boolean;
+  bankOnly: boolean;
 }
 
 interface LevelFormProps {
@@ -170,6 +171,28 @@ export function LevelForm({ action, submitLabel, defaults }: LevelFormProps) {
           min={0}
           hint="0–100"
         />
+      </div>
+
+      <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-4">
+        <input type="hidden" name="bankOnly" value="off" />
+        <input
+          id="bankOnly"
+          name="bankOnly"
+          type="checkbox"
+          value="on"
+          defaultChecked={defaults.bankOnly}
+          className="mt-1 h-4 w-4 rounded border-input"
+        />
+        <div className="flex flex-col gap-1">
+          <Label htmlFor="bankOnly" className="font-medium">
+            Bank-only mode
+          </Label>
+          <p className="text-sm text-muted-foreground">
+            When enabled, sessions use only fixed bank questions — no dynamic
+            generation. Practice and exams are blocked until the active bank
+            covers the session size (including teacher group disables).
+          </p>
+        </div>
       </div>
 
       <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/30 p-4">

@@ -67,6 +67,7 @@ export default async function LevelQuestionsPage({
         sessionQuestionCount={level.questionCount}
         totalBankCount={questions.length}
         activeBankCount={activeBankCount}
+        bankOnly={level.bankOnly}
       />
 
       <Card className="mt-6">

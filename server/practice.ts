@@ -81,6 +81,7 @@ export async function startPracticeSession(
           termsPerQuestion: true,
           minNumber: true,
           maxNumber: true,
+          bankOnly: true,
         },
       },
     },
@@ -126,6 +127,7 @@ export async function startPracticeSession(
       termsPerQuestion: level.termsPerQuestion,
       minNumber: level.minNumber,
       maxNumber: level.maxNumber,
+      bankOnly: level.bankOnly,
     },
   });
 

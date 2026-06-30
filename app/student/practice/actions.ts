@@ -12,6 +12,7 @@ import {
   type SubmitResult,
 } from "@/server/practice";
 import { LevelAccessError } from "@/server/level-access";
+import { InsufficientBankError } from "@/lib/question-bank";
 
 /** Parse the optional mode field from a start-practice form. */
 function parsePracticeMode(formData: FormData): PracticeMode {
@@ -35,6 +36,9 @@ export async function startSessionAction(formData: FormData) {
   } catch (error) {
     if (error instanceof LevelAccessError) {
       redirect("/student/practice?locked=1");
+    }
+    if (error instanceof InsufficientBankError) {
+      redirect("/student/practice?bank=1");
     }
     redirect("/student/practice");
   }

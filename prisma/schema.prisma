@@ -315,6 +315,10 @@ model Level {
   /// off to allow skipping ahead.
   requiresPreviousPass Boolean @default(true)
 
+  /// When true, sessions use only fixed bank questions — no dynamic fallback.
+  /// Practice and exams are blocked if the effective bank pool is too small.
+  bankOnly Boolean @default(false)
+
   /// Students currently sitting on this level.
   studentsOnLevel User[] @relation("StudentCurrentLevel")
 

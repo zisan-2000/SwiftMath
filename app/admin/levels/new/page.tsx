@@ -60,6 +60,7 @@ export default async function NewLevelPage() {
               timeLimitSeconds: 120,
               passAccuracy: 70,
               requiresPreviousPass: true,
+              bankOnly: false,
             }}
           />
         </CardContent>

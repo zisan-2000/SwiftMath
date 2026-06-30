@@ -82,6 +82,7 @@ function parseLevelInput(
   }
 
   const requiresPreviousPass = formData.get("requiresPreviousPass") === "on";
+  const bankOnly = formData.get("bankOnly") === "on";
 
   return {
     input: {
@@ -95,6 +96,7 @@ function parseLevelInput(
       timeLimitSeconds,
       passAccuracy,
       requiresPreviousPass,
+      bankOnly,
     },
   };
 }
