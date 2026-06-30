@@ -3,10 +3,11 @@
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
-import { QuestionStatus } from "@/lib/generated/prisma/enums";
+import { QuestionStatus, AuditAction } from "@/lib/generated/prisma/enums";
 import { nextCurriculumVersionNumber } from "@/lib/curriculum-version";
 import type { AdminContext } from "@/server/admin";
 import type { Prisma } from "@/lib/generated/prisma/client";
+import { auditActorFromAdmin, recordAuditLog } from "@/server/audit-log";
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
@@ -119,7 +120,7 @@ export async function bumpCurriculumVersion(
 ): Promise<BumpCurriculumVersionResult> {
   const note = label?.trim() || null;
 
-  return prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx) => {
     const max = await tx.curriculumVersion.aggregate({
       where: { instituteId: admin.instituteId },
       _max: { versionNumber: true },
@@ -144,8 +145,23 @@ export async function bumpCurriculumVersion(
       data: { activeCurriculumVersionId: version.id },
     });
 
-    return { ok: true, version };
+    return { ok: true as const, version };
   });
+
+  const labelSuffix = result.version.label ? ` (${result.version.label})` : "";
+  await recordAuditLog({
+    actor: auditActorFromAdmin(admin),
+    action: AuditAction.CURRICULUM_VERSION_BUMPED,
+    targetType: "CurriculumVersion",
+    targetId: result.version.id,
+    summary: `Started curriculum v${result.version.versionNumber}${labelSuffix}`,
+    metadata: {
+      versionNumber: result.version.versionNumber,
+      label: result.version.label,
+    },
+  });
+
+  return result;
 }
 
 /** Create v1 inside an existing institute bootstrap transaction. */

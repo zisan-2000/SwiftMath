@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/session";
-import { Role, OperationType } from "@/lib/generated/prisma/enums";
+import { prisma } from "@/lib/prisma";
+import { Role, OperationType, AuditAction } from "@/lib/generated/prisma/enums";
 import { createLevel, updateLevel, archiveLevel, unarchiveLevel, type LevelInput } from "@/server/admin";
+import { auditActorFromAdmin, recordAuditLog } from "@/server/audit-log";
 
 /** Result of a level create/edit form, surfaced via useActionState. */
 export interface LevelFormState {
@@ -135,6 +137,14 @@ export async function updateLevelAction(
   const parsed = parseLevelInput(formData);
   if ("error" in parsed) return { error: parsed.error };
 
+  const existing = await prisma.level.findFirst({
+    where: {
+      id: levelId,
+      instituteId: admin.instituteId,
+    },
+    select: { bankOnly: true, name: true },
+  });
+
   let changed: number;
   try {
     changed = await updateLevel(admin, levelId, parsed.input);
@@ -149,8 +159,25 @@ export async function updateLevelAction(
     return { error: "Level not found, archived, or not in your institute." };
   }
 
+  if (existing && existing.bankOnly !== parsed.input.bankOnly) {
+    await recordAuditLog({
+      actor: auditActorFromAdmin(admin),
+      action: parsed.input.bankOnly
+        ? AuditAction.LEVEL_BANK_ONLY_ENABLED
+        : AuditAction.LEVEL_BANK_ONLY_DISABLED,
+      targetType: "Level",
+      targetId: levelId,
+      summary: `${parsed.input.bankOnly ? "Enabled" : "Disabled"} bank-only mode on ${existing.name}`,
+      metadata: {
+        levelName: existing.name,
+        bankOnly: parsed.input.bankOnly,
+      },
+    });
+  }
+
   revalidatePath("/admin/levels");
   revalidatePath(`/admin/levels/${levelId}`);
+  revalidatePath("/admin/activity");
   return { ok: true };
 }
 

@@ -14,11 +14,17 @@ import {
   buildOrderIndexUpdates,
 } from "@/lib/level-question-order";
 import type { LevelConfig } from "@/lib/practice-logic";
-import { QuestionDifficulty, QuestionStatus } from "@/lib/generated/prisma/enums";
+import { AuditAction, QuestionDifficulty, QuestionStatus } from "@/lib/generated/prisma/enums";
+import { truncateAuditPrompt } from "@/lib/audit-log";
 import type { AdminContext } from "@/server/admin";
 import type { TeacherContext } from "@/server/teacher";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { getActiveCurriculumVersionId } from "@/server/curriculum-version";
+import {
+  auditActorFromAdmin,
+  auditActorFromTeacher,
+  recordAuditLog,
+} from "@/server/audit-log";
 
 export interface LevelQuestionInput {
   prompt: string;
@@ -40,6 +46,25 @@ async function assertAdminOwnsLevel(admin: AdminContext, levelId: string) {
     throw new Error("Level not found.");
   }
   return level;
+}
+
+async function loadLevelAuditContext(levelId: string, instituteId: string) {
+  return prisma.level.findFirst({
+    where: { id: levelId, instituteId },
+    select: { id: true, name: true },
+  });
+}
+
+async function loadQuestionAuditContext(questionId: string, instituteId: string) {
+  return prisma.levelQuestion.findFirst({
+    where: { id: questionId, instituteId },
+    select: {
+      id: true,
+      prompt: true,
+      levelId: true,
+      level: { select: { name: true } },
+    },
+  });
 }
 
 /** List bank questions for a level (Admin). */
@@ -75,7 +100,7 @@ export async function createLevelQuestion(
     _max: { orderIndex: true },
   });
 
-  return prisma.levelQuestion.create({
+  const created = await prisma.levelQuestion.create({
     data: {
       instituteId: admin.instituteId,
       levelId,
@@ -88,6 +113,23 @@ export async function createLevelQuestion(
     },
     select: { id: true },
   });
+
+  const level = await loadLevelAuditContext(levelId, admin.instituteId);
+  const prompt = truncateAuditPrompt(input.prompt);
+  await recordAuditLog({
+    actor: auditActorFromAdmin(admin),
+    action: AuditAction.QUESTION_CREATED,
+    targetType: "LevelQuestion",
+    targetId: created.id,
+    summary: `Added bank question "${prompt}" to ${level?.name ?? "level"}`,
+    metadata: {
+      levelId,
+      levelName: level?.name ?? null,
+      prompt,
+    },
+  });
+
+  return created;
 }
 
 export type MutateLevelQuestionResult =
@@ -107,6 +149,25 @@ export async function setLevelQuestionActive(
   if (result.count === 0) {
     return { ok: false, error: "Question not found." };
   }
+
+  const question = await loadQuestionAuditContext(questionId, admin.instituteId);
+  if (question) {
+    const prompt = truncateAuditPrompt(question.prompt);
+    await recordAuditLog({
+      actor: auditActorFromAdmin(admin),
+      action: isActive ? AuditAction.QUESTION_ENABLED : AuditAction.QUESTION_DISABLED,
+      targetType: "LevelQuestion",
+      targetId: questionId,
+      summary: `${isActive ? "Enabled" : "Disabled"} "${prompt}" institute-wide on ${question.level.name}`,
+      metadata: {
+        levelId: question.levelId,
+        levelName: question.level.name,
+        prompt,
+        isActive,
+      },
+    });
+  }
+
   return { ok: true };
 }
 
@@ -128,6 +189,28 @@ export async function setLevelQuestionStatus(
   if (result.count === 0) {
     return { ok: false, error: "Question not found." };
   }
+
+  const question = await loadQuestionAuditContext(questionId, admin.instituteId);
+  if (question) {
+    const prompt = truncateAuditPrompt(question.prompt);
+    const published = status === QuestionStatus.PUBLISHED;
+    await recordAuditLog({
+      actor: auditActorFromAdmin(admin),
+      action: published
+        ? AuditAction.QUESTION_PUBLISHED
+        : AuditAction.QUESTION_UNPUBLISHED,
+      targetType: "LevelQuestion",
+      targetId: questionId,
+      summary: `${published ? "Published" : "Moved to draft"} "${prompt}" on ${question.level.name}`,
+      metadata: {
+        levelId: question.levelId,
+        levelName: question.level.name,
+        prompt,
+        status,
+      },
+    });
+  }
+
   return { ok: true };
 }
 
@@ -136,12 +219,32 @@ export async function deleteLevelQuestion(
   admin: AdminContext,
   questionId: string,
 ): Promise<MutateLevelQuestionResult> {
+  const question = await loadQuestionAuditContext(questionId, admin.instituteId);
+  if (!question) {
+    return { ok: false, error: "Question not found." };
+  }
+
   const result = await prisma.levelQuestion.deleteMany({
     where: { id: questionId, instituteId: admin.instituteId },
   });
   if (result.count === 0) {
     return { ok: false, error: "Question not found." };
   }
+
+  const prompt = truncateAuditPrompt(question.prompt);
+  await recordAuditLog({
+    actor: auditActorFromAdmin(admin),
+    action: AuditAction.QUESTION_DELETED,
+    targetType: "LevelQuestion",
+    targetId: questionId,
+    summary: `Deleted "${prompt}" from ${question.level.name}`,
+    metadata: {
+      levelId: question.levelId,
+      levelName: question.level.name,
+      prompt,
+    },
+  });
+
   return { ok: true };
 }
 
@@ -171,10 +274,24 @@ export async function updateLevelQuestion(
   if (result.count === 0) {
     return { ok: false, error: "Question not found." };
   }
+
+  const prompt = truncateAuditPrompt(input.prompt);
+  const level = await loadLevelAuditContext(levelId, admin.instituteId);
+  await recordAuditLog({
+    actor: auditActorFromAdmin(admin),
+    action: AuditAction.QUESTION_UPDATED,
+    targetType: "LevelQuestion",
+    targetId: questionId,
+    summary: `Updated "${prompt}" on ${level?.name ?? "level"}`,
+    metadata: {
+      levelId,
+      levelName: level?.name ?? null,
+      prompt,
+    },
+  });
+
   return { ok: true };
 }
-
-/** Persist a full reorder of bank questions for one level (Admin). */
 export async function reorderLevelQuestions(
   admin: AdminContext,
   levelId: string,
@@ -209,6 +326,20 @@ export async function reorderLevelQuestions(
       }),
     ),
   );
+
+  const level = await loadLevelAuditContext(levelId, admin.instituteId);
+  await recordAuditLog({
+    actor: auditActorFromAdmin(admin),
+    action: AuditAction.QUESTIONS_REORDERED,
+    targetType: "Level",
+    targetId: levelId,
+    summary: `Reordered ${orderedQuestionIds.length} bank questions on ${level?.name ?? "level"}`,
+    metadata: {
+      levelId,
+      levelName: level?.name ?? null,
+      questionCount: orderedQuestionIds.length,
+    },
+  });
 
   return { ok: true };
 }
@@ -323,6 +454,20 @@ export async function importLevelQuestions(
     }
   });
 
+  const level = await loadLevelAuditContext(levelId, admin.instituteId);
+  await recordAuditLog({
+    actor: auditActorFromAdmin(admin),
+    action: AuditAction.QUESTIONS_IMPORTED,
+    targetType: "Level",
+    targetId: levelId,
+    summary: `Imported ${inputs.length} bank questions into ${level?.name ?? "level"}`,
+    metadata: {
+      levelId,
+      levelName: level?.name ?? null,
+      created: inputs.length,
+    },
+  });
+
   return { ok: true, created: inputs.length };
 }
 
@@ -413,22 +558,28 @@ export async function setGroupQuestionEnabled(
   questionId: string,
   enabled: boolean,
 ): Promise<MutateLevelQuestionResult> {
-  const group = await prisma.group.findFirst({
-    where: {
-      id: groupId,
-      teacherId: teacher.id,
-      instituteId: teacher.instituteId,
-    },
-    select: { id: true },
-  });
+  const [group, question] = await Promise.all([
+    prisma.group.findFirst({
+      where: {
+        id: groupId,
+        teacherId: teacher.id,
+        instituteId: teacher.instituteId,
+      },
+      select: { id: true, name: true },
+    }),
+    prisma.levelQuestion.findFirst({
+      where: { id: questionId, instituteId: teacher.instituteId },
+      select: {
+        id: true,
+        prompt: true,
+        level: { select: { id: true, name: true } },
+      },
+    }),
+  ]);
+
   if (!group) {
     return { ok: false, error: "Group not found." };
   }
-
-  const question = await prisma.levelQuestion.findFirst({
-    where: { id: questionId, instituteId: teacher.instituteId },
-    select: { id: true },
-  });
   if (!question) {
     return { ok: false, error: "Question not found." };
   }
@@ -439,6 +590,26 @@ export async function setGroupQuestionEnabled(
     },
     create: { groupId, questionId, enabled },
     update: { enabled },
+  });
+
+  const prompt = truncateAuditPrompt(question.prompt);
+  await recordAuditLog({
+    actor: auditActorFromTeacher(teacher),
+    action: enabled
+      ? AuditAction.GROUP_QUESTION_ENABLED
+      : AuditAction.GROUP_QUESTION_DISABLED,
+    targetType: "GroupQuestionRule",
+    targetId: questionId,
+    summary: `${enabled ? "Enabled" : "Disabled"} "${prompt}" for group ${group.name} (${question.level.name})`,
+    metadata: {
+      groupId,
+      groupName: group.name,
+      levelId: question.level.id,
+      levelName: question.level.name,
+      questionId,
+      prompt,
+      enabled,
+    },
   });
 
   return { ok: true };

@@ -8,6 +8,7 @@ import {
   Target,
   TrendingUp,
   Users,
+  ScrollText,
   ArrowRight,
   type LucideIcon,
 } from "lucide-react";
@@ -64,6 +65,12 @@ const ADMIN_LINKS: {
     label: "Groups",
     description: "See every class and which teacher runs it.",
     icon: Boxes,
+  },
+  {
+    href: "/admin/activity",
+    label: "Activity log",
+    description: "Audit trail for question bank and group override changes.",
+    icon: ScrollText,
   },
 ];
 

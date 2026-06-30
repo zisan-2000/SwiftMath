@@ -33,6 +33,7 @@ export interface LevelQuestionImportState {
 function revalidateLevelQuestions(levelId: string) {
   revalidatePath(`/admin/levels/${levelId}/questions`);
   revalidatePath(`/admin/levels/${levelId}`);
+  revalidatePath("/admin/activity");
 }
 
 /** Add a bank question to a level (Institute Admin). */

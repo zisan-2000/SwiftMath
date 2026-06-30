@@ -6,6 +6,7 @@ import {
   Home,
   LayoutDashboard,
   Layers,
+  ScrollText,
   Settings,
   Trophy,
   Users,
@@ -36,6 +37,7 @@ export const NAV_ITEMS: Record<Role, NavItem[]> = {
     { href: "/admin/students", label: "Students", icon: GraduationCap },
     { href: "/admin/groups", label: "Groups", icon: Boxes },
     { href: "/admin/levels", label: "Levels", icon: Layers },
+    { href: "/admin/activity", label: "Activity", icon: ScrollText },
     { href: "/admin/settings", label: "Settings", icon: Settings },
   ],
   TEACHER: [

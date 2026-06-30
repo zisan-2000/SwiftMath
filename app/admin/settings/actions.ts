@@ -87,6 +87,7 @@ export async function bumpCurriculumVersionAction(
 
 function revalidateCurriculumVersionPaths() {
   revalidatePath("/admin/settings");
+  revalidatePath("/admin/activity");
   revalidatePath("/admin/levels", "layout");
   revalidatePath("/teacher", "layout");
 }
