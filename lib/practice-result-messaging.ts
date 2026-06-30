@@ -5,6 +5,7 @@ export interface PracticeResultContext {
   expired: boolean;
   isReview: boolean;
   isChallenge: boolean;
+  isExam: boolean;
   leveledUp: boolean;
   passAccuracy: number;
   accuracy: number;
@@ -32,6 +33,39 @@ export function getPracticeResultMessaging(
       body: "Review mode does not change your level. Use it to drill without a timer.",
       primaryActionLabel: "Review again",
       showRetryPrompt: false,
+    };
+  }
+
+  if (ctx.isExam && ctx.passed) {
+    return {
+      headline: "Exam passed!",
+      body: ctx.leveledUp
+        ? "You met the pass mark on this scheduled exam and unlocked the next level."
+        : `You passed this scheduled exam on ${ctx.levelName}.`,
+      primaryActionLabel: "Back to home",
+      showRetryPrompt: false,
+    };
+  }
+
+  if (ctx.isExam && !ctx.passed) {
+    if (ctx.expired) {
+      return {
+        headline: "Exam time ran out",
+        body: `You stay on ${ctx.levelName}. This scheduled exam allows one attempt — use practice to prepare for the next one.`,
+        primaryActionLabel: "Back to home",
+        showRetryPrompt: true,
+      };
+    }
+
+    const shortOf = Math.max(0, ctx.passAccuracy - ctx.accuracy);
+    return {
+      headline: "Exam not passed",
+      body:
+        shortOf > 0
+          ? `You scored ${ctx.accuracy}% but needed ${ctx.passAccuracy}%. You stay on ${ctx.levelName} — practice more before the next exam.`
+          : `You stay on ${ctx.levelName}. This scheduled exam allows one attempt.`,
+      primaryActionLabel: "Back to home",
+      showRetryPrompt: true,
     };
   }
 

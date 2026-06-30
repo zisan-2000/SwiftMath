@@ -55,6 +55,7 @@ export default async function PracticeSessionPage({
   if (session.status === SessionStatus.IN_PROGRESS) {
     const isReview = session.mode === PracticeMode.REVIEW;
     const isChallenge = session.mode === PracticeMode.CHALLENGE;
+    const isExam = session.mode === PracticeMode.EXAM;
     const safeQuestions = session.questions.map((q) => ({
       id: q.id,
       index: q.index,
@@ -68,11 +69,15 @@ export default async function PracticeSessionPage({
         instituteLogoUrl={instituteLogoUrl}
         title={session.level.name}
         subtitle={
-          isReview
-            ? "Review mode — no timer, no level-up. Submit when you're ready."
-            : isChallenge
-              ? "Challenge mode — shorter timer, higher pass bar, no level-up."
-              : "Answer as many as you can before time runs out."
+          isExam
+            ? session.scheduledExam?.title
+              ? `${session.scheduledExam.title} — timed exam, one attempt.`
+              : "Scheduled exam — timed, one attempt. Submit before time runs out."
+            : isReview
+              ? "Review mode — no timer, no level-up. Submit when you're ready."
+              : isChallenge
+                ? "Challenge mode — shorter timer, higher pass bar, no level-up."
+                : "Answer as many as you can before time runs out."
         }
       >
         <PracticeRunner
@@ -89,6 +94,7 @@ export default async function PracticeSessionPage({
   const expired = session.status === SessionStatus.EXPIRED;
   const isReview = session.mode === PracticeMode.REVIEW;
   const isChallenge = session.mode === PracticeMode.CHALLENGE;
+  const isExam = session.mode === PracticeMode.EXAM;
   const effectivePassAccuracy = isChallenge
     ? resolveChallengePassAccuracy(session.level.passAccuracy)
     : session.level.passAccuracy;
@@ -97,6 +103,7 @@ export default async function PracticeSessionPage({
     expired,
     isReview,
     isChallenge,
+    isExam,
     leveledUp: session.leveledUp,
     passAccuracy: effectivePassAccuracy,
     accuracy: session.accuracy,
@@ -147,6 +154,7 @@ export default async function PracticeSessionPage({
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             {isReview && <Badge variant="secondary">Review</Badge>}
             {isChallenge && <Badge variant="secondary">Challenge</Badge>}
+            {isExam && <Badge variant="secondary">Exam</Badge>}
             {expired && <Badge variant="warning">Time expired</Badge>}
             <Badge variant={session.passed ? "success" : "muted"}>
               {session.passed ? "Passed" : "Not passed"}
@@ -157,19 +165,27 @@ export default async function PracticeSessionPage({
           </div>
 
           <div className="mt-6 flex justify-center gap-3">
-            <form action={startSessionAction}>
-              {isReview && (
-                <input type="hidden" name="mode" value="review" />
-              )}
-              {isChallenge && (
-                <input type="hidden" name="mode" value="challenge" />
-              )}
-              <Button type="submit" size={resultCopy.showRetryPrompt ? "lg" : "default"}>
-                {resultCopy.primaryActionLabel}
+            {isExam ? (
+              <Button asChild size={resultCopy.showRetryPrompt ? "lg" : "default"}>
+                <Link href="/student">{resultCopy.primaryActionLabel}</Link>
               </Button>
-            </form>
+            ) : (
+              <form action={startSessionAction}>
+                {isReview && (
+                  <input type="hidden" name="mode" value="review" />
+                )}
+                {isChallenge && (
+                  <input type="hidden" name="mode" value="challenge" />
+                )}
+                <Button type="submit" size={resultCopy.showRetryPrompt ? "lg" : "default"}>
+                  {resultCopy.primaryActionLabel}
+                </Button>
+              </form>
+            )}
             <Button asChild variant="outline">
-              <Link href="/student/practice">Back</Link>
+              <Link href="/student/practice">
+                {isExam ? "Practice home" : "Back"}
+              </Link>
             </Button>
           </div>
         </CardContent>

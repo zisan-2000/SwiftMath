@@ -243,6 +243,9 @@ export default async function PracticeHomePage({
                   {s.mode === PracticeMode.CHALLENGE && (
                     <Badge variant="secondary">Challenge</Badge>
                   )}
+                  {s.mode === PracticeMode.EXAM && (
+                    <Badge variant="secondary">Exam</Badge>
+                  )}
                   {s.status === SessionStatus.IN_PROGRESS ? (
                     <Badge variant="warning">In progress</Badge>
                   ) : (

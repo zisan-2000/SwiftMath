@@ -14,6 +14,7 @@ describe("getPracticeResultMessaging", () => {
     expired: false,
     isReview: false,
     isChallenge: false,
+    isExam: false,
     passed: false,
   };
 
@@ -62,6 +63,30 @@ describe("getPracticeResultMessaging", () => {
     expect(msg.headline).toBe("Challenge cleared!");
     expect(msg.primaryActionLabel).toBe("Challenge again");
     expect(msg.showRetryPrompt).toBe(false);
+  });
+
+  it("uses back to home for a passed exam", () => {
+    const msg = getPracticeResultMessaging({
+      ...base,
+      isExam: true,
+      passed: true,
+      accuracy: 90,
+    });
+    expect(msg.headline).toBe("Exam passed!");
+    expect(msg.primaryActionLabel).toBe("Back to home");
+    expect(msg.showRetryPrompt).toBe(false);
+  });
+
+  it("uses back to home for a failed exam with one attempt", () => {
+    const msg = getPracticeResultMessaging({
+      ...base,
+      isExam: true,
+      passed: false,
+      accuracy: 65,
+    });
+    expect(msg.headline).toBe("Exam not passed");
+    expect(msg.primaryActionLabel).toBe("Back to home");
+    expect(msg.showRetryPrompt).toBe(true);
   });
 });
 
