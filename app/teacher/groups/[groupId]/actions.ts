@@ -12,10 +12,21 @@ import {
   resetStudentPassword,
   setGroupLevelTimeRule,
 } from "@/server/teacher";
+import {
+  createScheduledExam,
+  ScheduledExamError,
+} from "@/server/scheduled-exam";
+import { parseScheduleExamForm } from "@/lib/scheduled-exam-form";
 import type { ResetPasswordState } from "@/components/reset-password-form";
 
 /** Result of the add-student form, surfaced via useActionState. */
 export interface AddStudentState {
+  error?: string;
+  ok?: boolean;
+}
+
+/** Result of the schedule-exam form. */
+export interface CreateScheduledExamState {
   error?: string;
   ok?: boolean;
 }
@@ -58,6 +69,44 @@ export async function addStudentAction(
   }
 
   revalidatePath(`/teacher/groups/${groupId}`);
+  return { ok: true };
+}
+
+/** Schedule a timed exam window for every student in the group. */
+export async function createScheduledExamAction(
+  formData: FormData,
+): Promise<CreateScheduledExamState> {
+  const teacher = await requireRole(Role.TEACHER);
+
+  const groupId = String(formData.get("groupId") ?? "");
+  const parsed = parseScheduleExamForm({
+    title: String(formData.get("title") ?? ""),
+    levelId: String(formData.get("levelId") ?? ""),
+    opensAtRaw: String(formData.get("opensAt") ?? ""),
+    closesAtRaw: String(formData.get("closesAt") ?? ""),
+  });
+
+  if (!parsed.ok) {
+    return { error: parsed.error };
+  }
+
+  try {
+    await createScheduledExam(teacher, {
+      groupId,
+      levelId: parsed.data.levelId,
+      title: parsed.data.title,
+      opensAt: parsed.data.opensAt,
+      closesAt: parsed.data.closesAt,
+    });
+  } catch (error) {
+    if (error instanceof ScheduledExamError) {
+      return { error: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath(`/teacher/groups/${groupId}`);
+  revalidatePath("/student");
   return { ok: true };
 }
 

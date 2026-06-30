@@ -7,11 +7,14 @@ import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
 import { getTeacherGroup, listGroupLevelTimeRules, listInstituteLevels } from "@/server/teacher";
+import { listGroupScheduledExams } from "@/server/scheduled-exam";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { AddStudentDialog } from "@/components/teacher/add-student-dialog";
 import { AssignLevelForm } from "@/components/teacher/assign-level-form";
 import { GroupLevelTimeRules } from "@/components/teacher/group-level-time-rules";
+import { GroupScheduledExamsList } from "@/components/teacher/group-scheduled-exams-list";
+import { ScheduleExamForm } from "@/components/teacher/schedule-exam-form";
 import { ResetPasswordForm } from "@/components/reset-password-form";
 import { DeleteGroupSection } from "@/components/teacher/delete-group-section";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -38,13 +41,14 @@ export default async function GroupDetailPage({
     notFound();
   }
 
-  const [institute, levels, timeRules] = await Promise.all([
+  const [institute, levels, timeRules, scheduledExams] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: teacher.instituteId },
       select: { name: true, logoUrl: true },
     }),
     listInstituteLevels(teacher.instituteId),
     listGroupLevelTimeRules(teacher, groupId),
+    listGroupScheduledExams(teacher, groupId),
   ]);
 
   return (
@@ -75,6 +79,38 @@ export default async function GroupDetailPage({
           </CardContent>
         </Card>
       )}
+
+      <Card className="mt-8">
+        <CardHeader className="border-b border-border">
+          <CardTitle className="text-base">Scheduled exams</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Students in this group see an open exam on their dashboard. Each
+            student gets one timed attempt per scheduled exam.
+          </p>
+        </CardHeader>
+        <CardContent className="p-0">
+          <GroupScheduledExamsList
+            exams={scheduledExams.map((exam) => ({
+              id: exam.id,
+              title: exam.title,
+              opensAt: exam.opensAt,
+              closesAt: exam.closesAt,
+              level: exam.level,
+              attemptCount: exam._count.practiceSessions,
+            }))}
+          />
+        </CardContent>
+        <CardContent className="border-t border-border pt-6">
+          <ScheduleExamForm
+            groupId={group.id}
+            levels={levels.map((level) => ({
+              id: level.id,
+              orderIndex: level.orderIndex,
+              name: level.name,
+            }))}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="border-b border-border">
