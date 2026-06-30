@@ -11,6 +11,7 @@ export interface GroupScheduledExamRow {
   closesAt: Date;
   level: { name: string };
   attemptCount: number;
+  paperQuestionCount: number;
 }
 
 function formatWindow(opensAt: Date, closesAt: Date): string {
@@ -75,6 +76,10 @@ export function GroupScheduledExamsList({
             </div>
             <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end">
               <Badge variant={statusBadgeVariant(status)}>{statusLabel(status)}</Badge>
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {exam.paperQuestionCount}{" "}
+                {exam.paperQuestionCount === 1 ? "question" : "questions"} fixed
+              </span>
               <span className="text-xs tabular-nums text-muted-foreground">
                 {exam.attemptCount}{" "}
                 {exam.attemptCount === 1 ? "attempt" : "attempts"}

@@ -90,7 +90,7 @@ export default async function GroupDetailPage({
           <CardTitle className="text-base">Scheduled exams</CardTitle>
           <p className="text-sm text-muted-foreground">
             Students in this group see an open exam on their dashboard. Each
-            student gets one timed attempt per scheduled exam.
+            student gets one timed attempt using the same fixed question paper.
           </p>
         </CardHeader>
         <CardContent className="p-0">
@@ -102,6 +102,7 @@ export default async function GroupDetailPage({
               closesAt: exam.closesAt,
               level: exam.level,
               attemptCount: exam._count.practiceSessions,
+              paperQuestionCount: exam._count.paperQuestions,
             }))}
           />
         </CardContent>

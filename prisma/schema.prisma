@@ -383,6 +383,7 @@ model LevelQuestion {
 
   groupRules         GroupQuestionRule[]
   practiceQuestions  PracticeQuestion[]
+  scheduledExamQuestions ScheduledExamQuestion[]
 
   @@index([instituteId])
   @@index([levelId])
@@ -445,11 +446,34 @@ model ScheduledExam {
   updatedAt DateTime @updatedAt
 
   practiceSessions PracticeSession[]
+  paperQuestions   ScheduledExamQuestion[]
 
   @@index([instituteId])
   @@index([groupId])
   @@index([opensAt, closesAt])
   @@map("scheduled_exam")
+}
+
+/// Fixed question paper for a scheduled exam — identical for every student in the group.
+model ScheduledExamQuestion {
+  id String @id @default(cuid())
+
+  scheduledExamId String
+  scheduledExam   ScheduledExam @relation(fields: [scheduledExamId], references: [id], onDelete: Cascade)
+
+  /// Position within the paper (0-based).
+  index Int
+
+  prompt        String
+  correctAnswer Int
+
+  /// When picked from the institute bank, links back for analytics/audit.
+  sourceQuestionId String?
+  sourceQuestion   LevelQuestion? @relation(fields: [sourceQuestionId], references: [id], onDelete: SetNull)
+
+  @@unique([scheduledExamId, index])
+  @@index([scheduledExamId])
+  @@map("scheduled_exam_question")
 }
 
 // ---------------------------------------------------------------------------

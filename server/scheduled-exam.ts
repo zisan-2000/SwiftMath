@@ -2,7 +2,9 @@
 //
 // Teachers schedule exam windows for a group + level. Students in that group
 // may start exactly one timed attempt per scheduled exam while the window is
-// open. Timing, eligibility, and session creation are enforced here.
+// open. A fixed question paper is generated once per exam so every student
+// sees the same prompts. Timing, eligibility, and session creation are
+// enforced here.
 
 import "server-only";
 
@@ -13,14 +15,17 @@ import {
   validateScheduledExamWindow,
 } from "@/lib/exam-window";
 import { PracticeMode, SessionStatus } from "@/lib/generated/prisma/enums";
+import type { Prisma } from "@/lib/generated/prisma/client";
 import {
   assertStudentLevelAccess,
   checkStudentLevelAccess,
   LevelAccessError,
 } from "@/server/level-access";
 import { resolveStudentPracticeTimeLimit } from "@/server/teacher";
-import { buildSessionQuestionsForStudent } from "@/server/question-bank";
+import { loadGroupBankPoolForExam } from "@/server/question-bank";
+import { buildFixedExamPaper } from "@/lib/exam-paper";
 import { InsufficientBankError } from "@/lib/question-bank";
+import type { SessionQuestionDraft } from "@/lib/question-bank";
 
 export { LevelAccessError };
 
@@ -48,6 +53,124 @@ export interface CreateScheduledExamInput {
   title?: string | null;
   opensAt: Date;
   closesAt: Date;
+}
+
+const examLevelSelect = {
+  questionCount: true,
+  timeLimitSeconds: true,
+  operation: true,
+  termsPerQuestion: true,
+  minNumber: true,
+  maxNumber: true,
+  bankOnly: true,
+} as const;
+
+function paperRowsToDrafts(
+  rows: Array<{
+    index: number;
+    prompt: string;
+    correctAnswer: number;
+    sourceQuestionId: string | null;
+  }>,
+): SessionQuestionDraft[] {
+  return rows.map((row) => ({
+    prompt: row.prompt,
+    correctAnswer: row.correctAnswer,
+    sourceQuestionId: row.sourceQuestionId,
+  }));
+}
+
+/**
+ * Load or generate the fixed paper for one scheduled exam.
+ * Idempotent — safe to call from create and from concurrent student starts.
+ */
+async function ensureScheduledExamPaper(
+  tx: Prisma.TransactionClient,
+  input: {
+    scheduledExamId: string;
+    instituteId: string;
+    groupId: string;
+    levelId: string;
+  },
+): Promise<SessionQuestionDraft[]> {
+  const existing = await tx.scheduledExamQuestion.findMany({
+    where: { scheduledExamId: input.scheduledExamId },
+    orderBy: { index: "asc" },
+    select: {
+      index: true,
+      prompt: true,
+      correctAnswer: true,
+      sourceQuestionId: true,
+    },
+  });
+  if (existing.length > 0) {
+    return paperRowsToDrafts(existing);
+  }
+
+  const level = await tx.level.findFirst({
+    where: {
+      id: input.levelId,
+      instituteId: input.instituteId,
+      ...ACTIVE_LEVEL_FILTER,
+    },
+    select: examLevelSelect,
+  });
+  if (!level) {
+    throw new ScheduledExamError("Level not found.");
+  }
+
+  const pool = await loadGroupBankPoolForExam(tx, input);
+
+  let questions: SessionQuestionDraft[];
+  try {
+    questions = buildFixedExamPaper(
+      {
+        questionCount: level.questionCount,
+        operation: level.operation,
+        termsPerQuestion: level.termsPerQuestion,
+        minNumber: level.minNumber,
+        maxNumber: level.maxNumber,
+        bankOnly: level.bankOnly,
+      },
+      pool,
+      input.scheduledExamId,
+    );
+  } catch (error) {
+    if (error instanceof InsufficientBankError) {
+      throw new ScheduledExamError(
+        "Not enough bank questions for a fixed exam paper. Add more questions or adjust group overrides.",
+      );
+    }
+    throw error;
+  }
+
+  await tx.scheduledExamQuestion
+    .createMany({
+      data: questions.map((q, index) => ({
+        scheduledExamId: input.scheduledExamId,
+        index,
+        prompt: q.prompt,
+        correctAnswer: q.correctAnswer,
+        sourceQuestionId: q.sourceQuestionId,
+      })),
+    })
+    .catch(() => undefined);
+
+  const stored = await tx.scheduledExamQuestion.findMany({
+    where: { scheduledExamId: input.scheduledExamId },
+    orderBy: { index: "asc" },
+    select: {
+      index: true,
+      prompt: true,
+      correctAnswer: true,
+      sourceQuestionId: true,
+    },
+  });
+  if (stored.length === 0) {
+    throw new ScheduledExamError("Could not create the exam paper.");
+  }
+
+  return paperRowsToDrafts(stored);
 }
 
 /** Schedule a new exam for one of the teacher's groups. */
@@ -86,20 +209,29 @@ export async function createScheduledExam(
 
   const title = input.title?.trim() || null;
 
-  const exam = await prisma.scheduledExam.create({
-    data: {
+  return prisma.$transaction(async (tx) => {
+    const exam = await tx.scheduledExam.create({
+      data: {
+        instituteId: teacher.instituteId,
+        groupId: group.id,
+        levelId: level.id,
+        title,
+        opensAt: input.opensAt,
+        closesAt: input.closesAt,
+        createdById: teacher.id,
+      },
+      select: { id: true },
+    });
+
+    await ensureScheduledExamPaper(tx, {
+      scheduledExamId: exam.id,
       instituteId: teacher.instituteId,
       groupId: group.id,
       levelId: level.id,
-      title,
-      opensAt: input.opensAt,
-      closesAt: input.closesAt,
-      createdById: teacher.id,
-    },
-    select: { id: true },
-  });
+    });
 
-  return exam;
+    return exam;
+  });
 }
 
 /** Load a scheduled exam owned by this teacher's group. */
@@ -120,7 +252,7 @@ export function getTeacherScheduledExam(
       closesAt: true,
       group: { select: { id: true, name: true } },
       level: { select: { id: true, name: true } },
-      _count: { select: { practiceSessions: true } },
+      _count: { select: { practiceSessions: true, paperQuestions: true } },
     },
   });
 }
@@ -143,7 +275,7 @@ export function listGroupScheduledExams(
       opensAt: true,
       closesAt: true,
       level: { select: { name: true } },
-      _count: { select: { practiceSessions: true } },
+      _count: { select: { practiceSessions: true, paperQuestions: true } },
     },
   });
 }
@@ -254,17 +386,7 @@ export async function startExamSession(
       levelId: true,
       opensAt: true,
       closesAt: true,
-      level: {
-        select: {
-          questionCount: true,
-          timeLimitSeconds: true,
-          operation: true,
-          termsPerQuestion: true,
-          minNumber: true,
-          maxNumber: true,
-          bankOnly: true,
-        },
-      },
+      level: { select: { timeLimitSeconds: true } },
     },
   });
   if (!exam) {
@@ -321,29 +443,15 @@ export async function startExamSession(
   const startedAt = now;
   const expiresAt = new Date(startedAt.getTime() + timeLimitSeconds * 1000);
 
-  let questions;
-  try {
-    questions = await buildSessionQuestionsForStudent({
+  let questions: SessionQuestionDraft[];
+  questions = await prisma.$transaction(async (tx) =>
+    ensureScheduledExamPaper(tx, {
+      scheduledExamId: exam.id,
       instituteId: student.instituteId,
-      studentId: student.id,
-      level: {
-        id: exam.levelId,
-        questionCount: exam.level.questionCount,
-        operation: exam.level.operation,
-        termsPerQuestion: exam.level.termsPerQuestion,
-        minNumber: exam.level.minNumber,
-        maxNumber: exam.level.maxNumber,
-        bankOnly: exam.level.bankOnly,
-      },
-    });
-  } catch (error) {
-    if (error instanceof InsufficientBankError) {
-      throw new ScheduledExamError(
-        "This exam needs more bank questions than are available for your group. Ask your teacher.",
-      );
-    }
-    throw error;
-  }
+      groupId: row.groupId!,
+      levelId: exam.levelId,
+    }),
+  );
 
   const session = await prisma.practiceSession.create({
     data: {

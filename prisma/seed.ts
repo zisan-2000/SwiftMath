@@ -18,6 +18,8 @@ import { PrismaClient } from "../lib/generated/prisma/client";
 import { Role } from "../lib/generated/prisma/enums";
 import { DEFAULT_STARTER_LEVELS } from "../lib/default-levels";
 import { buildStarterQuestionBankRows } from "../lib/default-question-bank";
+import { buildFixedExamPaper } from "../lib/exam-paper";
+import { filterEnabledBankQuestions } from "../lib/question-bank";
 
 const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
@@ -211,6 +213,58 @@ async function main() {
     await prisma.scheduledExam.update({
       where: { id: demoExam.id },
       data: { opensAt: examOpens, closesAt: examCloses },
+    });
+  }
+
+  const demoPaperCount = await prisma.scheduledExamQuestion.count({
+    where: { scheduledExamId: demoExam.id },
+  });
+  if (demoPaperCount === 0) {
+    const bankRows = await prisma.levelQuestion.findMany({
+      where: {
+        levelId: demoExamLevel.id,
+        instituteId: seft.id,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        prompt: true,
+        correctAnswer: true,
+        isActive: true,
+      },
+    });
+    const disabled = await prisma.groupQuestionRule.findMany({
+      where: {
+        groupId: group.id,
+        enabled: false,
+        questionId: { in: bankRows.map((q) => q.id) },
+      },
+      select: { questionId: true },
+    });
+    const pool = filterEnabledBankQuestions(
+      bankRows,
+      new Set(disabled.map((r) => r.questionId)),
+    );
+    const paper = buildFixedExamPaper(
+      {
+        questionCount: demoExamLevel.questionCount,
+        operation: demoExamLevel.operation,
+        termsPerQuestion: demoExamLevel.termsPerQuestion,
+        minNumber: demoExamLevel.minNumber,
+        maxNumber: demoExamLevel.maxNumber,
+        bankOnly: demoExamLevel.bankOnly,
+      },
+      pool,
+      demoExam.id,
+    );
+    await prisma.scheduledExamQuestion.createMany({
+      data: paper.map((q, index) => ({
+        scheduledExamId: demoExam.id,
+        index,
+        prompt: q.prompt,
+        correctAnswer: q.correctAnswer,
+        sourceQuestionId: q.sourceQuestionId,
+      })),
     });
   }
 

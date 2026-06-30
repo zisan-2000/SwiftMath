@@ -127,7 +127,8 @@ export function ScheduleExamForm({
 
       <p className="text-xs text-muted-foreground">
         Students in this group can start one timed attempt while the window is
-        open. Pass rules match standard practice for the chosen level.
+        open. Every student receives the same fixed question paper. Pass rules
+        match standard practice for the chosen level.
       </p>
 
       <div>

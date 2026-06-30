@@ -13,6 +13,7 @@ import type { LevelConfig } from "@/lib/practice-logic";
 import { QuestionDifficulty } from "@/lib/generated/prisma/enums";
 import type { AdminContext } from "@/server/admin";
 import type { TeacherContext } from "@/server/teacher";
+import type { Prisma } from "@/lib/generated/prisma/client";
 
 export interface LevelQuestionInput {
   prompt: string;
@@ -326,6 +327,46 @@ export async function setGroupQuestionEnabled(
   });
 
   return { ok: true };
+}
+
+type DbClient = Prisma.TransactionClient | typeof prisma;
+
+/** Group-scoped bank pool for exams (respects teacher disable rules). */
+export async function loadGroupBankPoolForExam(
+  db: DbClient,
+  input: {
+    instituteId: string;
+    groupId: string;
+    levelId: string;
+  },
+) {
+  const bankRows = await db.levelQuestion.findMany({
+    where: {
+      levelId: input.levelId,
+      instituteId: input.instituteId,
+      isActive: true,
+    },
+    select: {
+      id: true,
+      prompt: true,
+      correctAnswer: true,
+      isActive: true,
+    },
+  });
+
+  const disabled = await db.groupQuestionRule.findMany({
+    where: {
+      groupId: input.groupId,
+      enabled: false,
+      questionId: { in: bankRows.map((q) => q.id) },
+    },
+    select: { questionId: true },
+  });
+
+  return filterEnabledBankQuestions(
+    bankRows,
+    new Set(disabled.map((r) => r.questionId)),
+  );
 }
 
 /** Build trusted session questions for a student (bank + optional dynamic fallback). */
