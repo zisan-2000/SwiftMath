@@ -142,6 +142,7 @@ export function getStarterQuestionsForLevel(
 export function buildStarterQuestionBankRows(input: {
   instituteId: string;
   levels: ReadonlyArray<{ id: string; orderIndex: number }>;
+  curriculumVersionId: string;
 }): Array<{
   instituteId: string;
   levelId: string;
@@ -152,6 +153,7 @@ export function buildStarterQuestionBankRows(input: {
   orderIndex: number;
   isActive: boolean;
   status: QuestionStatus;
+  curriculumVersionId: string;
 }> {
   const rows: ReturnType<typeof buildStarterQuestionBankRows> = [];
 
@@ -169,6 +171,7 @@ export function buildStarterQuestionBankRows(input: {
         orderIndex: i,
         isActive: true,
         status: QuestionStatus.PUBLISHED,
+        curriculumVersionId: input.curriculumVersionId,
       });
     }
   }

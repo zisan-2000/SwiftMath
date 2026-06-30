@@ -30,6 +30,7 @@ import {
   resolveChallengeTimeLimitSeconds,
 } from "@/lib/challenge-mode";
 import { buildSessionQuestionsForStudent } from "@/server/question-bank";
+import { getActiveCurriculumVersionId } from "@/server/curriculum-version";
 
 /** The authenticated student, as needed for scoping. */
 export interface StudentContext {
@@ -131,12 +132,17 @@ export async function startPracticeSession(
     },
   });
 
+  const curriculumVersionId = await getActiveCurriculumVersionId(
+    student.instituteId,
+  );
+
   const session = await prisma.practiceSession.create({
     data: {
       instituteId: student.instituteId,
       studentId: student.id,
       levelId: level.id,
       mode,
+      curriculumVersionId,
       startedAt,
       expiresAt,
       totalQuestions: questions.length,

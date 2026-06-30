@@ -35,6 +35,7 @@ describe("DEFAULT_STARTER_QUESTION_BANK", () => {
         { id: "lvl-1", orderIndex: 1 },
         { id: "lvl-2", orderIndex: 2 },
       ],
+      curriculumVersionId: "cv-1",
     });
 
     expect(rows).toHaveLength(20);

@@ -117,6 +117,7 @@ export function EditLevelQuestionForm({
 /** One bank row with optional inline edit mode. */
 export function LevelQuestionRow({
   levelId,
+  activeVersionNumber,
   question,
   onToggleActive,
   onPublish,
@@ -124,6 +125,7 @@ export function LevelQuestionRow({
   onDelete,
 }: {
   levelId: string;
+  activeVersionNumber: number;
   question: LevelQuestionRow;
   onToggleActive: (formData: FormData) => Promise<void>;
   onPublish: (formData: FormData) => Promise<void>;
@@ -149,6 +151,10 @@ export function LevelQuestionRow({
     question.difficulty.slice(1).toLowerCase();
 
   const isDraft = question.status === QuestionStatus.DRAFT;
+  const isOlderVersion =
+    !isDraft &&
+    question.curriculumVersionNumber != null &&
+    question.curriculumVersionNumber !== activeVersionNumber;
 
   return (
     <li className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
@@ -162,8 +168,13 @@ export function LevelQuestionRow({
           <Badge variant="secondary">{difficultyLabel}</Badge>
           {isDraft ? (
             <Badge variant="warning">Draft</Badge>
+          ) : isOlderVersion ? (
+            <Badge variant="muted">v{question.curriculumVersionNumber}</Badge>
           ) : (
             !question.isActive && <Badge variant="muted">Inactive</Badge>
+          )}
+          {!isDraft && !isOlderVersion && question.isActive && (
+            <Badge variant="secondary">Live</Badge>
           )}
         </div>
       </div>

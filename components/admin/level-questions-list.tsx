@@ -21,14 +21,17 @@ export interface LevelQuestionRow {
   difficulty: QuestionDifficulty;
   status: QuestionStatus;
   isActive: boolean;
+  curriculumVersionNumber: number | null;
 }
 
 /** Admin list of bank questions with edit, activate, and delete controls. */
 export function LevelQuestionsList({
   levelId,
+  activeVersionNumber,
   questions,
 }: {
   levelId: string;
+  activeVersionNumber: number;
   questions: LevelQuestionRow[];
 }) {
   if (questions.length === 0) {
@@ -47,6 +50,7 @@ export function LevelQuestionsList({
         <LevelQuestionRow
           key={q.id}
           levelId={levelId}
+          activeVersionNumber={activeVersionNumber}
           question={q}
           onToggleActive={async (formData) => {
             const result = await toggleLevelQuestionActiveAction(formData);

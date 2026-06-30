@@ -101,6 +101,11 @@ model Institute {
   primaryColor String?
   /// Lets an institute be disabled without deleting its data.
   isActive  Boolean  @default(true)
+
+  /// Active question-bank generation used for new practice and exams.
+  activeCurriculumVersionId String?
+  activeCurriculumVersion   CurriculumVersion? @relation("ActiveCurriculumVersion", fields: [activeCurriculumVersionId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -110,8 +115,35 @@ model Institute {
   practiceSessions PracticeSession[]
   scheduledExams   ScheduledExam[]
   levelQuestions   LevelQuestion[]
+  curriculumVersions CurriculumVersion[]
 
   @@map("institute")
+}
+
+/// A numbered snapshot of an institute's published question bank.
+model CurriculumVersion {
+  id String @id @default(cuid())
+
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  /// Monotonic per institute (1, 2, 3 …).
+  versionNumber Int
+
+  /// Optional admin note, e.g. "Term 2 refresh".
+  label String?
+
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  institutesActiveFor Institute[] @relation("ActiveCurriculumVersion")
+  levelQuestions        LevelQuestion[]
+  practiceSessions      PracticeSession[]
+  scheduledExams        ScheduledExam[]
+
+  @@unique([instituteId, versionNumber])
+  @@index([instituteId])
+  @@map("curriculum_version")
 }
 
 // ---------------------------------------------------------------------------
@@ -387,6 +419,10 @@ model LevelQuestion {
   /// Sort hint for Admin lists; does not affect random session pick order.
   orderIndex Int @default(0)
 
+  /// Set when published — only the institute's active version is picked live.
+  curriculumVersionId String?
+  curriculumVersion   CurriculumVersion? @relation(fields: [curriculumVersionId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -398,6 +434,7 @@ model LevelQuestion {
   @@index([levelId])
   @@index([levelId, isActive])
   @@index([levelId, status])
+  @@index([levelId, curriculumVersionId])
   @@map("level_question")
 }
 
@@ -451,6 +488,10 @@ model ScheduledExam {
 
   createdById String
   createdBy   User @relation("ScheduledExamCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  /// Question bank generation frozen when the fixed paper was built.
+  curriculumVersionId String?
+  curriculumVersion   CurriculumVersion? @relation(fields: [curriculumVersionId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -518,6 +559,10 @@ model PracticeSession {
   /// Set when `mode` is EXAM — links this attempt to the scheduled exam slot.
   scheduledExamId String?
   scheduledExam   ScheduledExam? @relation(fields: [scheduledExamId], references: [id], onDelete: SetNull)
+
+  /// Active curriculum generation when the session started (audit).
+  curriculumVersionId String?
+  curriculumVersion   CurriculumVersion? @relation(fields: [curriculumVersionId], references: [id], onDelete: SetNull)
 
   /// Server clock. The session must be submitted on or before `expiresAt`.
   startedAt   DateTime  @default(now())

@@ -13,6 +13,7 @@ import { hashPassword } from "better-auth/crypto";
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_STARTER_LEVELS } from "@/lib/default-levels";
 import { buildStarterQuestionBankRows } from "@/lib/default-question-bank";
+import { createInitialCurriculumVersionInTransaction } from "@/server/curriculum-version";
 import { setUserPassword } from "@/server/users";
 import { Role } from "@/lib/generated/prisma/enums";
 
@@ -97,9 +98,13 @@ export async function createInstitute(params: CreateInstituteParams) {
       select: { id: true, orderIndex: true },
     });
 
+    const curriculumVersionId =
+      await createInitialCurriculumVersionInTransaction(tx, institute.id);
+
     const bankRows = buildStarterQuestionBankRows({
       instituteId: institute.id,
       levels,
+      curriculumVersionId,
     });
     if (bankRows.length > 0) {
       await tx.levelQuestion.createMany({ data: bankRows });

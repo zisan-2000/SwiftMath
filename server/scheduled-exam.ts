@@ -23,6 +23,7 @@ import {
 } from "@/server/level-access";
 import { resolveStudentPracticeTimeLimit } from "@/server/teacher";
 import { loadGroupBankPoolForExam } from "@/server/question-bank";
+import { getActiveCurriculumVersionId } from "@/server/curriculum-version";
 import { buildFixedExamPaper } from "@/lib/exam-paper";
 import { InsufficientBankError } from "@/lib/question-bank";
 import type { SessionQuestionDraft } from "@/lib/question-bank";
@@ -119,7 +120,15 @@ async function ensureScheduledExamPaper(
     throw new ScheduledExamError("Level not found.");
   }
 
-  const pool = await loadGroupBankPoolForExam(tx, input);
+  const curriculumVersionId = await getActiveCurriculumVersionId(
+    input.instituteId,
+    tx,
+  );
+
+  const pool = await loadGroupBankPoolForExam(tx, {
+    ...input,
+    curriculumVersionId,
+  });
 
   let questions: SessionQuestionDraft[];
   try {
@@ -169,6 +178,11 @@ async function ensureScheduledExamPaper(
   if (stored.length === 0) {
     throw new ScheduledExamError("Could not create the exam paper.");
   }
+
+  await tx.scheduledExam.update({
+    where: { id: input.scheduledExamId },
+    data: { curriculumVersionId },
+  });
 
   return paperRowsToDrafts(stored);
 }
@@ -453,6 +467,11 @@ export async function startExamSession(
     }),
   );
 
+  const examRecord = await prisma.scheduledExam.findUnique({
+    where: { id: exam.id },
+    select: { curriculumVersionId: true },
+  });
+
   const session = await prisma.practiceSession.create({
     data: {
       instituteId: student.instituteId,
@@ -460,6 +479,7 @@ export async function startExamSession(
       levelId: exam.levelId,
       mode: PracticeMode.EXAM,
       scheduledExamId: exam.id,
+      curriculumVersionId: examRecord?.curriculumVersionId,
       startedAt,
       expiresAt,
       totalQuestions: questions.length,

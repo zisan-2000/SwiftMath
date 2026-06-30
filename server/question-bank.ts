@@ -14,6 +14,7 @@ import { QuestionDifficulty, QuestionStatus } from "@/lib/generated/prisma/enums
 import type { AdminContext } from "@/server/admin";
 import type { TeacherContext } from "@/server/teacher";
 import type { Prisma } from "@/lib/generated/prisma/client";
+import { getActiveCurriculumVersionId } from "@/server/curriculum-version";
 
 export interface LevelQuestionInput {
   prompt: string;
@@ -52,6 +53,7 @@ export function listLevelQuestions(admin: AdminContext, levelId: string) {
       isActive: true,
       orderIndex: true,
       createdAt: true,
+      curriculumVersion: { select: { versionNumber: true } },
     },
   });
 }
@@ -110,9 +112,14 @@ export async function setLevelQuestionStatus(
   questionId: string,
   status: QuestionStatus,
 ): Promise<MutateLevelQuestionResult> {
+  const curriculumVersionId =
+    status === QuestionStatus.PUBLISHED
+      ? await getActiveCurriculumVersionId(admin.instituteId)
+      : null;
+
   const result = await prisma.levelQuestion.updateMany({
     where: { id: questionId, instituteId: admin.instituteId },
-    data: { status },
+    data: { status, curriculumVersionId },
   });
   if (result.count === 0) {
     return { ok: false, error: "Question not found." };
@@ -180,6 +187,10 @@ export async function getLevelBankStats(
   });
   if (!level) return null;
 
+  const curriculumVersionId = await getActiveCurriculumVersionId(
+    admin.instituteId,
+  );
+
   const [totalBankCount, activeBankCount, draftBankCount] = await Promise.all([
     prisma.levelQuestion.count({
       where: { levelId, instituteId: admin.instituteId },
@@ -190,6 +201,7 @@ export async function getLevelBankStats(
         instituteId: admin.instituteId,
         status: QuestionStatus.PUBLISHED,
         isActive: true,
+        curriculumVersionId,
       },
     }),
     prisma.levelQuestion.count({
@@ -374,6 +386,7 @@ export async function loadGroupBankPoolForExam(
     instituteId: string;
     groupId: string;
     levelId: string;
+    curriculumVersionId: string;
   },
 ) {
   const bankRows = await db.levelQuestion.findMany({
@@ -382,6 +395,7 @@ export async function loadGroupBankPoolForExam(
       instituteId: input.instituteId,
       isActive: true,
       status: QuestionStatus.PUBLISHED,
+      curriculumVersionId: input.curriculumVersionId,
     },
     select: {
       id: true,
@@ -417,6 +431,10 @@ export async function buildSessionQuestionsForStudent(input: {
     bankOnly?: boolean;
   };
 }): Promise<SessionQuestionDraft[]> {
+  const curriculumVersionId = await getActiveCurriculumVersionId(
+    input.instituteId,
+  );
+
   const [student, bankRows] = await Promise.all([
     prisma.user.findUnique({
       where: { id: input.studentId },
@@ -428,6 +446,7 @@ export async function buildSessionQuestionsForStudent(input: {
         instituteId: input.instituteId,
         isActive: true,
         status: QuestionStatus.PUBLISHED,
+        curriculumVersionId,
       },
       select: {
         id: true,

@@ -101,6 +101,25 @@ async function main() {
     levels.push(level);
   }
 
+  // --- Curriculum version (v1 active for seeded bank) ---
+  let curriculumVersionId = (
+    await prisma.institute.findUnique({
+      where: { id: seft.id },
+      select: { activeCurriculumVersionId: true },
+    })
+  )?.activeCurriculumVersionId;
+
+  if (!curriculumVersionId) {
+    const version = await prisma.curriculumVersion.create({
+      data: { instituteId: seft.id, versionNumber: 1 },
+    });
+    await prisma.institute.update({
+      where: { id: seft.id },
+      data: { activeCurriculumVersionId: version.id },
+    });
+    curriculumVersionId = version.id;
+  }
+
   // --- Starter question bank (same fixed prompts as new institutes) ---
   const levelsNeedingBank: Array<{ id: string; orderIndex: number }> = [];
   for (const level of levels) {
@@ -115,6 +134,7 @@ async function main() {
   const bankRows = buildStarterQuestionBankRows({
     instituteId: seft.id,
     levels: levelsNeedingBank,
+    curriculumVersionId,
   });
   if (bankRows.length > 0) {
     await prisma.levelQuestion.createMany({ data: bankRows });
@@ -226,6 +246,7 @@ async function main() {
         instituteId: seft.id,
         isActive: true,
         status: QuestionStatus.PUBLISHED,
+        curriculumVersionId,
       },
       select: {
         id: true,

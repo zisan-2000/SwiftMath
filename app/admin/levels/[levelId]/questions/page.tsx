@@ -7,12 +7,14 @@ import { prisma } from "@/lib/prisma";
 import { Role, QuestionStatus } from "@/lib/generated/prisma/enums";
 import { getLevel } from "@/server/admin";
 import { listLevelQuestions } from "@/server/question-bank";
+import { getActiveCurriculumVersion } from "@/server/curriculum-version";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { AddLevelQuestionForm } from "@/components/admin/add-level-question-form";
 import { ImportLevelQuestionsForm } from "@/components/admin/import-level-questions-form";
 import { LevelQuestionsList } from "@/components/admin/level-questions-list";
 import { LevelBankCoverageBanner } from "@/components/admin/level-bank-coverage-banner";
+import { ActiveCurriculumVersionBanner } from "@/components/admin/curriculum-version-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -37,21 +39,25 @@ export default async function LevelQuestionsPage({
   const { levelId } = await params;
   const admin = await requireRole(Role.ADMIN);
 
-  const [institute, level, questions] = await Promise.all([
+  const [institute, level, questions, activeVersion] = await Promise.all([
     prisma.institute.findUnique({
       where: { id: admin.instituteId },
       select: { name: true, logoUrl: true },
     }),
     getLevel(admin, levelId),
     listLevelQuestions(admin, levelId),
+    getActiveCurriculumVersion(admin.instituteId),
   ]);
 
-  if (!level) {
+  if (!level || !activeVersion) {
     notFound();
   }
 
   const activeBankCount = questions.filter(
-    (q) => q.status === QuestionStatus.PUBLISHED && q.isActive,
+    (q) =>
+      q.status === QuestionStatus.PUBLISHED &&
+      q.isActive &&
+      q.curriculumVersion?.versionNumber === activeVersion.versionNumber,
   ).length;
   const draftBankCount = questions.filter(
     (q) => q.status === QuestionStatus.DRAFT,
@@ -67,8 +73,18 @@ export default async function LevelQuestionsPage({
     >
       <BackLink href={`/admin/levels/${level.id}`}>Back to level</BackLink>
 
-      <LevelBankCoverageBanner
+      <ActiveCurriculumVersionBanner
         className="mt-6"
+        active={{
+          versionNumber: activeVersion.versionNumber,
+          label: activeVersion.label,
+          publishedAt: activeVersion.publishedAt,
+          liveQuestionCount: activeVersion._count.levelQuestions,
+        }}
+      />
+
+      <LevelBankCoverageBanner
+        className="mt-4"
         sessionQuestionCount={level.questionCount}
         totalBankCount={questions.length}
         activeBankCount={activeBankCount}
@@ -93,7 +109,20 @@ export default async function LevelQuestionsPage({
           </p>
         </CardHeader>
         <CardContent className="p-0">
-          <LevelQuestionsList levelId={level.id} questions={questions} />
+          <LevelQuestionsList
+            levelId={level.id}
+            activeVersionNumber={activeVersion.versionNumber}
+            questions={questions.map((q) => ({
+              id: q.id,
+              prompt: q.prompt,
+              correctAnswer: q.correctAnswer,
+              category: q.category,
+              difficulty: q.difficulty,
+              status: q.status,
+              isActive: q.isActive,
+              curriculumVersionNumber: q.curriculumVersion?.versionNumber ?? null,
+            }))}
+          />
         </CardContent>
       </Card>
 
