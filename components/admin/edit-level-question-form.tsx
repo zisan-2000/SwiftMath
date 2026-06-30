@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { LevelQuestionRow } from "@/components/admin/level-questions-list";
+import { formatQuestionAnalyticsLabel } from "@/lib/question-analytics";
 
 const SELECT_CLASS =
   "h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -155,6 +156,7 @@ export function LevelQuestionRow({
     !isDraft &&
     question.curriculumVersionNumber != null &&
     question.curriculumVersionNumber !== activeVersionNumber;
+  const analyticsLabel = formatQuestionAnalyticsLabel(question.analytics);
 
   return (
     <li className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
@@ -164,6 +166,13 @@ export function LevelQuestionRow({
           Answer: {question.correctAnswer}
           {question.category ? ` · ${question.category}` : ""}
         </p>
+        {analyticsLabel ? (
+          <p className="mt-1 text-xs text-muted-foreground">{analyticsLabel}</p>
+        ) : (
+          <p className="mt-1 text-xs text-muted-foreground/80">
+            No graded attempts yet
+          </p>
+        )}
         <div className="mt-2 flex flex-wrap gap-2">
           <Badge variant="secondary">{difficultyLabel}</Badge>
           {isDraft ? (

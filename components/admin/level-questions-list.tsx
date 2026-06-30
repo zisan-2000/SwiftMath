@@ -11,6 +11,7 @@ import {
 import { LevelQuestionRow } from "@/components/admin/edit-level-question-form";
 import { EmptyState } from "@/components/ui/empty-state";
 import { QuestionDifficulty, QuestionStatus } from "@/lib/generated/prisma/enums";
+import type { QuestionAnalyticsStat } from "@/lib/question-analytics";
 import { BookOpen } from "lucide-react";
 
 export interface LevelQuestionRow {
@@ -22,6 +23,7 @@ export interface LevelQuestionRow {
   status: QuestionStatus;
   isActive: boolean;
   curriculumVersionNumber: number | null;
+  analytics?: QuestionAnalyticsStat;
 }
 
 /** Admin list of bank questions with edit, activate, and delete controls. */

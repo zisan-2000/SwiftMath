@@ -7,6 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { Role, QuestionStatus } from "@/lib/generated/prisma/enums";
 import { getLevel } from "@/server/admin";
 import { listLevelQuestions } from "@/server/question-bank";
+import { getLevelQuestionAnalytics } from "@/server/question-analytics";
 import { getActiveCurriculumVersion } from "@/server/curriculum-version";
 import { AppShell } from "@/components/app-shell";
 import { BackLink } from "@/components/nav/back-link";
@@ -39,7 +40,8 @@ export default async function LevelQuestionsPage({
   const { levelId } = await params;
   const admin = await requireRole(Role.ADMIN);
 
-  const [institute, level, questions, activeVersion] = await Promise.all([
+  const [institute, level, questions, activeVersion, questionAnalytics] =
+    await Promise.all([
     prisma.institute.findUnique({
       where: { id: admin.instituteId },
       select: { name: true, logoUrl: true },
@@ -47,6 +49,7 @@ export default async function LevelQuestionsPage({
     getLevel(admin, levelId),
     listLevelQuestions(admin, levelId),
     getActiveCurriculumVersion(admin.instituteId),
+    getLevelQuestionAnalytics(admin, levelId),
   ]);
 
   if (!level || !activeVersion) {
@@ -106,6 +109,8 @@ export default async function LevelQuestionsPage({
           <p className="text-sm text-muted-foreground">
             Sessions pick randomly from active bank entries for each student&apos;s
             group, then fill any remainder with dynamic questions from level rules.
+            Graded attempts on bank questions show attempt counts and success rates
+            below (review drills excluded).
           </p>
         </CardHeader>
         <CardContent className="p-0">
@@ -121,6 +126,7 @@ export default async function LevelQuestionsPage({
               status: q.status,
               isActive: q.isActive,
               curriculumVersionNumber: q.curriculumVersion?.versionNumber ?? null,
+              analytics: questionAnalytics.get(q.id),
             }))}
           />
         </CardContent>
