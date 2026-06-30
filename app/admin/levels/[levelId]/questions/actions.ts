@@ -10,9 +10,11 @@ import {
   deleteLevelQuestion,
   importLevelQuestions,
   setLevelQuestionActive,
+  setLevelQuestionStatus,
   updateLevelQuestion,
 } from "@/server/question-bank";
 import { parseLevelQuestionImportCsv } from "@/lib/level-question-csv";
+import { QuestionStatus } from "@/lib/generated/prisma/enums";
 
 export interface LevelQuestionFormState {
   error?: string;
@@ -133,6 +135,50 @@ export async function toggleLevelQuestionActiveAction(
   const isActive = formData.get("isActive") === "true";
 
   const result = await setLevelQuestionActive(admin, questionId, isActive);
+  if (!result.ok) {
+    return { error: result.error };
+  }
+
+  revalidateLevelQuestions(levelId);
+  revalidatePath("/teacher");
+  return { ok: true };
+}
+
+/** Publish a draft bank question into live sessions. */
+export async function publishLevelQuestionAction(
+  formData: FormData,
+): Promise<LevelQuestionFormState> {
+  const admin = await requireRole(Role.ADMIN);
+  const levelId = String(formData.get("levelId") ?? "");
+  const questionId = String(formData.get("questionId") ?? "");
+
+  const result = await setLevelQuestionStatus(
+    admin,
+    questionId,
+    QuestionStatus.PUBLISHED,
+  );
+  if (!result.ok) {
+    return { error: result.error };
+  }
+
+  revalidateLevelQuestions(levelId);
+  revalidatePath("/teacher");
+  return { ok: true };
+}
+
+/** Move a published question back to draft (hidden from sessions). */
+export async function unpublishLevelQuestionAction(
+  formData: FormData,
+): Promise<LevelQuestionFormState> {
+  const admin = await requireRole(Role.ADMIN);
+  const levelId = String(formData.get("levelId") ?? "");
+  const questionId = String(formData.get("questionId") ?? "");
+
+  const result = await setLevelQuestionStatus(
+    admin,
+    questionId,
+    QuestionStatus.DRAFT,
+  );
   if (!result.ok) {
     return { error: result.error };
   }

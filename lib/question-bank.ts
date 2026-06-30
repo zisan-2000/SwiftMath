@@ -6,12 +6,14 @@ import {
   type LevelConfig,
   type Rng,
 } from "@/lib/practice-logic";
+import { QuestionStatus } from "@/lib/generated/prisma/enums";
 
 export interface BankQuestionRow {
   id: string;
   prompt: string;
   correctAnswer: number;
   isActive: boolean;
+  status: QuestionStatus;
 }
 
 export interface SessionQuestionDraft {
@@ -55,7 +57,11 @@ export function isBankQuestionEnabled(
   question: BankQuestionRow,
   disabledQuestionIds: ReadonlySet<string>,
 ): boolean {
-  return question.isActive && !disabledQuestionIds.has(question.id);
+  return (
+    question.status === QuestionStatus.PUBLISHED &&
+    question.isActive &&
+    !disabledQuestionIds.has(question.id)
+  );
 }
 
 /** Filter the institute bank to the effective pool for one student group. */

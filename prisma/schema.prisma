@@ -75,6 +75,12 @@ enum QuestionDifficulty {
   HARD
 }
 
+/// Draft questions are admin-only until published into live sessions.
+enum QuestionStatus {
+  DRAFT
+  PUBLISHED
+}
+
 // ---------------------------------------------------------------------------
 // Tenant
 // ---------------------------------------------------------------------------
@@ -372,6 +378,9 @@ model LevelQuestion {
 
   difficulty QuestionDifficulty @default(MEDIUM)
 
+  /// Draft rows are hidden from practice/exams until published.
+  status QuestionStatus @default(DRAFT)
+
   /// Institute-wide active flag (Admin). Inactive questions are never picked.
   isActive Boolean @default(true)
 
@@ -388,6 +397,7 @@ model LevelQuestion {
   @@index([instituteId])
   @@index([levelId])
   @@index([levelId, isActive])
+  @@index([levelId, status])
   @@map("level_question")
 }
 

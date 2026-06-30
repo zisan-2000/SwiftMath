@@ -35,7 +35,7 @@ export function AddLevelQuestionForm({ levelId }: { levelId: string }) {
           toast.error(result.error);
           return;
         }
-        toast.success("Question added");
+        toast.success("Draft question added — publish it to use in sessions");
       }}
       className="flex flex-col gap-4"
     >
@@ -93,6 +93,10 @@ export function AddLevelQuestionForm({ levelId }: { levelId: string }) {
           />
         </div>
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        New questions are saved as drafts until you publish them.
+      </p>
 
       <SubmitButton />
     </form>

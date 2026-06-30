@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 
 import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/generated/prisma/enums";
+import { Role, QuestionStatus } from "@/lib/generated/prisma/enums";
 import { getLevel } from "@/server/admin";
 import { listLevelQuestions } from "@/server/question-bank";
 import { AppShell } from "@/components/app-shell";
@@ -50,7 +50,12 @@ export default async function LevelQuestionsPage({
     notFound();
   }
 
-  const activeBankCount = questions.filter((q) => q.isActive).length;
+  const activeBankCount = questions.filter(
+    (q) => q.status === QuestionStatus.PUBLISHED && q.isActive,
+  ).length;
+  const draftBankCount = questions.filter(
+    (q) => q.status === QuestionStatus.DRAFT,
+  ).length;
 
   return (
     <AppShell
@@ -69,6 +74,13 @@ export default async function LevelQuestionsPage({
         activeBankCount={activeBankCount}
         bankOnly={level.bankOnly}
       />
+
+      {draftBankCount > 0 && (
+        <p className="mt-3 text-sm text-muted-foreground">
+          {draftBankCount} draft question{draftBankCount === 1 ? "" : "s"} not
+          used in sessions until published.
+        </p>
+      )}
 
       <Card className="mt-6">
         <CardHeader className="border-b border-border">

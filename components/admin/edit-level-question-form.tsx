@@ -8,7 +8,7 @@ import {
   updateLevelQuestionAction,
   type LevelQuestionFormState,
 } from "@/app/admin/levels/[levelId]/questions/actions";
-import { QuestionDifficulty } from "@/lib/generated/prisma/enums";
+import { QuestionDifficulty, QuestionStatus } from "@/lib/generated/prisma/enums";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -119,11 +119,15 @@ export function LevelQuestionRow({
   levelId,
   question,
   onToggleActive,
+  onPublish,
+  onUnpublish,
   onDelete,
 }: {
   levelId: string;
   question: LevelQuestionRow;
   onToggleActive: (formData: FormData) => Promise<void>;
+  onPublish: (formData: FormData) => Promise<void>;
+  onUnpublish: (formData: FormData) => Promise<void>;
   onDelete: (formData: FormData) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
@@ -144,6 +148,8 @@ export function LevelQuestionRow({
     question.difficulty.charAt(0) +
     question.difficulty.slice(1).toLowerCase();
 
+  const isDraft = question.status === QuestionStatus.DRAFT;
+
   return (
     <li className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
@@ -154,7 +160,11 @@ export function LevelQuestionRow({
         </p>
         <div className="mt-2 flex flex-wrap gap-2">
           <Badge variant="secondary">{difficultyLabel}</Badge>
-          {!question.isActive && <Badge variant="muted">Inactive</Badge>}
+          {isDraft ? (
+            <Badge variant="warning">Draft</Badge>
+          ) : (
+            !question.isActive && <Badge variant="muted">Inactive</Badge>
+          )}
         </div>
       </div>
 
@@ -167,18 +177,37 @@ export function LevelQuestionRow({
         >
           Edit
         </Button>
-        <form action={onToggleActive}>
-          <input type="hidden" name="levelId" value={levelId} />
-          <input type="hidden" name="questionId" value={question.id} />
-          <input
-            type="hidden"
-            name="isActive"
-            value={question.isActive ? "false" : "true"}
-          />
-          <Button type="submit" variant="outline" size="sm">
-            {question.isActive ? "Disable" : "Enable"}
-          </Button>
-        </form>
+        {isDraft ? (
+          <form action={onPublish}>
+            <input type="hidden" name="levelId" value={levelId} />
+            <input type="hidden" name="questionId" value={question.id} />
+            <Button type="submit" size="sm">
+              Publish
+            </Button>
+          </form>
+        ) : (
+          <>
+            <form action={onToggleActive}>
+              <input type="hidden" name="levelId" value={levelId} />
+              <input type="hidden" name="questionId" value={question.id} />
+              <input
+                type="hidden"
+                name="isActive"
+                value={question.isActive ? "false" : "true"}
+              />
+              <Button type="submit" variant="outline" size="sm">
+                {question.isActive ? "Disable" : "Enable"}
+              </Button>
+            </form>
+            <form action={onUnpublish}>
+              <input type="hidden" name="levelId" value={levelId} />
+              <input type="hidden" name="questionId" value={question.id} />
+              <Button type="submit" variant="ghost" size="sm">
+                Move to draft
+              </Button>
+            </form>
+          </>
+        )}
         <form action={onDelete}>
           <input type="hidden" name="levelId" value={levelId} />
           <input type="hidden" name="questionId" value={question.id} />

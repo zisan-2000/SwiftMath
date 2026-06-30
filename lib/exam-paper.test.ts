@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { buildFixedExamPaper, createSeededRng } from "@/lib/exam-paper";
-import { OperationType } from "@/lib/generated/prisma/enums";
+import { OperationType, QuestionStatus } from "@/lib/generated/prisma/enums";
 
 const level = {
   operation: OperationType.ADDITION,
@@ -12,10 +12,10 @@ const level = {
 };
 
 const pool = [
-  { id: "a", prompt: "1 + 2", correctAnswer: 3, isActive: true },
-  { id: "b", prompt: "3 + 4", correctAnswer: 7, isActive: true },
-  { id: "c", prompt: "5 + 6", correctAnswer: 11, isActive: true },
-  { id: "d", prompt: "7 + 8", correctAnswer: 15, isActive: true },
+  { id: "a", prompt: "1 + 2", correctAnswer: 3, isActive: true, status: QuestionStatus.PUBLISHED },
+  { id: "b", prompt: "3 + 4", correctAnswer: 7, isActive: true, status: QuestionStatus.PUBLISHED },
+  { id: "c", prompt: "5 + 6", correctAnswer: 11, isActive: true, status: QuestionStatus.PUBLISHED },
+  { id: "d", prompt: "7 + 8", correctAnswer: 15, isActive: true, status: QuestionStatus.PUBLISHED },
 ];
 
 describe("createSeededRng", () => {

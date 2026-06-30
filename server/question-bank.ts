@@ -10,7 +10,7 @@ import {
   type SessionQuestionDraft,
 } from "@/lib/question-bank";
 import type { LevelConfig } from "@/lib/practice-logic";
-import { QuestionDifficulty } from "@/lib/generated/prisma/enums";
+import { QuestionDifficulty, QuestionStatus } from "@/lib/generated/prisma/enums";
 import type { AdminContext } from "@/server/admin";
 import type { TeacherContext } from "@/server/teacher";
 import type { Prisma } from "@/lib/generated/prisma/client";
@@ -48,6 +48,7 @@ export function listLevelQuestions(admin: AdminContext, levelId: string) {
       correctAnswer: true,
       category: true,
       difficulty: true,
+      status: true,
       isActive: true,
       orderIndex: true,
       createdAt: true,
@@ -76,6 +77,7 @@ export async function createLevelQuestion(
       correctAnswer: input.correctAnswer,
       category: input.category?.trim() || null,
       difficulty: input.difficulty ?? QuestionDifficulty.MEDIUM,
+      status: QuestionStatus.DRAFT,
       orderIndex: (maxOrder._max.orderIndex ?? -1) + 1,
     },
     select: { id: true },
@@ -95,6 +97,22 @@ export async function setLevelQuestionActive(
   const result = await prisma.levelQuestion.updateMany({
     where: { id: questionId, instituteId: admin.instituteId },
     data: { isActive },
+  });
+  if (result.count === 0) {
+    return { ok: false, error: "Question not found." };
+  }
+  return { ok: true };
+}
+
+/** Publish a draft question or move a live question back to draft. */
+export async function setLevelQuestionStatus(
+  admin: AdminContext,
+  questionId: string,
+  status: QuestionStatus,
+): Promise<MutateLevelQuestionResult> {
+  const result = await prisma.levelQuestion.updateMany({
+    where: { id: questionId, instituteId: admin.instituteId },
+    data: { status },
   });
   if (result.count === 0) {
     return { ok: false, error: "Question not found." };
@@ -148,6 +166,7 @@ export async function updateLevelQuestion(
 export interface LevelBankStats {
   totalBankCount: number;
   activeBankCount: number;
+  draftBankCount: number;
 }
 
 /** Count bank rows for admin coverage warnings. */
@@ -161,16 +180,28 @@ export async function getLevelBankStats(
   });
   if (!level) return null;
 
-  const [totalBankCount, activeBankCount] = await Promise.all([
+  const [totalBankCount, activeBankCount, draftBankCount] = await Promise.all([
     prisma.levelQuestion.count({
       where: { levelId, instituteId: admin.instituteId },
     }),
     prisma.levelQuestion.count({
-      where: { levelId, instituteId: admin.instituteId, isActive: true },
+      where: {
+        levelId,
+        instituteId: admin.instituteId,
+        status: QuestionStatus.PUBLISHED,
+        isActive: true,
+      },
+    }),
+    prisma.levelQuestion.count({
+      where: {
+        levelId,
+        instituteId: admin.instituteId,
+        status: QuestionStatus.DRAFT,
+      },
     }),
   ]);
 
-  return { totalBankCount, activeBankCount };
+  return { totalBankCount, activeBankCount, draftBankCount };
 }
 
 export type ImportLevelQuestionsResult =
@@ -206,6 +237,7 @@ export async function importLevelQuestions(
           correctAnswer: input.correctAnswer,
           category: input.category?.trim() || null,
           difficulty: input.difficulty ?? QuestionDifficulty.MEDIUM,
+          status: QuestionStatus.DRAFT,
           orderIndex: orderIndex++,
         },
       });
@@ -254,7 +286,11 @@ export async function listGroupQuestionOverrides(
 
   const [questions, rules] = await Promise.all([
     prisma.levelQuestion.findMany({
-      where: { levelId, instituteId: teacher.instituteId },
+      where: {
+        levelId,
+        instituteId: teacher.instituteId,
+        status: QuestionStatus.PUBLISHED,
+      },
       orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
       select: {
         id: true,
@@ -345,12 +381,14 @@ export async function loadGroupBankPoolForExam(
       levelId: input.levelId,
       instituteId: input.instituteId,
       isActive: true,
+      status: QuestionStatus.PUBLISHED,
     },
     select: {
       id: true,
       prompt: true,
       correctAnswer: true,
       isActive: true,
+      status: true,
     },
   });
 
@@ -389,12 +427,14 @@ export async function buildSessionQuestionsForStudent(input: {
         levelId: input.level.id,
         instituteId: input.instituteId,
         isActive: true,
+        status: QuestionStatus.PUBLISHED,
       },
       select: {
         id: true,
         prompt: true,
         correctAnswer: true,
         isActive: true,
+        status: true,
       },
     }),
   ]);

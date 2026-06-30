@@ -7,7 +7,7 @@ import {
   pickBankQuestions,
   assessLevelBankCoverage,
 } from "@/lib/question-bank";
-import { OperationType } from "@/lib/generated/prisma/enums";
+import { OperationType, QuestionStatus } from "@/lib/generated/prisma/enums";
 
 const level = {
   operation: OperationType.ADDITION,
@@ -17,12 +17,37 @@ const level = {
 };
 
 describe("filterEnabledBankQuestions", () => {
-  it("excludes inactive and group-disabled rows", () => {
+  it("excludes inactive, draft, and group-disabled rows", () => {
     const pool = filterEnabledBankQuestions(
       [
-        { id: "a", prompt: "1+1", correctAnswer: 2, isActive: true },
-        { id: "b", prompt: "2+2", correctAnswer: 4, isActive: false },
-        { id: "c", prompt: "3+3", correctAnswer: 6, isActive: true },
+        {
+          id: "a",
+          prompt: "1+1",
+          correctAnswer: 2,
+          isActive: true,
+          status: QuestionStatus.PUBLISHED,
+        },
+        {
+          id: "b",
+          prompt: "2+2",
+          correctAnswer: 4,
+          isActive: false,
+          status: QuestionStatus.PUBLISHED,
+        },
+        {
+          id: "c",
+          prompt: "3+3",
+          correctAnswer: 6,
+          isActive: true,
+          status: QuestionStatus.PUBLISHED,
+        },
+        {
+          id: "d",
+          prompt: "4+4",
+          correctAnswer: 8,
+          isActive: true,
+          status: QuestionStatus.DRAFT,
+        },
       ],
       new Set(["c"]),
     );
@@ -33,9 +58,9 @@ describe("filterEnabledBankQuestions", () => {
 describe("pickBankQuestions", () => {
   it("returns at most count items without replacement", () => {
     const pool = [
-      { id: "a", prompt: "1+1", correctAnswer: 2, isActive: true },
-      { id: "b", prompt: "2+2", correctAnswer: 4, isActive: true },
-      { id: "c", prompt: "3+3", correctAnswer: 6, isActive: true },
+      { id: "a", prompt: "1+1", correctAnswer: 2, isActive: true, status: QuestionStatus.PUBLISHED },
+      { id: "b", prompt: "2+2", correctAnswer: 4, isActive: true, status: QuestionStatus.PUBLISHED },
+      { id: "c", prompt: "3+3", correctAnswer: 6, isActive: true, status: QuestionStatus.PUBLISHED },
     ];
     const picked = pickBankQuestions(pool, 2, () => 0);
     expect(picked).toHaveLength(2);
@@ -48,7 +73,7 @@ describe("composeSessionQuestions", () => {
     const drafts = composeSessionQuestions(
       level,
       3,
-      [{ id: "q1", prompt: "4 + 5", correctAnswer: 9, isActive: true }],
+      [{ id: "q1", prompt: "4 + 5", correctAnswer: 9, isActive: true, status: QuestionStatus.PUBLISHED }],
       { rng: () => 0.5 },
     );
     expect(drafts).toHaveLength(3);
@@ -67,7 +92,7 @@ describe("composeSessionQuestions", () => {
       composeSessionQuestions(
         level,
         3,
-        [{ id: "q1", prompt: "4 + 5", correctAnswer: 9, isActive: true }],
+        [{ id: "q1", prompt: "4 + 5", correctAnswer: 9, isActive: true, status: QuestionStatus.PUBLISHED }],
         { bankOnly: true },
       ),
     ).toThrow(InsufficientBankError);
@@ -75,8 +100,8 @@ describe("composeSessionQuestions", () => {
 
   it("uses only bank rows when bank-only and pool is large enough", () => {
     const pool = [
-      { id: "a", prompt: "1 + 1", correctAnswer: 2, isActive: true },
-      { id: "b", prompt: "2 + 2", correctAnswer: 4, isActive: true },
+      { id: "a", prompt: "1 + 1", correctAnswer: 2, isActive: true, status: QuestionStatus.PUBLISHED },
+      { id: "b", prompt: "2 + 2", correctAnswer: 4, isActive: true, status: QuestionStatus.PUBLISHED },
     ];
     const drafts = composeSessionQuestions(level, 2, pool, {
       bankOnly: true,

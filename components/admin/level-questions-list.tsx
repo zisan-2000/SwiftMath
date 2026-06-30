@@ -4,11 +4,13 @@ import { toast } from "sonner";
 
 import {
   deleteLevelQuestionAction,
+  publishLevelQuestionAction,
   toggleLevelQuestionActiveAction,
+  unpublishLevelQuestionAction,
 } from "@/app/admin/levels/[levelId]/questions/actions";
 import { LevelQuestionRow } from "@/components/admin/edit-level-question-form";
 import { EmptyState } from "@/components/ui/empty-state";
-import { QuestionDifficulty } from "@/lib/generated/prisma/enums";
+import { QuestionDifficulty, QuestionStatus } from "@/lib/generated/prisma/enums";
 import { BookOpen } from "lucide-react";
 
 export interface LevelQuestionRow {
@@ -17,6 +19,7 @@ export interface LevelQuestionRow {
   correctAnswer: number;
   category: string | null;
   difficulty: QuestionDifficulty;
+  status: QuestionStatus;
   isActive: boolean;
 }
 
@@ -49,6 +52,16 @@ export function LevelQuestionsList({
             const result = await toggleLevelQuestionActiveAction(formData);
             if (result.error) toast.error(result.error);
             else toast.success(q.isActive ? "Question disabled" : "Question enabled");
+          }}
+          onPublish={async (formData) => {
+            const result = await publishLevelQuestionAction(formData);
+            if (result.error) toast.error(result.error);
+            else toast.success("Question published");
+          }}
+          onUnpublish={async (formData) => {
+            const result = await unpublishLevelQuestionAction(formData);
+            if (result.error) toast.error(result.error);
+            else toast.success("Question moved to draft");
           }}
           onDelete={async (formData) => {
             const result = await deleteLevelQuestionAction(formData);

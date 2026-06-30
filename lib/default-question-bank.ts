@@ -4,7 +4,7 @@
 // fully cover session size before admins customize via /admin/levels/.../questions.
 // Keys match `DefaultLevelDef.orderIndex` in `lib/default-levels.ts`.
 
-import { QuestionDifficulty } from "@/lib/generated/prisma/enums";
+import { QuestionDifficulty, QuestionStatus } from "@/lib/generated/prisma/enums";
 import {
   DEFAULT_STARTER_LEVELS,
   type DefaultLevelDef,
@@ -151,6 +151,7 @@ export function buildStarterQuestionBankRows(input: {
   difficulty: QuestionDifficulty;
   orderIndex: number;
   isActive: boolean;
+  status: QuestionStatus;
 }> {
   const rows: ReturnType<typeof buildStarterQuestionBankRows> = [];
 
@@ -167,6 +168,7 @@ export function buildStarterQuestionBankRows(input: {
         difficulty: q.difficulty ?? QuestionDifficulty.MEDIUM,
         orderIndex: i,
         isActive: true,
+        status: QuestionStatus.PUBLISHED,
       });
     }
   }

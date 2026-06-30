@@ -24,7 +24,7 @@ export function ImportLevelQuestionsForm({ levelId }: { levelId: string }) {
   useEffect(() => {
     if (state.ok) {
       formRef.current?.reset();
-      toast.success(`Imported ${state.created} question(s)`);
+      toast.success(`Imported ${state.created} draft question(s) — publish to go live`);
     }
   }, [state]);
 

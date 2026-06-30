@@ -15,7 +15,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { hashPassword } from "better-auth/crypto";
 
 import { PrismaClient } from "../lib/generated/prisma/client";
-import { Role } from "../lib/generated/prisma/enums";
+import { Role, QuestionStatus } from "../lib/generated/prisma/enums";
 import { DEFAULT_STARTER_LEVELS } from "../lib/default-levels";
 import { buildStarterQuestionBankRows } from "../lib/default-question-bank";
 import { buildFixedExamPaper } from "../lib/exam-paper";
@@ -225,12 +225,14 @@ async function main() {
         levelId: demoExamLevel.id,
         instituteId: seft.id,
         isActive: true,
+        status: QuestionStatus.PUBLISHED,
       },
       select: {
         id: true,
         prompt: true,
         correctAnswer: true,
         isActive: true,
+        status: true,
       },
     });
     const disabled = await prisma.groupQuestionRule.findMany({
