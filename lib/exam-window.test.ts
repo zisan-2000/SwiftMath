@@ -1,10 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  EXAM_CLOSED_SUMMARY_LOOKBACK_MS,
+  EXAM_CLOSING_SOON_MS,
   getExamWindowStatus,
   isExamWindowOpen,
   validateScheduledExamWindow,
 } from "@/lib/exam-window";
+
+describe("exam notification timing constants", () => {
+  it("uses one hour for closing-soon and seven days for closed summary", () => {
+    expect(EXAM_CLOSING_SOON_MS).toBe(60 * 60 * 1000);
+    expect(EXAM_CLOSED_SUMMARY_LOOKBACK_MS).toBe(7 * 24 * 60 * 60 * 1000);
+  });
+});
 
 describe("isExamWindowOpen", () => {
   const opens = new Date("2026-06-01T10:00:00.000Z");

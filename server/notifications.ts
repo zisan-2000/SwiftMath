@@ -22,6 +22,10 @@ import {
   type NotificationMetadata,
 } from "@/lib/notifications";
 import type { Prisma } from "@/lib/generated/prisma/client";
+import {
+  EXAM_CLOSING_SOON_MS,
+  EXAM_CLOSED_SUMMARY_LOOKBACK_MS,
+} from "@/lib/exam-window";
 import { assessLevelBankCoverage } from "@/lib/question-bank";
 import {
   buildPaginatedList,
@@ -177,6 +181,88 @@ async function removeExamStudentSyncNotifications(
         ],
       },
     },
+  });
+}
+
+/** Minimal exam fields for S2 / S3 student alerts. */
+export interface ExamStudentAlert {
+  id: string;
+  title: string | null;
+  closesAt: Date;
+  level: { name: string };
+}
+
+/** S2 — one student, one open exam (deduped). Used by page sync + N6 cron. */
+export async function deliverExamOpenNotification(
+  instituteId: string,
+  studentId: string,
+  exam: ExamStudentAlert,
+): Promise<void> {
+  const content = buildExamOpenNotification({
+    examTitle: exam.title,
+    levelName: exam.level.name,
+    closesAt: exam.closesAt,
+  });
+  await createNotification({
+    instituteId,
+    userId: studentId,
+    type: NotificationType.EXAM_OPEN,
+    dedupeKey: notificationDedupeKeys.examOpen(exam.id),
+    metadata: { examId: exam.id },
+    ...content,
+  });
+}
+
+/** S3 — one student, exam closing within one hour (deduped). */
+export async function deliverExamClosingSoonNotification(
+  instituteId: string,
+  studentId: string,
+  exam: ExamStudentAlert,
+): Promise<void> {
+  const content = buildExamClosingSoonNotification({
+    examTitle: exam.title,
+    levelName: exam.level.name,
+    closesAt: exam.closesAt,
+  });
+  await createNotification({
+    instituteId,
+    userId: studentId,
+    type: NotificationType.EXAM_CLOSING_SOON,
+    dedupeKey: notificationDedupeKeys.examClosingSoon(exam.id),
+    metadata: { examId: exam.id },
+    ...content,
+  });
+}
+
+/** T2 — teacher summary after an exam closes (deduped). */
+export async function deliverExamClosedSummaryNotification(
+  instituteId: string,
+  teacherId: string,
+  input: {
+    examId: string;
+    examTitle: string | null;
+    levelName: string;
+    groupName: string;
+    groupId: string;
+    attemptedCount: number;
+    studentCount: number;
+  },
+): Promise<void> {
+  const content = buildExamClosedSummaryNotification({
+    examTitle: input.examTitle,
+    levelName: input.levelName,
+    groupName: input.groupName,
+    groupId: input.groupId,
+    attemptedCount: input.attemptedCount,
+    studentCount: input.studentCount,
+  });
+  await createNotification({
+    instituteId,
+    userId: teacherId,
+    type: NotificationType.EXAM_CLOSED_SUMMARY,
+    dedupeKey: notificationDedupeKeys.examClosed(input.examId),
+    metadata: { examId: input.examId, groupId: input.groupId },
+    ...content,
   });
 }
 
@@ -398,8 +484,8 @@ export async function notifyExamCancelled(
 }
 
 /**
- * S2 + S3 — sync open-exam and closing-soon alerts on student page load.
- * Cron-free until N6.
+ * S2 + S3 — safety-net sync on student page load.
+ * Primary delivery is `runScheduledExamNotificationCron` (N6).
  */
 export async function syncStudentScheduledExamNotifications(
   studentId: string,
@@ -414,7 +500,7 @@ export async function syncStudentScheduledExamNotifications(
   }
 
   const now = new Date();
-  const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+  const oneHourFromNow = new Date(now.getTime() + EXAM_CLOSING_SOON_MS);
 
   const openExams = await prisma.scheduledExam.findMany({
     where: {
@@ -432,32 +518,10 @@ export async function syncStudentScheduledExamNotifications(
   });
 
   for (const exam of openExams) {
-    const openContent = buildExamOpenNotification({
-      examTitle: exam.title,
-      levelName: exam.level.name,
-      closesAt: exam.closesAt,
-    });
-    await createNotification({
-      instituteId,
-      userId: studentId,
-      type: NotificationType.EXAM_OPEN,
-      dedupeKey: notificationDedupeKeys.examOpen(exam.id),
-      ...openContent,
-    });
+    await deliverExamOpenNotification(instituteId, studentId, exam);
 
     if (exam.closesAt.getTime() <= oneHourFromNow.getTime()) {
-      const closingContent = buildExamClosingSoonNotification({
-        examTitle: exam.title,
-        levelName: exam.level.name,
-        closesAt: exam.closesAt,
-      });
-      await createNotification({
-        instituteId,
-        userId: studentId,
-        type: NotificationType.EXAM_CLOSING_SOON,
-        dedupeKey: notificationDedupeKeys.examClosingSoon(exam.id),
-        ...closingContent,
-      });
+      await deliverExamClosingSoonNotification(instituteId, studentId, exam);
     }
   }
 }
@@ -471,14 +535,15 @@ export async function syncExamOpenNotificationsForStudent(
 }
 
 /**
- * T2 — notify a teacher about recently closed exams (page-load sync until N6).
+ * T2 — safety-net sync on teacher dashboard load.
+ * Primary delivery is `runScheduledExamNotificationCron` (N6).
  */
 export async function syncTeacherExamClosedNotifications(
   teacherId: string,
   instituteId: string,
 ): Promise<void> {
   const now = new Date();
-  const lookbackStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const lookbackStart = new Date(now.getTime() - EXAM_CLOSED_SUMMARY_LOOKBACK_MS);
 
   const closedExams = await prisma.scheduledExam.findMany({
     where: {
@@ -510,21 +575,14 @@ export async function syncTeacherExamClosedNotifications(
       }),
     ]);
 
-    const content = buildExamClosedSummaryNotification({
+    await deliverExamClosedSummaryNotification(instituteId, teacherId, {
+      examId: exam.id,
       examTitle: exam.title,
       levelName: exam.level.name,
       groupName: exam.group.name,
       groupId: exam.groupId,
       attemptedCount,
       studentCount,
-    });
-
-    await createNotification({
-      instituteId,
-      userId: teacherId,
-      type: NotificationType.EXAM_CLOSED_SUMMARY,
-      dedupeKey: notificationDedupeKeys.examClosed(exam.id),
-      ...content,
     });
   }
 }

@@ -36,6 +36,7 @@ cp .env.example .env
 | `BETTER_AUTH_SECRET` | Yes | Random secret for signing sessions. **Must be unique per environment.** Generate with `openssl rand -base64 32`. |
 | `BETTER_AUTH_URL` | Yes | Public origin of the app **with no trailing slash**. Must match the URL users open in the browser. |
 | `BLOB_READ_WRITE_TOKEN` | Prod (logo upload) | [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) token for institute logo uploads. Omit locally to store under `public/uploads/` instead. |
+| `CRON_SECRET` | Prod (exam alerts) | Bearer token for `GET /api/cron/notifications`. Vercel Cron sends `Authorization: Bearer …`. Generate with `openssl rand -base64 32`. |
 | `NODE_ENV` | Set by host | `production` on Vercel/Railway automatically. Do not set manually in `.env` for local dev. |
 
 ### Local development
@@ -270,9 +271,58 @@ Never use `prisma migrate reset` against staging or production — it wipes all 
 
 ---
 
-## 10. Security checklist (production)
+## 10. Scheduled exam notifications (cron)
+
+Time-based in-app alerts (exam open, closing soon, closed summary) are delivered by
+`GET /api/cron/notifications` every **5 minutes** on Vercel (`vercel.json`).
+
+### 10.1 Set `CRON_SECRET`
+
+Add to Vercel → Project → Settings → Environment Variables (staging + production):
+
+```env
+CRON_SECRET="<openssl rand -base64 32>"
+```
+
+Vercel Cron automatically sends:
+
+```http
+Authorization: Bearer <CRON_SECRET>
+```
+
+### 10.2 Manual trigger (local or ops)
+
+With the dev server running:
+
+```bash
+# Local dev — CRON_SECRET optional when NODE_ENV=development
+curl http://localhost:3000/api/cron/notifications
+
+# Staging/production — secret required
+curl -H "Authorization: Bearer YOUR_CRON_SECRET" \
+  https://app.yourdomain.com/api/cron/notifications
+```
+
+Success response:
+
+```json
+{ "ok": true, "stats": { "examOpenAttempts": 0, "examClosingSoonAttempts": 0, "examClosedSummaryAttempts": 0 } }
+```
+
+### 10.3 Non-Vercel hosts
+
+Schedule the same URL every 5 minutes with your platform cron (Railway, GitHub
+Actions, etc.) and the `Authorization` header above.
+
+Student `/student` and teacher `/teacher` page loads still run a **safety-net**
+sync (dedupe prevents duplicate notifications if cron already ran).
+
+---
+
+## 11. Security checklist (production)
 
 - [ ] Strong unique `BETTER_AUTH_SECRET` per environment
+- [ ] Strong unique `CRON_SECRET` per environment (exam notification cron)
 - [ ] No demo seed on public production (or passwords rotated immediately)
 - [ ] Database not publicly accessible without credentials
 - [ ] `.env` never committed (only `.env.example`)

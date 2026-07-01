@@ -2,6 +2,12 @@
 
 export type ExamWindowStatus = "upcoming" | "open" | "closed";
 
+/** How far before `closesAt` we alert students (S3). */
+export const EXAM_CLOSING_SOON_MS = 60 * 60 * 1000;
+
+/** How long after close we still send teacher summaries (T2). */
+export const EXAM_CLOSED_SUMMARY_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+
 /** Whether `now` falls inside the inclusive exam window. */
 export function isExamWindowOpen(
   nowMs: number,
