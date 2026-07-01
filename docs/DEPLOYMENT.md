@@ -319,10 +319,53 @@ sync (dedupe prevents duplicate notifications if cron already ran).
 
 ---
 
-## 11. Security checklist (production)
+## 11. Notification retention (cron)
+
+Old in-app notification rows are purged daily by
+`GET /api/cron/notifications-retention` at **03:00 UTC** (`vercel.json`).
+
+| Row state | Deleted when |
+| --------- | ------------ |
+| **Read** (`readAt` set) | `readAt` older than **90 days** (default) |
+| **Unread** | `createdAt` older than **365 days** (default) |
+
+Override via env (optional):
+
+```env
+NOTIFICATION_READ_RETENTION_DAYS=90
+NOTIFICATION_UNREAD_RETENTION_DAYS=365
+```
+
+Manual trigger:
+
+```bash
+curl http://localhost:3000/api/cron/notifications-retention
+
+curl -H "Authorization: Bearer YOUR_CRON_SECRET" \
+  https://app.yourdomain.com/api/cron/notifications-retention
+```
+
+Success response:
+
+```json
+{
+  "ok": true,
+  "stats": {
+    "readDeleted": 12,
+    "unreadDeleted": 0,
+    "totalDeleted": 12,
+    "readRetentionDays": 90,
+    "unreadRetentionDays": 365
+  }
+}
+```
+
+---
+
+## 12. Security checklist (production)
 
 - [ ] Strong unique `BETTER_AUTH_SECRET` per environment
-- [ ] Strong unique `CRON_SECRET` per environment (exam notification cron)
+- [ ] Strong unique `CRON_SECRET` per environment (exam + retention crons)
 - [ ] No demo seed on public production (or passwords rotated immediately)
 - [ ] Database not publicly accessible without credentials
 - [ ] `.env` never committed (only `.env.example`)
