@@ -691,8 +691,12 @@ model AuditLog {
 
 enum NotificationType {
   EXAM_SCHEDULED
+  EXAM_OPEN
   LEVEL_UP
+  LEVEL_ASSIGNED
+  STUDENT_JOINED_GROUP
   BANK_ONLY_BLOCKED
+  BANK_PARTIAL_WARNING
 }
 
 /// Per-user in-app notification. Email/push are out of scope for N1.
@@ -711,9 +715,13 @@ model Notification {
   body  String
   href  String
 
+  /// Idempotency key — e.g. `EXAM_OPEN:{examId}`. Unique per user when set.
+  dedupeKey String?
+
   readAt    DateTime?
   createdAt DateTime  @default(now())
 
+  @@unique([userId, dedupeKey])
   @@index([userId, readAt])
   @@index([userId, createdAt(sort: Desc)])
   @@map("notification")

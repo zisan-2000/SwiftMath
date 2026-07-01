@@ -18,6 +18,10 @@ import { parseGroupTimeLimitField,
 } from "@/lib/group-level-time";
 import { Role } from "@/lib/generated/prisma/enums";
 import { loadStudentProgress } from "@/server/student-progress";
+import {
+  notifyStudentLevelAssigned,
+  notifyTeacherStudentJoined,
+} from "@/server/notifications";
 
 /** The authenticated teacher, as needed for scoping. */
 export interface TeacherContext {
@@ -219,13 +223,13 @@ export async function addStudentToGroup(
 ) {
   const group = await prisma.group.findFirst({
     where: { id: groupId, teacherId: teacher.id },
-    select: { id: true },
+    select: { id: true, name: true },
   });
   if (!group) {
     throw new Error("Group not found or not owned by this teacher.");
   }
 
-  return createUserAccount({
+  const user = await createUserAccount({
     name: student.name,
     email: student.email,
     password: student.password,
@@ -233,6 +237,17 @@ export async function addStudentToGroup(
     instituteId: teacher.instituteId,
     groupId: group.id,
   });
+
+  await notifyTeacherStudentJoined({
+    instituteId: teacher.instituteId,
+    teacherId: teacher.id,
+    groupId: group.id,
+    groupName: group.name,
+    studentId: user.id,
+    studentName: user.name,
+  });
+
+  return user;
 }
 
 export type AssignLevelResult =
@@ -265,7 +280,7 @@ export async function assignStudentLevel(
   if (levelId) {
     const level = await prisma.level.findFirst({
       where: { id: levelId, instituteId: teacher.instituteId, ...ACTIVE_LEVEL_FILTER },
-      select: { id: true },
+      select: { id: true, name: true },
     });
     if (!level) {
       return { ok: false, error: "Level not found in this institute." };
@@ -279,6 +294,20 @@ export async function assignStudentLevel(
     if (!access.allowed) {
       return { ok: false, error: access.message ?? "This level is locked." };
     }
+
+    await prisma.user.update({
+      where: { id: studentId },
+      data: { currentLevelId: levelId },
+    });
+
+    await notifyStudentLevelAssigned({
+      studentId,
+      instituteId: teacher.instituteId,
+      levelId: level.id,
+      levelName: level.name,
+    });
+
+    return { ok: true };
   }
 
   await prisma.user.update({

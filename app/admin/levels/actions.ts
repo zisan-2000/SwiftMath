@@ -8,7 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { Role, OperationType, AuditAction } from "@/lib/generated/prisma/enums";
 import { createLevel, updateLevel, archiveLevel, unarchiveLevel, type LevelInput } from "@/server/admin";
 import { auditActorFromAdmin, recordAuditLog } from "@/server/audit-log";
-import { maybeNotifyBankOnlyBlocked } from "@/server/notifications";
+import { maybeNotifyBankOnlyBlocked, maybeNotifyBankPartialWarning } from "@/server/notifications";
 
 /** Result of a level create/edit form, surfaced via useActionState. */
 export interface LevelFormState {
@@ -118,6 +118,8 @@ export async function createLevelAction(
     const level = await createLevel(admin, parsed.input);
     if (parsed.input.bankOnly) {
       await maybeNotifyBankOnlyBlocked(admin, level.id);
+    } else {
+      await maybeNotifyBankPartialWarning(admin, level.id);
     }
   } catch (error) {
     if (isUniqueViolation(error)) {
@@ -181,6 +183,10 @@ export async function updateLevelAction(
     if (parsed.input.bankOnly) {
       await maybeNotifyBankOnlyBlocked(admin, levelId);
     }
+  }
+
+  if (!parsed.input.bankOnly) {
+    await maybeNotifyBankPartialWarning(admin, levelId);
   }
 
   revalidatePath("/admin/levels");

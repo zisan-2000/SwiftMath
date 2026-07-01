@@ -26,6 +26,8 @@ export function notificationsPageHref(role: Role): string | null {
   switch (role) {
     case Role.STUDENT:
       return "/student/notifications";
+    case Role.TEACHER:
+      return "/teacher/notifications";
     case Role.ADMIN:
       return "/admin/notifications";
     default:
@@ -33,20 +35,38 @@ export function notificationsPageHref(role: Role): string | null {
   }
 }
 
-/** Whether the signed-in role receives in-app notifications in N1. */
+/** Whether the signed-in role receives in-app notifications. */
 export function roleHasNotificationInbox(role: Role): boolean {
   return notificationsPageHref(role) !== null;
 }
+
+/** Stable dedupe keys for idempotent notification delivery. */
+export const notificationDedupeKeys = {
+  examOpen: (examId: string) => `EXAM_OPEN:${examId}`,
+  levelAssigned: (studentId: string, levelId: string) =>
+    `LEVEL_ASSIGNED:${studentId}:${levelId}`,
+  studentJoinedGroup: (groupId: string, studentId: string) =>
+    `STUDENT_JOINED:${groupId}:${studentId}`,
+  bankPartial: (levelId: string) => `BANK_PARTIAL:${levelId}`,
+} as const;
 
 /** Human-readable type label for badges. */
 export function formatNotificationTypeLabel(type: NotificationType): string {
   switch (type) {
     case NotificationType.EXAM_SCHEDULED:
-      return "Exam";
+      return "Exam scheduled";
+    case NotificationType.EXAM_OPEN:
+      return "Exam open";
     case NotificationType.LEVEL_UP:
       return "Level up";
+    case NotificationType.LEVEL_ASSIGNED:
+      return "Level set";
+    case NotificationType.STUDENT_JOINED_GROUP:
+      return "New student";
     case NotificationType.BANK_ONLY_BLOCKED:
       return "Bank-only";
+    case NotificationType.BANK_PARTIAL_WARNING:
+      return "Bank partial";
     default:
       return type;
   }
@@ -71,6 +91,58 @@ export function buildExamScheduledNotification(input: {
     title: "Exam scheduled",
     body: `${label} for ${input.groupName}. ${formatExamWindow(input.opensAt, input.closesAt)}`,
     href: "/student",
+  };
+}
+
+/** Student notification when an exam window opens. */
+export function buildExamOpenNotification(input: {
+  examTitle: string | null;
+  levelName: string;
+  closesAt: Date;
+}): { title: string; body: string; href: string } {
+  const label = input.examTitle?.trim() || input.levelName;
+  const closes = formatNotificationTimestamp(input.closesAt);
+  return {
+    title: "Exam is open",
+    body: `${label} is open now — closes ${closes}.`,
+    href: "/student",
+  };
+}
+
+/** Student notification when a teacher assigns a starting level. */
+export function buildLevelAssignedNotification(input: {
+  levelName: string;
+}): { title: string; body: string; href: string } {
+  return {
+    title: "Level updated",
+    body: `Your teacher set your level to ${input.levelName}.`,
+    href: "/student/practice",
+  };
+}
+
+/** Teacher notification when a student joins their group. */
+export function buildStudentJoinedGroupNotification(input: {
+  studentName: string;
+  groupName: string;
+  groupId: string;
+}): { title: string; body: string; href: string } {
+  return {
+    title: "New student",
+    body: `${input.studentName} joined ${input.groupName}.`,
+    href: `/teacher/groups/${input.groupId}`,
+  };
+}
+
+/** Admin notification when bank coverage is partial (hybrid sessions). */
+export function buildBankPartialWarningNotification(input: {
+  levelId: string;
+  levelName: string;
+  detail: string;
+}): { title: string; body: string; href: string } {
+  return {
+    title: "Question bank partial",
+    body: `${input.levelName}: ${input.detail}`,
+    href: `/admin/levels/${input.levelId}/questions`,
   };
 }
 

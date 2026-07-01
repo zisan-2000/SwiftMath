@@ -5,8 +5,13 @@ import "server-only";
 import { prisma } from "@/lib/prisma";
 import {
   buildBankOnlyBlockedNotification,
+  buildBankPartialWarningNotification,
+  buildExamOpenNotification,
   buildExamScheduledNotification,
+  buildLevelAssignedNotification,
   buildLevelUpNotification,
+  buildStudentJoinedGroupNotification,
+  notificationDedupeKeys,
   type NotificationListItem,
 } from "@/lib/notifications";
 import { assessLevelBankCoverage } from "@/lib/question-bank";
@@ -30,6 +35,16 @@ interface CreateNotificationInput {
   title: string;
   body: string;
   href: string;
+  dedupeKey?: string;
+}
+
+function isUniqueViolation(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    (error as { code?: unknown }).code === "P2002"
+  );
 }
 
 /** Append one notification. Failures are logged but never block the main mutation. */
@@ -37,11 +52,14 @@ async function createNotification(input: CreateNotificationInput): Promise<void>
   try {
     await prisma.notification.create({ data: input });
   } catch (error) {
+    if (input.dedupeKey && isUniqueViolation(error)) {
+      return;
+    }
     console.error("[notifications] failed to create notification", error);
   }
 }
 
-/** Batch-create identical notifications for many users. */
+/** Batch-create identical notifications for many users (no dedupe). */
 async function createNotificationsForUsers(
   userIds: string[],
   data: Omit<CreateNotificationInput, "userId">,
@@ -195,6 +213,54 @@ export async function notifyExamScheduled(
   );
 }
 
+/**
+ * S2 — notify a student about open exam windows they have not been alerted to yet.
+ * Called on student page load (no cron in N2).
+ */
+export async function syncExamOpenNotificationsForStudent(
+  studentId: string,
+  instituteId: string,
+): Promise<void> {
+  const student = await prisma.user.findUnique({
+    where: { id: studentId },
+    select: { groupId: true, role: true, isActive: true },
+  });
+  if (!student?.groupId || student.role !== Role.STUDENT || !student.isActive) {
+    return;
+  }
+
+  const now = new Date();
+  const openExams = await prisma.scheduledExam.findMany({
+    where: {
+      instituteId,
+      groupId: student.groupId,
+      opensAt: { lte: now },
+      closesAt: { gte: now },
+    },
+    select: {
+      id: true,
+      title: true,
+      closesAt: true,
+      level: { select: { name: true } },
+    },
+  });
+
+  for (const exam of openExams) {
+    const content = buildExamOpenNotification({
+      examTitle: exam.title,
+      levelName: exam.level.name,
+      closesAt: exam.closesAt,
+    });
+    await createNotification({
+      instituteId,
+      userId: studentId,
+      type: NotificationType.EXAM_OPEN,
+      dedupeKey: notificationDedupeKeys.examOpen(exam.id),
+      ...content,
+    });
+  }
+}
+
 /** S4 — notify a student after they level up. */
 export async function notifyStudentLevelUp(
   student: StudentContext,
@@ -205,6 +271,52 @@ export async function notifyStudentLevelUp(
     instituteId: student.instituteId,
     userId: student.id,
     type: NotificationType.LEVEL_UP,
+    ...content,
+  });
+}
+
+/** S5 — notify a student when their level is assigned by staff. */
+export async function notifyStudentLevelAssigned(input: {
+  studentId: string;
+  instituteId: string;
+  levelId: string;
+  levelName: string;
+}): Promise<void> {
+  const content = buildLevelAssignedNotification({ levelName: input.levelName });
+  await createNotification({
+    instituteId: input.instituteId,
+    userId: input.studentId,
+    type: NotificationType.LEVEL_ASSIGNED,
+    dedupeKey: notificationDedupeKeys.levelAssigned(
+      input.studentId,
+      input.levelId,
+    ),
+    ...content,
+  });
+}
+
+/** T1 — notify a teacher when a student joins their group. */
+export async function notifyTeacherStudentJoined(input: {
+  instituteId: string;
+  teacherId: string;
+  groupId: string;
+  groupName: string;
+  studentId: string;
+  studentName: string;
+}): Promise<void> {
+  const content = buildStudentJoinedGroupNotification({
+    studentName: input.studentName,
+    groupName: input.groupName,
+    groupId: input.groupId,
+  });
+  await createNotification({
+    instituteId: input.instituteId,
+    userId: input.teacherId,
+    type: NotificationType.STUDENT_JOINED_GROUP,
+    dedupeKey: notificationDedupeKeys.studentJoinedGroup(
+      input.groupId,
+      input.studentId,
+    ),
     ...content,
   });
 }
@@ -229,6 +341,30 @@ export async function notifyInstituteAdminsBankOnlyBlocked(
       ...content,
     },
   );
+}
+
+/** A2 — notify institute admins when hybrid bank coverage is partial. */
+export async function notifyInstituteAdminsBankPartialWarning(
+  instituteId: string,
+  input: { levelId: string; levelName: string; detail: string },
+): Promise<void> {
+  const admins = await prisma.user.findMany({
+    where: { instituteId, role: Role.ADMIN, isActive: true },
+    select: { id: true },
+  });
+
+  const content = buildBankPartialWarningNotification(input);
+  const dedupeKey = notificationDedupeKeys.bankPartial(input.levelId);
+
+  for (const admin of admins) {
+    await createNotification({
+      instituteId,
+      userId: admin.id,
+      type: NotificationType.BANK_PARTIAL_WARNING,
+      dedupeKey,
+      ...content,
+    });
+  }
 }
 
 /**
@@ -258,6 +394,39 @@ export async function maybeNotifyBankOnlyBlocked(
   if (coverage.status !== "blocked") return;
 
   await notifyInstituteAdminsBankOnlyBlocked(admin.instituteId, {
+    levelId,
+    levelName: level.name,
+    detail: coverage.detail,
+  });
+}
+
+/**
+ * A2 helper — warn admins when bank-only is off but active bank is smaller than
+ * session size (hybrid dynamic fill).
+ */
+export async function maybeNotifyBankPartialWarning(
+  admin: AdminContext,
+  levelId: string,
+): Promise<void> {
+  const level = await prisma.level.findFirst({
+    where: { id: levelId, instituteId: admin.instituteId },
+    select: { name: true, questionCount: true, bankOnly: true },
+  });
+  if (!level || level.bankOnly) return;
+
+  const stats = await getLevelBankStats(admin, levelId);
+  if (!stats) return;
+
+  const coverage = assessLevelBankCoverage({
+    sessionQuestionCount: level.questionCount,
+    totalBankCount: stats.totalBankCount,
+    activeBankCount: stats.activeBankCount,
+    bankOnly: false,
+  });
+
+  if (coverage.status !== "partial") return;
+
+  await notifyInstituteAdminsBankPartialWarning(admin.instituteId, {
     levelId,
     levelName: level.name,
     detail: coverage.detail,

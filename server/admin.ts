@@ -21,6 +21,10 @@ import {
 import type { InstituteBrandingSettings } from "@/lib/institute-branding";
 import { ACTIVE_LEVEL_FILTER } from "@/lib/active-levels";
 import { loadStudentProgress } from "@/server/student-progress";
+import {
+  notifyStudentLevelAssigned,
+  notifyTeacherStudentJoined,
+} from "@/server/notifications";
 
 /** The authenticated admin, as needed for scoping. */
 export interface AdminContext {
@@ -492,18 +496,19 @@ export async function createStudentInGroup(
 ): Promise<CreateStudentResult> {
   const group = await prisma.group.findFirst({
     where: { id: groupId, instituteId: admin.instituteId },
-    select: { id: true },
+    select: { id: true, name: true, teacherId: true },
   });
   if (!group) {
     return { ok: false, error: "Group not found in this institute." };
   }
 
+  let assignedLevel: { id: string; name: string } | null = null;
   if (levelId) {
-    const level = await prisma.level.findFirst({
+    assignedLevel = await prisma.level.findFirst({
       where: { id: levelId, instituteId: admin.instituteId, ...ACTIVE_LEVEL_FILTER },
-      select: { id: true },
+      select: { id: true, name: true },
     });
-    if (!level) {
+    if (!assignedLevel) {
       return { ok: false, error: "Level not found in this institute." };
     }
   }
@@ -517,11 +522,20 @@ export async function createStudentInGroup(
     groupId: group.id,
   });
 
-  if (levelId) {
+  await notifyTeacherStudentJoined({
+    instituteId: admin.instituteId,
+    teacherId: group.teacherId,
+    groupId: group.id,
+    groupName: group.name,
+    studentId: user.id,
+    studentName: user.name,
+  });
+
+  if (assignedLevel) {
     const access = await checkStudentLevelAccess(
       user.id,
       admin.instituteId,
-      levelId,
+      assignedLevel.id,
     );
     if (!access.allowed) {
       await prisma.user.delete({ where: { id: user.id } });
@@ -533,7 +547,14 @@ export async function createStudentInGroup(
 
     await prisma.user.update({
       where: { id: user.id },
-      data: { currentLevelId: levelId },
+      data: { currentLevelId: assignedLevel.id },
+    });
+
+    await notifyStudentLevelAssigned({
+      studentId: user.id,
+      instituteId: admin.instituteId,
+      levelId: assignedLevel.id,
+      levelName: assignedLevel.name,
     });
   }
 

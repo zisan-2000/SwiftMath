@@ -1,4 +1,5 @@
 import {
+  Bell,
   Boxes,
   Brain,
   Building2,
@@ -37,18 +38,21 @@ export const NAV_ITEMS: Record<Role, NavItem[]> = {
     { href: "/admin/students", label: "Students", icon: GraduationCap },
     { href: "/admin/groups", label: "Groups", icon: Boxes },
     { href: "/admin/levels", label: "Levels", icon: Layers },
+    { href: "/admin/notifications", label: "Notifications", icon: Bell },
     { href: "/admin/activity", label: "Activity", icon: ScrollText },
     { href: "/admin/settings", label: "Settings", icon: Settings },
   ],
   TEACHER: [
     { href: "/teacher", label: "Dashboard", icon: LayoutDashboard },
     { href: "/teacher/groups", label: "Groups", icon: Boxes },
+    { href: "/teacher/notifications", label: "Notifications", icon: Bell },
     { href: "/teacher/activity", label: "Your activity", icon: ScrollText },
     { href: "/teacher/ranking", label: "Ranking", icon: Trophy },
   ],
   STUDENT: [
     { href: "/student", label: "Home", icon: Home },
     { href: "/student/practice", label: "Practice", icon: Brain },
+    { href: "/student/notifications", label: "Notifications", icon: Bell },
     { href: "/student/ranking", label: "Ranking", icon: Trophy },
   ],
 };
