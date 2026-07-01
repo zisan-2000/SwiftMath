@@ -36,6 +36,11 @@ import {
 import { NotificationType, Role } from "@/lib/generated/prisma/enums";
 import type { AdminContext } from "@/server/admin";
 import type { StudentContext } from "@/server/practice";
+import {
+  isNotificationDeliveryEnabled,
+  isNotificationDeliveryEnabledSync,
+  loadDisabledNotificationPreferencesForUsers,
+} from "@/server/notification-preferences";
 import { getLevelBankStats } from "@/server/question-bank";
 
 export type { NotificationListItem };
@@ -74,8 +79,26 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
+async function shouldDeliverNotification(
+  userId: string,
+  type: NotificationType,
+  disabledMap?: Map<string, Set<NotificationType>>,
+): Promise<boolean> {
+  if (disabledMap) {
+    return isNotificationDeliveryEnabledSync(userId, type, disabledMap);
+  }
+  return isNotificationDeliveryEnabled(userId, type);
+}
+
 /** Append one notification. Failures are logged but never block the main mutation. */
-async function createNotification(input: CreateNotificationInput): Promise<void> {
+async function createNotification(
+  input: CreateNotificationInput,
+  disabledMap?: Map<string, Set<NotificationType>>,
+): Promise<void> {
+  if (!(await shouldDeliverNotification(input.userId, input.type, disabledMap))) {
+    return;
+  }
+
   try {
     await prisma.notification.create({
       data: {
@@ -102,9 +125,16 @@ async function createNotification(input: CreateNotificationInput): Promise<void>
  * Create or refresh a deduped notification (e.g. reschedule, bank shrink update).
  * Resets readAt so important updates surface again in the bell.
  */
-async function upsertNotification(input: CreateNotificationInput): Promise<void> {
+async function upsertNotification(
+  input: CreateNotificationInput,
+  disabledMap?: Map<string, Set<NotificationType>>,
+): Promise<void> {
+  if (!(await shouldDeliverNotification(input.userId, input.type, disabledMap))) {
+    return;
+  }
+
   if (!input.dedupeKey) {
-    await createNotification(input);
+    await createNotification(input, disabledMap);
     return;
   }
 
@@ -197,20 +227,24 @@ export async function deliverExamOpenNotification(
   instituteId: string,
   studentId: string,
   exam: ExamStudentAlert,
+  disabledMap?: Map<string, Set<NotificationType>>,
 ): Promise<void> {
   const content = buildExamOpenNotification({
     examTitle: exam.title,
     levelName: exam.level.name,
     closesAt: exam.closesAt,
   });
-  await createNotification({
-    instituteId,
-    userId: studentId,
-    type: NotificationType.EXAM_OPEN,
-    dedupeKey: notificationDedupeKeys.examOpen(exam.id),
-    metadata: { examId: exam.id },
-    ...content,
-  });
+  await createNotification(
+    {
+      instituteId,
+      userId: studentId,
+      type: NotificationType.EXAM_OPEN,
+      dedupeKey: notificationDedupeKeys.examOpen(exam.id),
+      metadata: { examId: exam.id },
+      ...content,
+    },
+    disabledMap,
+  );
 }
 
 /** S3 — one student, exam closing within one hour (deduped). */
@@ -218,20 +252,24 @@ export async function deliverExamClosingSoonNotification(
   instituteId: string,
   studentId: string,
   exam: ExamStudentAlert,
+  disabledMap?: Map<string, Set<NotificationType>>,
 ): Promise<void> {
   const content = buildExamClosingSoonNotification({
     examTitle: exam.title,
     levelName: exam.level.name,
     closesAt: exam.closesAt,
   });
-  await createNotification({
-    instituteId,
-    userId: studentId,
-    type: NotificationType.EXAM_CLOSING_SOON,
-    dedupeKey: notificationDedupeKeys.examClosingSoon(exam.id),
-    metadata: { examId: exam.id },
-    ...content,
-  });
+  await createNotification(
+    {
+      instituteId,
+      userId: studentId,
+      type: NotificationType.EXAM_CLOSING_SOON,
+      dedupeKey: notificationDedupeKeys.examClosingSoon(exam.id),
+      metadata: { examId: exam.id },
+      ...content,
+    },
+    disabledMap,
+  );
 }
 
 /** T2 — teacher summary after an exam closes (deduped). */
@@ -247,6 +285,7 @@ export async function deliverExamClosedSummaryNotification(
     attemptedCount: number;
     studentCount: number;
   },
+  disabledMap?: Map<string, Set<NotificationType>>,
 ): Promise<void> {
   const content = buildExamClosedSummaryNotification({
     examTitle: input.examTitle,
@@ -256,14 +295,17 @@ export async function deliverExamClosedSummaryNotification(
     attemptedCount: input.attemptedCount,
     studentCount: input.studentCount,
   });
-  await createNotification({
-    instituteId,
-    userId: teacherId,
-    type: NotificationType.EXAM_CLOSED_SUMMARY,
-    dedupeKey: notificationDedupeKeys.examClosed(input.examId),
-    metadata: { examId: input.examId, groupId: input.groupId },
-    ...content,
-  });
+  await createNotification(
+    {
+      instituteId,
+      userId: teacherId,
+      type: NotificationType.EXAM_CLOSED_SUMMARY,
+      dedupeKey: notificationDedupeKeys.examClosed(input.examId),
+      metadata: { examId: input.examId, groupId: input.groupId },
+      ...content,
+    },
+    disabledMap,
+  );
 }
 
 /** Unread count for the header bell badge. */
@@ -403,17 +445,21 @@ export async function notifyExamScheduled(
   });
 
   const dedupeKey = notificationDedupeKeys.examScheduled(scheduledExamId);
+  const disabledMap = await loadDisabledNotificationPreferencesForUsers(studentIds);
 
   for (const userId of studentIds) {
-    await upsertNotification({
-      instituteId,
-      userId,
-      type: NotificationType.EXAM_SCHEDULED,
-      dedupeKey,
-      metadata,
-      actorUserId: exam.createdById,
-      ...content,
-    });
+    await upsertNotification(
+      {
+        instituteId,
+        userId,
+        type: NotificationType.EXAM_SCHEDULED,
+        dedupeKey,
+        metadata,
+        actorUserId: exam.createdById,
+        ...content,
+      },
+      disabledMap,
+    );
   }
 }
 
@@ -469,17 +515,21 @@ export async function notifyExamCancelled(
     actorName: input.actorName,
   };
   const dedupeKey = notificationDedupeKeys.examCancelled(scheduledExamId);
+  const disabledMap = await loadDisabledNotificationPreferencesForUsers(studentIds);
 
   for (const userId of studentIds) {
-    await upsertNotification({
-      instituteId,
-      userId,
-      type: NotificationType.EXAM_CANCELLED,
-      dedupeKey,
-      metadata,
-      actorUserId: input.actorUserId,
-      ...content,
-    });
+    await upsertNotification(
+      {
+        instituteId,
+        userId,
+        type: NotificationType.EXAM_CANCELLED,
+        dedupeKey,
+        metadata,
+        actorUserId: input.actorUserId,
+        ...content,
+      },
+      disabledMap,
+    );
   }
 }
 

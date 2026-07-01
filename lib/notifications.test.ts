@@ -16,8 +16,11 @@ import {
   buildStudentJoinedGroupNotification,
   formatNotificationTypeLabel,
   getNotificationTypePresentation,
+  isConfigurableNotificationType,
   notificationEmptyStateCopy,
   notificationInboxHref,
+  notificationPreferenceDescription,
+  notificationPreferenceTypes,
   notificationDedupeKeys,
   notificationsListHref,
   notificationsPageHref,
@@ -77,6 +80,37 @@ describe("notificationDedupeKeys", () => {
     );
     expect(notificationDedupeKeys.levelUp("stu-1", "lvl-1")).toBe(
       "LEVEL_UP:stu-1:lvl-1",
+    );
+  });
+});
+
+describe("notificationPreferenceTypes", () => {
+  it("matches inbox filter options per role", () => {
+    expect(notificationPreferenceTypes(Role.STUDENT)).toContain(
+      NotificationType.EXAM_OPEN,
+    );
+    expect(notificationPreferenceTypes(Role.SUPER_ADMIN)).toEqual([]);
+  });
+});
+
+describe("isConfigurableNotificationType", () => {
+  it("allows role-specific types only", () => {
+    expect(
+      isConfigurableNotificationType(Role.STUDENT, NotificationType.LEVEL_UP),
+    ).toBe(true);
+    expect(
+      isConfigurableNotificationType(
+        Role.STUDENT,
+        NotificationType.CURRICULUM_BUMPED,
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("notificationPreferenceDescription", () => {
+  it("returns helper copy for exam alerts", () => {
+    expect(notificationPreferenceDescription(NotificationType.EXAM_OPEN)).toContain(
+      "opens",
     );
   });
 });

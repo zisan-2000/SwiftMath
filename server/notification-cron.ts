@@ -16,6 +16,7 @@ import {
   deliverExamClosingSoonNotification,
   deliverExamOpenNotification,
 } from "@/server/notifications";
+import { loadDisabledNotificationPreferencesMap } from "@/server/notification-preferences";
 
 export interface ScheduledExamCronStats {
   /** Open-exam alerts attempted (dedupe may skip duplicates). */
@@ -70,6 +71,7 @@ export async function runScheduledExamNotificationCron(
     examClosedSummaryAttempts: 0,
   };
 
+  const disabledMap = await loadDisabledNotificationPreferencesMap();
   const oneHourFromNow = new Date(now.getTime() + EXAM_CLOSING_SOON_MS);
   const lookbackStart = new Date(now.getTime() - EXAM_CLOSED_SUMMARY_LOOKBACK_MS);
 
@@ -116,7 +118,7 @@ export async function runScheduledExamNotificationCron(
     for (const student of students) {
       if (student.instituteId !== exam.instituteId) continue;
 
-      await deliverExamOpenNotification(exam.instituteId, student.id, exam);
+      await deliverExamOpenNotification(exam.instituteId, student.id, exam, disabledMap);
       stats.examOpenAttempts += 1;
 
       if (exam.closesAt.getTime() <= oneHourFromNow.getTime()) {
@@ -124,6 +126,7 @@ export async function runScheduledExamNotificationCron(
           exam.instituteId,
           student.id,
           exam,
+          disabledMap,
         );
         stats.examClosingSoonAttempts += 1;
       }
@@ -174,6 +177,7 @@ export async function runScheduledExamNotificationCron(
         attemptedCount: attemptsByExam.get(exam.id) ?? 0,
         studentCount: studentsByGroupCount.get(exam.groupId) ?? 0,
       },
+      disabledMap,
     );
     stats.examClosedSummaryAttempts += 1;
   }

@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { roleHasNotificationInbox } from "@/lib/notifications";
+import { listNotificationPreferencesForUser } from "@/server/notification-preferences";
 import { AppShell } from "@/components/app-shell";
 import { ChangePasswordForm } from "@/components/account/change-password-form";
+import { NotificationPreferencesPanel } from "@/components/account/notification-preferences-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -13,15 +16,24 @@ export const metadata: Metadata = {
 
 /**
  * Account settings, available to every signed-in user regardless of role.
- * Phase 1 scope: change your own password.
+ * Phase 1 scope: change password + notification preferences (N7).
  */
 export default async function AccountPage() {
   const user = await requireUser();
 
-  const institute = await prisma.institute.findUnique({
-    where: { id: user.instituteId },
-    select: { name: true, logoUrl: true },
-  });
+  const [institute, notificationPreferences] = await Promise.all([
+    prisma.institute.findUnique({
+      where: { id: user.instituteId },
+      select: { name: true, logoUrl: true },
+    }),
+    roleHasNotificationInbox(user.role)
+      ? listNotificationPreferencesForUser({
+          userId: user.id,
+          instituteId: user.instituteId,
+          role: user.role,
+        })
+      : Promise.resolve([]),
+  ]);
 
   return (
     <AppShell
@@ -29,7 +41,7 @@ export default async function AccountPage() {
       instituteName={institute?.name ?? "Institute"}
       instituteLogoUrl={institute?.logoUrl}
       title="Account"
-      subtitle="Manage your sign-in details."
+      subtitle="Manage your sign-in details and notification preferences."
     >
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Card>
@@ -62,6 +74,21 @@ export default async function AccountPage() {
           <ChangePasswordForm />
         </CardContent>
       </Card>
+
+      {notificationPreferences.length > 0 ? (
+        <Card className="mt-8 max-w-2xl">
+          <CardHeader>
+            <CardTitle className="text-base">Notification preferences</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Choose which in-app alerts you receive. Existing notifications stay
+              in your inbox; muting only stops new ones.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <NotificationPreferencesPanel preferences={notificationPreferences} />
+          </CardContent>
+        </Card>
+      ) : null}
     </AppShell>
   );
 }

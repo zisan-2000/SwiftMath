@@ -136,6 +136,7 @@ model Institute {
   curriculumVersions CurriculumVersion[]
   auditLogs        AuditLog[]
   notifications    Notification[]
+  notificationPreferences NotificationPreference[]
 
   @@map("institute")
 }
@@ -225,6 +226,9 @@ model User {
 
   /// Notifications where this user is credited as the actor (e.g. exam scheduler).
   notificationActions Notification[] @relation("NotificationActor")
+
+  /// Per-type in-app delivery toggles (N7). Absent row = enabled.
+  notificationPreferences NotificationPreference[]
 
   // --- better-auth relations ---
   sessions Session[]
@@ -742,4 +746,24 @@ model Notification {
   @@index([userId, readAt])
   @@index([userId, createdAt(sort: Desc)])
   @@map("notification")
+}
+
+/// Per-user opt-out for a notification type (N7). No row means delivery enabled.
+model NotificationPreference {
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  type NotificationType
+
+  /// When false, new notifications of this type are suppressed.
+  enabled Boolean @default(true)
+
+  updatedAt DateTime @updatedAt
+
+  @@id([userId, type])
+  @@index([instituteId])
+  @@map("notification_preference")
 }

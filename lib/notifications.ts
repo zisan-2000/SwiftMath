@@ -25,6 +25,14 @@ export interface NotificationListItem {
   createdAt: Date;
 }
 
+/** One toggle row on the account notification preferences panel (N7). */
+export interface NotificationPreferenceView {
+  type: NotificationType;
+  enabled: boolean;
+  label: string;
+  description: string;
+}
+
 /** Format a notification timestamp for list UI. */
 export function formatNotificationTimestamp(date: Date): string {
   return date.toLocaleString(undefined, {
@@ -323,6 +331,55 @@ export function parseNotificationReadFilter(
   value: string | undefined,
 ): NotificationReadFilter {
   return value === "unread" ? "unread" : "all";
+}
+
+/** Notification types a role can configure in account settings (N7). */
+export function notificationPreferenceTypes(role: Role): NotificationType[] {
+  return notificationTypeFilterOptions(role);
+}
+
+/** Whether this role may mute the given notification type. */
+export function isConfigurableNotificationType(
+  role: Role,
+  type: NotificationType,
+): boolean {
+  return notificationPreferenceTypes(role).includes(type);
+}
+
+/** Short helper copy for the account preferences panel. */
+export function notificationPreferenceDescription(
+  type: NotificationType,
+): string {
+  switch (type) {
+    case NotificationType.EXAM_SCHEDULED:
+      return "When a teacher schedules a new exam for your group.";
+    case NotificationType.EXAM_CANCELLED:
+      return "When a scheduled exam is cancelled before it runs.";
+    case NotificationType.EXAM_OPEN:
+      return "When an exam window opens and you can start your attempt.";
+    case NotificationType.EXAM_CLOSING_SOON:
+      return "One-hour warning before an open exam closes.";
+    case NotificationType.LEVEL_UP:
+      return "When you pass a level and move up.";
+    case NotificationType.LEVEL_ASSIGNED:
+      return "When staff sets or changes your current level.";
+    case NotificationType.EXAM_CLOSED_SUMMARY:
+      return "After an exam closes, with how many students attempted.";
+    case NotificationType.STUDENT_JOINED_GROUP:
+      return "When a new student is added to one of your groups.";
+    case NotificationType.GROUP_BANK_BLOCKED:
+      return "When bank-only practice cannot start for your group.";
+    case NotificationType.BANK_ONLY_BLOCKED:
+      return "When bank-only mode blocks practice on a level.";
+    case NotificationType.BANK_PARTIAL_WARNING:
+      return "When hybrid sessions must fill gaps from a partial bank.";
+    case NotificationType.GROUP_QUESTION_DISABLED:
+      return "When a teacher disables a bank question for their group.";
+    case NotificationType.CURRICULUM_BUMPED:
+      return "When a new curriculum generation becomes active.";
+    default:
+      return "In-app alerts for this category.";
+  }
 }
 
 /** Notification types shown in the inbox filter for each role. */
