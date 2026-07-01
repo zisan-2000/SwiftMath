@@ -135,6 +135,7 @@ model Institute {
   levelQuestions   LevelQuestion[]
   curriculumVersions CurriculumVersion[]
   auditLogs        AuditLog[]
+  notifications    Notification[]
 
   @@map("institute")
 }
@@ -218,6 +219,9 @@ model User {
 
   /// Question-control audit events performed by this user.
   auditLogs AuditLog[] @relation("AuditLogActor")
+
+  /// In-app notifications delivered to this user.
+  notifications Notification[]
 
   // --- better-auth relations ---
   sessions Session[]
@@ -679,4 +683,38 @@ model AuditLog {
   @@index([instituteId, createdAt(sort: Desc)])
   @@index([instituteId, action])
   @@map("audit_log")
+}
+
+// ---------------------------------------------------------------------------
+// In-app notifications (N1)
+// ---------------------------------------------------------------------------
+
+enum NotificationType {
+  EXAM_SCHEDULED
+  LEVEL_UP
+  BANK_ONLY_BLOCKED
+}
+
+/// Per-user in-app notification. Email/push are out of scope for N1.
+model Notification {
+  id String @id @default(cuid())
+
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  type NotificationType
+
+  title String
+  body  String
+  href  String
+
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notification")
 }

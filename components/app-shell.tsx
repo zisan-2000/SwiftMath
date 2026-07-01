@@ -1,15 +1,18 @@
 import type { ReactNode } from "react";
+import { Suspense } from "react";
 
 import type { Role } from "@/lib/generated/prisma/enums";
-import { ThemeToggle } from "@/components/theme-toggle";
+import {
+  HeaderActions,
+  HeaderActionsFallback,
+} from "@/components/nav/header-actions";
 import { Brand } from "@/components/nav/brand";
 import { SidebarNav } from "@/components/nav/sidebar-nav";
 import { MobileNav } from "@/components/nav/mobile-nav";
-import { UserMenu } from "@/components/nav/user-menu";
 
 interface AppShellProps {
   /** The signed-in user, already fetched + authorised by the page. */
-  user: { name: string; role: Role };
+  user: { id: string; name: string; role: Role; instituteId: string };
   /** Display name of the user's institute (white-label brand). */
   instituteName: string;
   /** Optional white-label logo URL for the institute. */
@@ -80,8 +83,9 @@ export function AppShell({
             />
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <ThemeToggle />
-            <UserMenu user={user} />
+            <Suspense fallback={<HeaderActionsFallback user={user} />}>
+              <HeaderActions user={user} />
+            </Suspense>
           </div>
         </header>
 

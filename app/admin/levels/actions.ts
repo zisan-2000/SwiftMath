@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { Role, OperationType, AuditAction } from "@/lib/generated/prisma/enums";
 import { createLevel, updateLevel, archiveLevel, unarchiveLevel, type LevelInput } from "@/server/admin";
 import { auditActorFromAdmin, recordAuditLog } from "@/server/audit-log";
+import { maybeNotifyBankOnlyBlocked } from "@/server/notifications";
 
 /** Result of a level create/edit form, surfaced via useActionState. */
 export interface LevelFormState {
@@ -114,7 +115,10 @@ export async function createLevelAction(
   if ("error" in parsed) return { error: parsed.error };
 
   try {
-    await createLevel(admin, parsed.input);
+    const level = await createLevel(admin, parsed.input);
+    if (parsed.input.bankOnly) {
+      await maybeNotifyBankOnlyBlocked(admin, level.id);
+    }
   } catch (error) {
     if (isUniqueViolation(error)) {
       return { error: "That order position is already used by another level." };
@@ -173,6 +177,10 @@ export async function updateLevelAction(
         bankOnly: parsed.input.bankOnly,
       },
     });
+
+    if (parsed.input.bankOnly) {
+      await maybeNotifyBankOnlyBlocked(admin, levelId);
+    }
   }
 
   revalidatePath("/admin/levels");

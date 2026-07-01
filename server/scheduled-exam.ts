@@ -27,6 +27,7 @@ import { getActiveCurriculumVersionId } from "@/server/curriculum-version";
 import { buildFixedExamPaper } from "@/lib/exam-paper";
 import { InsufficientBankError } from "@/lib/question-bank";
 import type { SessionQuestionDraft } from "@/lib/question-bank";
+import { notifyExamScheduled } from "@/server/notifications";
 
 export { LevelAccessError };
 
@@ -223,8 +224,8 @@ export async function createScheduledExam(
 
   const title = input.title?.trim() || null;
 
-  return prisma.$transaction(async (tx) => {
-    const exam = await tx.scheduledExam.create({
+  const exam = await prisma.$transaction(async (tx) => {
+    const created = await tx.scheduledExam.create({
       data: {
         instituteId: teacher.instituteId,
         groupId: group.id,
@@ -238,14 +239,17 @@ export async function createScheduledExam(
     });
 
     await ensureScheduledExamPaper(tx, {
-      scheduledExamId: exam.id,
+      scheduledExamId: created.id,
       instituteId: teacher.instituteId,
       groupId: group.id,
       levelId: level.id,
     });
 
-    return exam;
+    return created;
   });
+
+  await notifyExamScheduled(teacher.instituteId, exam.id);
+  return exam;
 }
 
 /** Load a scheduled exam owned by this teacher's group. */

@@ -31,6 +31,7 @@ import {
 } from "@/lib/challenge-mode";
 import { buildSessionQuestionsForStudent } from "@/server/question-bank";
 import { getActiveCurriculumVersionId } from "@/server/curriculum-version";
+import { notifyStudentLevelUp } from "@/server/notifications";
 
 /** The authenticated student, as needed for scoping. */
 export interface StudentContext {
@@ -255,7 +256,7 @@ export async function submitPracticeSession(
 ): Promise<SubmitResult> {
   const now = new Date();
 
-  return prisma.$transaction(async (tx) => {
+  const txResult = await prisma.$transaction(async (tx) => {
     const session = await tx.practiceSession.findFirst({
       where: { id: sessionId, studentId: student.id },
       select: {
@@ -316,6 +317,8 @@ export async function submitPracticeSession(
 
     // Level-up: timed standard or exam passes at the student's current level only.
     let leveledUp = false;
+    let newLevelId: string | undefined;
+    let newLevelName: string | undefined;
     if (
       passed &&
       (session.mode === PracticeMode.STANDARD ||
@@ -333,7 +336,7 @@ export async function submitPracticeSession(
             ...ACTIVE_LEVEL_FILTER,
           },
           orderBy: { orderIndex: "asc" },
-          select: { id: true },
+          select: { id: true, name: true },
         });
         if (next) {
           await tx.user.update({
@@ -341,6 +344,8 @@ export async function submitPracticeSession(
             data: { currentLevelId: next.id },
           });
           leveledUp = true;
+          newLevelId = next.id;
+          newLevelName = next.name;
         }
       }
     }
@@ -383,6 +388,24 @@ export async function submitPracticeSession(
       accuracy,
       passed,
       leveledUp,
+      newLevelId,
+      newLevelName,
     };
   });
+
+  if (txResult.leveledUp && txResult.newLevelId && txResult.newLevelName) {
+    await notifyStudentLevelUp(student, {
+      levelId: txResult.newLevelId,
+      levelName: txResult.newLevelName,
+    });
+  }
+
+  return {
+    status: txResult.status,
+    correctCount: txResult.correctCount,
+    totalQuestions: txResult.totalQuestions,
+    accuracy: txResult.accuracy,
+    passed: txResult.passed,
+    leveledUp: txResult.leveledUp,
+  };
 }
