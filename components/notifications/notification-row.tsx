@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import {
+  Building2,
   AlertTriangle,
   BookOpen,
   ClipboardCheck,
@@ -29,6 +30,7 @@ const ICONS: Record<NotificationIconKey, LucideIcon> = {
   student: UserPlus,
   bank: BookOpen,
   curriculum: BookOpen,
+  platform: Building2,
   alert: AlertTriangle,
 };
 

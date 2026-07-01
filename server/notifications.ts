@@ -14,6 +14,9 @@ import {
   buildExamScheduledNotification,
   buildGroupBankBlockedNotification,
   buildGroupQuestionDisabledAdminNotification,
+  buildInstituteCreatedNotification,
+  buildInstituteDisabledNotification,
+  buildInstituteEnabledNotification,
   buildLevelAssignedNotification,
   buildLevelUpNotification,
   buildStudentJoinedGroupNotification,
@@ -920,5 +923,120 @@ export async function maybeNotifyBankPartialWarning(
     levelId,
     levelName: level.name,
     detail: coverage.detail,
+  });
+}
+
+async function listActiveSuperAdmins(): Promise<
+  { id: string; instituteId: string }[]
+> {
+  return prisma.user.findMany({
+    where: { role: Role.SUPER_ADMIN, isActive: true },
+    select: { id: true, instituteId: true },
+  });
+}
+
+/** Deliver one platform alert to every active super admin (N9). */
+async function notifyAllSuperAdmins(
+  data: Omit<CreateNotificationInput, "userId" | "instituteId">,
+): Promise<void> {
+  const superAdmins = await listActiveSuperAdmins();
+  if (superAdmins.length === 0) return;
+
+  const disabledMap = await loadDisabledNotificationPreferencesForUsers(
+    superAdmins.map((admin) => admin.id),
+  );
+
+  for (const admin of superAdmins) {
+    await createNotification(
+      {
+        ...data,
+        userId: admin.id,
+        instituteId: admin.instituteId,
+      },
+      disabledMap,
+    );
+  }
+}
+
+/** P1 — alert platform operators when a new institute is provisioned. */
+export async function notifySuperAdminsInstituteCreated(input: {
+  actorUserId: string;
+  actorName: string;
+  instituteId: string;
+  instituteName: string;
+  instituteSlug: string;
+}): Promise<void> {
+  const content = buildInstituteCreatedNotification({
+    instituteId: input.instituteId,
+    instituteName: input.instituteName,
+    instituteSlug: input.instituteSlug,
+    actorName: input.actorName,
+  });
+  const metadata: NotificationMetadata = {
+    targetInstituteId: input.instituteId,
+    targetInstituteName: input.instituteName,
+    actorName: input.actorName,
+  };
+
+  await notifyAllSuperAdmins({
+    type: NotificationType.INSTITUTE_CREATED,
+    dedupeKey: notificationDedupeKeys.instituteCreated(input.instituteId),
+    metadata,
+    actorUserId: input.actorUserId,
+    ...content,
+  });
+}
+
+/** P2 — alert platform operators when a tenant is disabled. */
+export async function notifySuperAdminsInstituteDisabled(input: {
+  actorUserId: string;
+  actorName: string;
+  instituteId: string;
+  instituteName: string;
+}): Promise<void> {
+  const content = buildInstituteDisabledNotification({
+    instituteId: input.instituteId,
+    instituteName: input.instituteName,
+    actorName: input.actorName,
+  });
+  const metadata: NotificationMetadata = {
+    targetInstituteId: input.instituteId,
+    targetInstituteName: input.instituteName,
+    actorName: input.actorName,
+  };
+
+  await notifyAllSuperAdmins({
+    type: NotificationType.INSTITUTE_DISABLED,
+    dedupeKey: notificationDedupeKeys.instituteDisabled(input.instituteId),
+    metadata,
+    actorUserId: input.actorUserId,
+    ...content,
+  });
+}
+
+/** P3 — alert platform operators when a tenant is re-enabled. */
+export async function notifySuperAdminsInstituteEnabled(input: {
+  actorUserId: string;
+  actorName: string;
+  instituteId: string;
+  instituteName: string;
+}): Promise<void> {
+  const content = buildInstituteEnabledNotification({
+    instituteId: input.instituteId,
+    instituteName: input.instituteName,
+    actorName: input.actorName,
+  });
+  const metadata: NotificationMetadata = {
+    targetInstituteId: input.instituteId,
+    targetInstituteName: input.instituteName,
+    actorName: input.actorName,
+  };
+
+  await notifyAllSuperAdmins({
+    type: NotificationType.INSTITUTE_ENABLED,
+    dedupeKey: notificationDedupeKeys.instituteEnabled(input.instituteId),
+    metadata,
+    actorUserId: input.actorUserId,
+    ...content,
   });
 }

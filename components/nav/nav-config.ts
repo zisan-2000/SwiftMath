@@ -31,6 +31,7 @@ export const NAV_ITEMS: Record<Role, NavItem[]> = {
   SUPER_ADMIN: [
     { href: "/super", label: "Dashboard", icon: LayoutDashboard },
     { href: "/super/institutes", label: "Institutes", icon: Building2 },
+    { href: "/super/notifications", label: "Notifications", icon: Bell },
   ],
   ADMIN: [
     { href: "/admin", label: "Dashboard", icon: LayoutDashboard },

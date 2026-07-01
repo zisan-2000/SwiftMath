@@ -11,6 +11,9 @@ import {
   buildExamScheduledNotification,
   buildGroupBankBlockedNotification,
   buildGroupQuestionDisabledAdminNotification,
+  buildInstituteCreatedNotification,
+  buildInstituteDisabledNotification,
+  buildInstituteEnabledNotification,
   buildLevelAssignedNotification,
   buildLevelUpNotification,
   buildStudentJoinedGroupNotification,
@@ -24,6 +27,7 @@ import {
   notificationDedupeKeys,
   notificationsListHref,
   notificationsPageHref,
+  superInstituteHref,
   parseNotificationReadFilter,
   parseNotificationTypeFilter,
   roleHasNotificationInbox,
@@ -36,7 +40,7 @@ describe("notificationsPageHref", () => {
     expect(notificationsPageHref(Role.STUDENT)).toBe("/student/notifications");
     expect(notificationsPageHref(Role.TEACHER)).toBe("/teacher/notifications");
     expect(notificationsPageHref(Role.ADMIN)).toBe("/admin/notifications");
-    expect(notificationsPageHref(Role.SUPER_ADMIN)).toBeNull();
+    expect(notificationsPageHref(Role.SUPER_ADMIN)).toBe("/super/notifications");
   });
 });
 
@@ -45,7 +49,7 @@ describe("roleHasNotificationInbox", () => {
     expect(roleHasNotificationInbox(Role.STUDENT)).toBe(true);
     expect(roleHasNotificationInbox(Role.TEACHER)).toBe(true);
     expect(roleHasNotificationInbox(Role.ADMIN)).toBe(true);
-    expect(roleHasNotificationInbox(Role.SUPER_ADMIN)).toBe(false);
+    expect(roleHasNotificationInbox(Role.SUPER_ADMIN)).toBe(true);
   });
 });
 
@@ -74,6 +78,15 @@ describe("notificationDedupeKeys", () => {
     expect(notificationDedupeKeys.curriculumBumped("ver-1")).toBe(
       "CURRICULUM_BUMPED:ver-1",
     );
+    expect(notificationDedupeKeys.instituteCreated("inst-1")).toBe(
+      "INSTITUTE_CREATED:inst-1",
+    );
+    expect(notificationDedupeKeys.instituteDisabled("inst-1")).toBe(
+      "INSTITUTE_DISABLED:inst-1",
+    );
+    expect(notificationDedupeKeys.instituteEnabled("inst-1")).toBe(
+      "INSTITUTE_ENABLED:inst-1",
+    );
     expect(notificationDedupeKeys.bankPartial("lvl-1")).toBe("BANK_PARTIAL:lvl-1");
     expect(notificationDedupeKeys.bankOnlyBlocked("lvl-1")).toBe(
       "BANK_ONLY_BLOCKED:lvl-1",
@@ -89,7 +102,11 @@ describe("notificationPreferenceTypes", () => {
     expect(notificationPreferenceTypes(Role.STUDENT)).toContain(
       NotificationType.EXAM_OPEN,
     );
-    expect(notificationPreferenceTypes(Role.SUPER_ADMIN)).toEqual([]);
+    expect(notificationPreferenceTypes(Role.SUPER_ADMIN)).toEqual([
+      NotificationType.INSTITUTE_CREATED,
+      NotificationType.INSTITUTE_DISABLED,
+      NotificationType.INSTITUTE_ENABLED,
+    ]);
   });
 });
 
@@ -141,6 +158,35 @@ describe("formatNotificationTypeLabel", () => {
     expect(formatNotificationTypeLabel(NotificationType.CURRICULUM_BUMPED)).toBe(
       "Curriculum",
     );
+  });
+});
+
+describe("buildInstituteCreatedNotification", () => {
+  it("links to the institute drill-in page", () => {
+    const content = buildInstituteCreatedNotification({
+      instituteId: "inst-1",
+      instituteName: "SEFT Institute",
+      instituteSlug: "seft",
+      actorName: "Platform Ops",
+    });
+
+    expect(content.title).toBe("New institute");
+    expect(content.body).toContain("SEFT Institute");
+    expect(content.body).toContain("Provisioned by Platform Ops");
+    expect(content.href).toBe(superInstituteHref("inst-1"));
+  });
+});
+
+describe("buildInstituteDisabledNotification", () => {
+  it("warns that sign-in is blocked", () => {
+    const content = buildInstituteDisabledNotification({
+      instituteId: "inst-1",
+      instituteName: "SEFT Institute",
+      actorName: "Platform Ops",
+    });
+
+    expect(content.body).toContain("sign-in is blocked");
+    expect(content.href).toBe("/super/institutes/inst-1");
   });
 });
 

@@ -12,6 +12,9 @@ export interface NotificationMetadata {
   groupId?: string;
   questionId?: string;
   actorName?: string;
+  /** Target tenant for platform (super-admin) alerts (N9). */
+  targetInstituteId?: string;
+  targetInstituteName?: string;
 }
 
 /** One row in the notification bell dropdown or inbox page. */
@@ -50,6 +53,8 @@ export function notificationsPageHref(role: Role): string | null {
       return "/teacher/notifications";
     case Role.ADMIN:
       return "/admin/notifications";
+    case Role.SUPER_ADMIN:
+      return "/super/notifications";
     default:
       return null;
   }
@@ -80,6 +85,9 @@ export const notificationDedupeKeys = {
   bankOnlyBlocked: (levelId: string) => `BANK_ONLY_BLOCKED:${levelId}`,
   bankPartial: (levelId: string) => `BANK_PARTIAL:${levelId}`,
   curriculumBumped: (versionId: string) => `CURRICULUM_BUMPED:${versionId}`,
+  instituteCreated: (instituteId: string) => `INSTITUTE_CREATED:${instituteId}`,
+  instituteDisabled: (instituteId: string) => `INSTITUTE_DISABLED:${instituteId}`,
+  instituteEnabled: (instituteId: string) => `INSTITUTE_ENABLED:${instituteId}`,
 } as const;
 
 /** Human-readable type label for badges. */
@@ -111,6 +119,12 @@ export function formatNotificationTypeLabel(type: NotificationType): string {
       return "Bank partial";
     case NotificationType.CURRICULUM_BUMPED:
       return "Curriculum";
+    case NotificationType.INSTITUTE_CREATED:
+      return "Institute created";
+    case NotificationType.INSTITUTE_DISABLED:
+      return "Institute disabled";
+    case NotificationType.INSTITUTE_ENABLED:
+      return "Institute enabled";
     default:
       return type;
   }
@@ -120,6 +134,60 @@ function formatExamWindow(opensAt: Date, closesAt: Date): string {
   const opens = formatNotificationTimestamp(opensAt);
   const closes = formatNotificationTimestamp(closesAt);
   return `Opens ${opens} — closes ${closes}.`;
+}
+
+/** Deep link to a tenant drill-in page for super admins. */
+export function superInstituteHref(instituteId: string): string {
+  return `/super/institutes/${instituteId}`;
+}
+
+/** Super-admin notification when a new institute is provisioned. */
+export function buildInstituteCreatedNotification(input: {
+  instituteName: string;
+  instituteSlug: string;
+  instituteId: string;
+  actorName?: string | null;
+}): { title: string; body: string; href: string } {
+  const actorPrefix = input.actorName?.trim()
+    ? `Provisioned by ${input.actorName.trim()}. `
+    : "";
+  return {
+    title: "New institute",
+    body: `${actorPrefix}${input.instituteName} (${input.instituteSlug}) is live with a starter curriculum.`,
+    href: superInstituteHref(input.instituteId),
+  };
+}
+
+/** Super-admin notification when a tenant is disabled. */
+export function buildInstituteDisabledNotification(input: {
+  instituteName: string;
+  instituteId: string;
+  actorName?: string | null;
+}): { title: string; body: string; href: string } {
+  const actorPrefix = input.actorName?.trim()
+    ? `Disabled by ${input.actorName.trim()}. `
+    : "";
+  return {
+    title: "Institute disabled",
+    body: `${actorPrefix}${input.instituteName} — member sign-in is blocked until re-enabled.`,
+    href: superInstituteHref(input.instituteId),
+  };
+}
+
+/** Super-admin notification when a tenant is re-enabled. */
+export function buildInstituteEnabledNotification(input: {
+  instituteName: string;
+  instituteId: string;
+  actorName?: string | null;
+}): { title: string; body: string; href: string } {
+  const actorPrefix = input.actorName?.trim()
+    ? `Enabled by ${input.actorName.trim()}. `
+    : "";
+  return {
+    title: "Institute enabled",
+    body: `${actorPrefix}${input.instituteName} is active again — members can sign in.`,
+    href: superInstituteHref(input.instituteId),
+  };
 }
 
 /** Student notification when a teacher schedules a group exam. */
@@ -377,6 +445,12 @@ export function notificationPreferenceDescription(
       return "When a teacher disables a bank question for their group.";
     case NotificationType.CURRICULUM_BUMPED:
       return "When a new curriculum generation becomes active.";
+    case NotificationType.INSTITUTE_CREATED:
+      return "When a new institute is provisioned on the platform.";
+    case NotificationType.INSTITUTE_DISABLED:
+      return "When a tenant is disabled and members lose access.";
+    case NotificationType.INSTITUTE_ENABLED:
+      return "When a disabled tenant is re-enabled.";
     default:
       return "In-app alerts for this category.";
   }
@@ -406,6 +480,12 @@ export function notificationTypeFilterOptions(role: Role): NotificationType[] {
         NotificationType.BANK_PARTIAL_WARNING,
         NotificationType.GROUP_QUESTION_DISABLED,
         NotificationType.CURRICULUM_BUMPED,
+      ];
+    case Role.SUPER_ADMIN:
+      return [
+        NotificationType.INSTITUTE_CREATED,
+        NotificationType.INSTITUTE_DISABLED,
+        NotificationType.INSTITUTE_ENABLED,
       ];
     default:
       return [];
@@ -476,6 +556,12 @@ export function notificationEmptyStateCopy(
         description:
           "Bank coverage issues, teacher overrides, and curriculum updates will appear here.",
       };
+    case Role.SUPER_ADMIN:
+      return {
+        title: "No notifications yet",
+        description:
+          "Institute provisioning and tenant status changes will appear here.",
+      };
     default:
       return {
         title: "No notifications",
@@ -490,6 +576,7 @@ export type NotificationIconKey =
   | "student"
   | "bank"
   | "curriculum"
+  | "platform"
   | "alert";
 
 export interface NotificationTypePresentation {
@@ -537,6 +624,21 @@ export function getNotificationTypePresentation(
       return {
         icon: "curriculum",
         accentClass: "bg-violet-500/10 text-violet-700 dark:text-violet-400",
+      };
+    case NotificationType.INSTITUTE_CREATED:
+      return {
+        icon: "platform",
+        accentClass: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400",
+      };
+    case NotificationType.INSTITUTE_DISABLED:
+      return {
+        icon: "platform",
+        accentClass: "bg-destructive/10 text-destructive",
+      };
+    case NotificationType.INSTITUTE_ENABLED:
+      return {
+        icon: "platform",
+        accentClass: "bg-primary/10 text-primary",
       };
     case NotificationType.GROUP_QUESTION_DISABLED:
       return {

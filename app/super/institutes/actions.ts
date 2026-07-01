@@ -3,11 +3,17 @@
 import { revalidatePath } from "next/cache";
 
 import { requireSuperAdmin } from "@/lib/session";
+import { prisma } from "@/lib/prisma";
 import {
   createInstitute,
   setInstituteActive,
   updateInstitute,
 } from "@/server/super";
+import {
+  notifySuperAdminsInstituteCreated,
+  notifySuperAdminsInstituteDisabled,
+  notifySuperAdminsInstituteEnabled,
+} from "@/server/notifications";
 
 /** Result of the add-institute form, surfaced via useActionState. */
 export interface AddInstituteState {
@@ -73,7 +79,7 @@ export async function addInstituteAction(
   _prevState: AddInstituteState,
   formData: FormData,
 ): Promise<AddInstituteState> {
-  await requireSuperAdmin();
+  const actor = await requireSuperAdmin();
 
   const name = String(formData.get("name") ?? "").trim();
   const slug = String(formData.get("slug") ?? "")
@@ -96,12 +102,19 @@ export async function addInstituteAction(
   }
 
   try {
-    await createInstitute({
+    const institute = await createInstitute({
       name,
       slug,
       tagline,
       logoUrl,
       admin: { name: adminName, email: adminEmail, password: adminPassword },
+    });
+    await notifySuperAdminsInstituteCreated({
+      actorUserId: actor.id,
+      actorName: actor.name,
+      instituteId: institute.id,
+      instituteName: institute.name,
+      instituteSlug: institute.slug,
     });
   } catch (error) {
     if (isUniqueViolation(error)) {
@@ -171,9 +184,32 @@ export async function setInstituteActiveAction(
   isActive: boolean,
   _formData: FormData,
 ) {
-  await requireSuperAdmin();
+  const actor = await requireSuperAdmin();
 
-  await setInstituteActive(instituteId, isActive);
+  const institute = await prisma.institute.findUnique({
+    where: { id: instituteId },
+    select: { id: true, name: true },
+  });
+  if (!institute) return;
+
+  const changed = await setInstituteActive(instituteId, isActive);
+  if (!changed) return;
+
+  if (isActive) {
+    await notifySuperAdminsInstituteEnabled({
+      actorUserId: actor.id,
+      actorName: actor.name,
+      instituteId: institute.id,
+      instituteName: institute.name,
+    });
+  } else {
+    await notifySuperAdminsInstituteDisabled({
+      actorUserId: actor.id,
+      actorName: actor.name,
+      instituteId: institute.id,
+      instituteName: institute.name,
+    });
+  }
 
   revalidateInstitutePaths(instituteId);
 }

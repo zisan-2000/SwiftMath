@@ -710,6 +710,9 @@ enum NotificationType {
   BANK_ONLY_BLOCKED
   BANK_PARTIAL_WARNING
   CURRICULUM_BUMPED
+  INSTITUTE_CREATED
+  INSTITUTE_DISABLED
+  INSTITUTE_ENABLED
 }
 
 /// Per-user in-app notification. Email/push are out of scope for N1.

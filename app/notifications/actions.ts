@@ -26,6 +26,9 @@ function revalidateNotificationChrome(role: Role): void {
     case Role.ADMIN:
       revalidatePath("/admin");
       break;
+    case Role.SUPER_ADMIN:
+      revalidatePath("/super");
+      break;
     default:
       break;
   }
