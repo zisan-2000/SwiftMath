@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Bell } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -24,15 +26,38 @@ export function NotificationBellMenu({
   unreadCount: number;
   recent: NotificationListItem[];
 }) {
+  const router = useRouter();
+  const [localUnreadCount, setLocalUnreadCount] = useState(unreadCount);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    setLocalUnreadCount(unreadCount);
+  }, [unreadCount]);
+
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (nextOpen) {
+      router.refresh();
+    }
+  }
+
+  function handleItemRead() {
+    setLocalUnreadCount((count) => Math.max(0, count - 1));
+  }
+
   const badgeLabel =
-    unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : null;
+    localUnreadCount > 99
+      ? "99+"
+      : localUnreadCount > 0
+        ? String(localUnreadCount)
+        : null;
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger
         aria-label={
-          unreadCount > 0
-            ? `Notifications, ${unreadCount} unread`
+          localUnreadCount > 0
+            ? `Notifications, ${localUnreadCount} unread`
             : "Notifications"
         }
         className={cn(
@@ -49,7 +74,11 @@ export function NotificationBellMenu({
       <DropdownMenuContent align="end" className="w-80 p-0">
         <DropdownMenuLabel className="px-3 py-2">Notifications</DropdownMenuLabel>
         <DropdownMenuSeparator className="m-0" />
-        <NotificationDropdownList role={role} items={recent} />
+        <NotificationDropdownList
+          role={role}
+          items={recent}
+          onItemRead={handleItemRead}
+        />
       </DropdownMenuContent>
     </DropdownMenu>
   );

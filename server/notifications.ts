@@ -33,6 +33,13 @@ import { getLevelBankStats } from "@/server/question-bank";
 
 export type { NotificationListItem };
 
+export interface ListUserNotificationsOptions {
+  page?: number;
+  pageSize?: number;
+  type?: NotificationType | null;
+  read?: "all" | "unread";
+}
+
 interface CreateNotificationInput {
   instituteId: string;
   userId: string;
@@ -116,15 +123,21 @@ export async function listRecentNotifications(
 export async function listUserNotifications(
   userId: string,
   instituteId: string,
-  page = 1,
-  pageSize = DEFAULT_PAGE_SIZE,
+  options: ListUserNotificationsOptions = {},
 ): Promise<PaginatedList<NotificationListItem>> {
+  const page = options.page ?? 1;
+  const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
   const { skip, take, page: safePage, pageSize: safeSize } = paginationBounds(
     page,
     pageSize,
   );
 
-  const where = { userId, instituteId };
+  const where = {
+    userId,
+    instituteId,
+    ...(options.type ? { type: options.type } : {}),
+    ...(options.read === "unread" ? { readAt: null } : {}),
+  };
 
   const [total, items] = await Promise.all([
     prisma.notification.count({ where }),

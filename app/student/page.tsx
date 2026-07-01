@@ -110,7 +110,10 @@ export default async function StudentDashboardPage({
       )}
 
       {pendingExam && (
-        <Card className="mb-8 border-amber-500/30 bg-amber-500/5">
+        <Card
+          id="pending-exam"
+          className="mb-8 scroll-mt-24 border-amber-500/30 bg-amber-500/5"
+        >
           <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0">
               <p className="text-sm font-medium text-amber-700 dark:text-amber-400">

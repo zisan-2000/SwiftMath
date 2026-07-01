@@ -14,10 +14,16 @@ import {
   buildLevelUpNotification,
   buildStudentJoinedGroupNotification,
   formatNotificationTypeLabel,
+  getNotificationTypePresentation,
+  notificationEmptyStateCopy,
+  notificationInboxHref,
   notificationDedupeKeys,
   notificationsListHref,
   notificationsPageHref,
+  parseNotificationReadFilter,
+  parseNotificationTypeFilter,
   roleHasNotificationInbox,
+  STUDENT_PENDING_EXAM_HREF,
 } from "@/lib/notifications";
 import { NotificationType, Role } from "@/lib/generated/prisma/enums";
 
@@ -101,12 +107,12 @@ describe("buildExamScheduledNotification", () => {
     expect(content.title).toBe("Exam scheduled");
     expect(content.body).toContain("Mid-term");
     expect(content.body).toContain("Batch A");
-    expect(content.href).toBe("/student");
+    expect(content.href).toBe(STUDENT_PENDING_EXAM_HREF);
   });
 });
 
 describe("buildExamOpenNotification", () => {
-  it("links to the student home page", () => {
+  it("links to the pending exam anchor", () => {
     const content = buildExamOpenNotification({
       examTitle: "Weekly test",
       levelName: "Level 3",
@@ -116,7 +122,7 @@ describe("buildExamOpenNotification", () => {
     expect(content.title).toBe("Exam is open");
     expect(content.body).toContain("Weekly test");
     expect(content.body).toContain("open now");
-    expect(content.href).toBe("/student");
+    expect(content.href).toBe(STUDENT_PENDING_EXAM_HREF);
   });
 });
 
@@ -130,7 +136,7 @@ describe("buildExamClosingSoonNotification", () => {
 
     expect(content.title).toBe("Exam closing soon");
     expect(content.body).toContain("Weekly test");
-    expect(content.href).toBe("/student");
+    expect(content.href).toBe(STUDENT_PENDING_EXAM_HREF);
   });
 });
 
@@ -251,5 +257,55 @@ describe("notificationsListHref", () => {
     expect(notificationsListHref(Role.TEACHER, 2)).toBe(
       "/teacher/notifications?page=2",
     );
+  });
+});
+
+describe("notificationInboxHref", () => {
+  it("preserves type and unread filters", () => {
+    expect(
+      notificationInboxHref(Role.ADMIN, {
+        page: 2,
+        type: NotificationType.CURRICULUM_BUMPED,
+        read: "unread",
+      }),
+    ).toBe("/admin/notifications?page=2&type=CURRICULUM_BUMPED&read=unread");
+  });
+});
+
+describe("parseNotificationTypeFilter", () => {
+  it("accepts role-specific types only", () => {
+    expect(
+      parseNotificationTypeFilter(Role.STUDENT, NotificationType.LEVEL_UP),
+    ).toBe(NotificationType.LEVEL_UP);
+    expect(
+      parseNotificationTypeFilter(Role.STUDENT, NotificationType.CURRICULUM_BUMPED),
+    ).toBeNull();
+  });
+});
+
+describe("parseNotificationReadFilter", () => {
+  it("defaults to all", () => {
+    expect(parseNotificationReadFilter(undefined)).toBe("all");
+    expect(parseNotificationReadFilter("unread")).toBe("unread");
+  });
+});
+
+describe("notificationEmptyStateCopy", () => {
+  it("returns filter-specific copy when filtered", () => {
+    const empty = notificationEmptyStateCopy(Role.STUDENT, {
+      type: NotificationType.EXAM_OPEN,
+      read: "all",
+    });
+    expect(empty.title).toBe("No matching notifications");
+  });
+});
+
+describe("getNotificationTypePresentation", () => {
+  it("maps exam types to exam styling", () => {
+    const presentation = getNotificationTypePresentation(
+      NotificationType.EXAM_OPEN,
+    );
+    expect(presentation.icon).toBe("exam");
+    expect(presentation.accentClass).toContain("amber");
   });
 });
