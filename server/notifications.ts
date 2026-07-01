@@ -7,6 +7,7 @@ import {
   buildBankOnlyBlockedNotification,
   buildBankPartialWarningNotification,
   buildCurriculumBumpedNotification,
+  buildExamCancelledNotification,
   buildExamClosedSummaryNotification,
   buildExamClosingSoonNotification,
   buildExamOpenNotification,
@@ -18,7 +19,9 @@ import {
   buildStudentJoinedGroupNotification,
   notificationDedupeKeys,
   type NotificationListItem,
+  type NotificationMetadata,
 } from "@/lib/notifications";
+import type { Prisma } from "@/lib/generated/prisma/client";
 import { assessLevelBankCoverage } from "@/lib/question-bank";
 import {
   buildPaginatedList,
@@ -48,6 +51,14 @@ interface CreateNotificationInput {
   body: string;
   href: string;
   dedupeKey?: string;
+  metadata?: NotificationMetadata;
+  actorUserId?: string;
+}
+
+function metadataJson(
+  metadata: NotificationMetadata | undefined,
+): Prisma.InputJsonValue | undefined {
+  return metadata as Prisma.InputJsonValue | undefined;
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -62,7 +73,19 @@ function isUniqueViolation(error: unknown): boolean {
 /** Append one notification. Failures are logged but never block the main mutation. */
 async function createNotification(input: CreateNotificationInput): Promise<void> {
   try {
-    await prisma.notification.create({ data: input });
+    await prisma.notification.create({
+      data: {
+        instituteId: input.instituteId,
+        userId: input.userId,
+        type: input.type,
+        title: input.title,
+        body: input.body,
+        href: input.href,
+        dedupeKey: input.dedupeKey,
+        metadata: metadataJson(input.metadata),
+        actorUserId: input.actorUserId,
+      },
+    });
   } catch (error) {
     if (input.dedupeKey && isUniqueViolation(error)) {
       return;
@@ -71,20 +94,90 @@ async function createNotification(input: CreateNotificationInput): Promise<void>
   }
 }
 
-/** Batch-create identical notifications for many users (no dedupe). */
-async function createNotificationsForUsers(
-  userIds: string[],
-  data: Omit<CreateNotificationInput, "userId">,
-): Promise<void> {
-  if (userIds.length === 0) return;
+/**
+ * Create or refresh a deduped notification (e.g. reschedule, bank shrink update).
+ * Resets readAt so important updates surface again in the bell.
+ */
+async function upsertNotification(input: CreateNotificationInput): Promise<void> {
+  if (!input.dedupeKey) {
+    await createNotification(input);
+    return;
+  }
+
+  const data = {
+    instituteId: input.instituteId,
+    userId: input.userId,
+    type: input.type,
+    title: input.title,
+    body: input.body,
+    href: input.href,
+    dedupeKey: input.dedupeKey,
+    metadata: metadataJson(input.metadata),
+    actorUserId: input.actorUserId,
+  };
 
   try {
-    await prisma.notification.createMany({
-      data: userIds.map((userId) => ({ ...data, userId })),
+    await prisma.notification.upsert({
+      where: {
+        userId_dedupeKey: {
+          userId: input.userId,
+          dedupeKey: input.dedupeKey,
+        },
+      },
+      create: data,
+      update: {
+        type: data.type,
+        title: data.title,
+        body: data.body,
+        href: data.href,
+        metadata: data.metadata,
+        actorUserId: data.actorUserId,
+        readAt: null,
+        createdAt: new Date(),
+      },
     });
   } catch (error) {
-    console.error("[notifications] failed to batch-create notifications", error);
+    console.error("[notifications] failed to upsert notification", error);
   }
+}
+
+async function listActiveGroupStudentIds(
+  instituteId: string,
+  groupId: string,
+): Promise<string[]> {
+  const students = await prisma.user.findMany({
+    where: {
+      instituteId,
+      groupId,
+      role: Role.STUDENT,
+      isActive: true,
+    },
+    select: { id: true },
+  });
+  return students.map((student) => student.id);
+}
+
+/** Drop stale exam alerts so sync/reschedule can re-fire cleanly (N5.3). */
+async function removeExamStudentSyncNotifications(
+  instituteId: string,
+  examId: string,
+  studentIds: string[],
+): Promise<void> {
+  if (studentIds.length === 0) return;
+
+  await prisma.notification.deleteMany({
+    where: {
+      instituteId,
+      userId: { in: studentIds },
+      dedupeKey: {
+        in: [
+          notificationDedupeKeys.examScheduled(examId),
+          notificationDedupeKeys.examOpen(examId),
+          notificationDedupeKeys.examClosingSoon(examId),
+        ],
+      },
+    },
+  });
 }
 
 /** Unread count for the header bell badge. */
@@ -197,21 +290,22 @@ export async function notifyExamScheduled(
       title: true,
       opensAt: true,
       closesAt: true,
+      createdById: true,
       group: { select: { id: true, name: true } },
-      level: { select: { name: true } },
+      level: { select: { id: true, name: true } },
+      createdBy: { select: { name: true } },
     },
   });
   if (!exam) return;
 
-  const students = await prisma.user.findMany({
-    where: {
-      instituteId,
-      groupId: exam.group.id,
-      role: Role.STUDENT,
-      isActive: true,
-    },
-    select: { id: true },
-  });
+  const studentIds = await listActiveGroupStudentIds(instituteId, exam.group.id);
+  const actorName = exam.createdBy.name;
+  const metadata: NotificationMetadata = {
+    examId: scheduledExamId,
+    groupId: exam.group.id,
+    levelId: exam.level.id,
+    actorName,
+  };
 
   const content = buildExamScheduledNotification({
     examTitle: exam.title,
@@ -219,16 +313,88 @@ export async function notifyExamScheduled(
     groupName: exam.group.name,
     opensAt: exam.opensAt,
     closesAt: exam.closesAt,
+    actorName,
   });
 
-  await createNotificationsForUsers(
-    students.map((student) => student.id),
-    {
+  const dedupeKey = notificationDedupeKeys.examScheduled(scheduledExamId);
+
+  for (const userId of studentIds) {
+    await upsertNotification({
       instituteId,
+      userId,
       type: NotificationType.EXAM_SCHEDULED,
+      dedupeKey,
+      metadata,
+      actorUserId: exam.createdById,
       ...content,
-    },
+    });
+  }
+}
+
+/** N5.3 — refresh scheduled-exam alerts after a teacher reschedules. */
+export async function notifyExamRescheduled(
+  instituteId: string,
+  scheduledExamId: string,
+): Promise<void> {
+  const exam = await prisma.scheduledExam.findFirst({
+    where: { id: scheduledExamId, instituteId },
+    select: { groupId: true },
+  });
+  if (!exam) return;
+
+  const studentIds = await listActiveGroupStudentIds(instituteId, exam.groupId);
+  await removeExamStudentSyncNotifications(
+    instituteId,
+    scheduledExamId,
+    studentIds,
   );
+  await notifyExamScheduled(instituteId, scheduledExamId);
+}
+
+/** N5.3 — notify students when a scheduled exam is cancelled. */
+export async function notifyExamCancelled(
+  instituteId: string,
+  scheduledExamId: string,
+  input: {
+    examTitle: string | null;
+    levelName: string;
+    groupId: string;
+    groupName: string;
+    actorUserId: string;
+    actorName: string;
+  },
+): Promise<void> {
+  const studentIds = await listActiveGroupStudentIds(instituteId, input.groupId);
+  await removeExamStudentSyncNotifications(
+    instituteId,
+    scheduledExamId,
+    studentIds,
+  );
+
+  const content = buildExamCancelledNotification({
+    examTitle: input.examTitle,
+    levelName: input.levelName,
+    groupName: input.groupName,
+    actorName: input.actorName,
+  });
+  const metadata: NotificationMetadata = {
+    examId: scheduledExamId,
+    groupId: input.groupId,
+    actorName: input.actorName,
+  };
+  const dedupeKey = notificationDedupeKeys.examCancelled(scheduledExamId);
+
+  for (const userId of studentIds) {
+    await upsertNotification({
+      instituteId,
+      userId,
+      type: NotificationType.EXAM_CANCELLED,
+      dedupeKey,
+      metadata,
+      actorUserId: input.actorUserId,
+      ...content,
+    });
+  }
 }
 
 /**
@@ -406,8 +572,10 @@ export async function notifyTeacherGroupBankBlocked(input: {
 export async function notifyAdminsGroupQuestionDisabled(input: {
   instituteId: string;
   teacherName: string;
+  groupId: string;
   groupName: string;
   levelName: string;
+  questionId: string;
   prompt: string;
 }): Promise<void> {
   const admins = await prisma.user.findMany({
@@ -416,15 +584,26 @@ export async function notifyAdminsGroupQuestionDisabled(input: {
   });
 
   const content = buildGroupQuestionDisabledAdminNotification(input);
-
-  await createNotificationsForUsers(
-    admins.map((admin) => admin.id),
-    {
-      instituteId: input.instituteId,
-      type: NotificationType.GROUP_QUESTION_DISABLED,
-      ...content,
-    },
+  const dedupeKey = notificationDedupeKeys.groupQuestionDisabled(
+    input.groupId,
+    input.questionId,
   );
+  const metadata: NotificationMetadata = {
+    groupId: input.groupId,
+    questionId: input.questionId,
+    actorName: input.teacherName,
+  };
+
+  for (const admin of admins) {
+    await createNotification({
+      instituteId: input.instituteId,
+      userId: admin.id,
+      type: NotificationType.GROUP_QUESTION_DISABLED,
+      dedupeKey,
+      metadata,
+      ...content,
+    });
+  }
 }
 
 /** A4 — notify institute admins after a curriculum version bump. */
@@ -466,6 +645,8 @@ export async function notifyStudentLevelUp(
     instituteId: student.instituteId,
     userId: student.id,
     type: NotificationType.LEVEL_UP,
+    dedupeKey: notificationDedupeKeys.levelUp(student.id, input.levelId),
+    metadata: { levelId: input.levelId },
     ...content,
   });
 }
@@ -527,15 +708,19 @@ export async function notifyInstituteAdminsBankOnlyBlocked(
   });
 
   const content = buildBankOnlyBlockedNotification(input);
+  const dedupeKey = notificationDedupeKeys.bankOnlyBlocked(input.levelId);
+  const metadata: NotificationMetadata = { levelId: input.levelId };
 
-  await createNotificationsForUsers(
-    admins.map((admin) => admin.id),
-    {
+  for (const admin of admins) {
+    await upsertNotification({
       instituteId,
+      userId: admin.id,
       type: NotificationType.BANK_ONLY_BLOCKED,
+      dedupeKey,
+      metadata,
       ...content,
-    },
-  );
+    });
+  }
 }
 
 /** A2 — notify institute admins when hybrid bank coverage is partial. */
@@ -550,21 +735,23 @@ export async function notifyInstituteAdminsBankPartialWarning(
 
   const content = buildBankPartialWarningNotification(input);
   const dedupeKey = notificationDedupeKeys.bankPartial(input.levelId);
+  const metadata: NotificationMetadata = { levelId: input.levelId };
 
   for (const admin of admins) {
-    await createNotification({
+    await upsertNotification({
       instituteId,
       userId: admin.id,
       type: NotificationType.BANK_PARTIAL_WARNING,
       dedupeKey,
+      metadata,
       ...content,
     });
   }
 }
 
 /**
- * A1 helper — after bank-only is enabled, warn admins if coverage is blocked.
- * Safe to call from level create/update actions.
+ * A1 helper — warn admins when bank-only coverage is blocked.
+ * Safe to call on toggle, bank shrink, or question-count changes (N5.2).
  */
 export async function maybeNotifyBankOnlyBlocked(
   admin: AdminContext,

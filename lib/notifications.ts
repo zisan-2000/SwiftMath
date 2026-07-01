@@ -5,6 +5,15 @@ import { NotificationType, Role } from "@/lib/generated/prisma/enums";
 /** Student home anchor for pending scheduled exam CTAs. */
 export const STUDENT_PENDING_EXAM_HREF = "/student#pending-exam";
 
+/** Structured notification context stored in the DB (N5). */
+export interface NotificationMetadata {
+  examId?: string;
+  levelId?: string;
+  groupId?: string;
+  questionId?: string;
+  actorName?: string;
+}
+
 /** One row in the notification bell dropdown or inbox page. */
 export interface NotificationListItem {
   id: string;
@@ -45,9 +54,13 @@ export function roleHasNotificationInbox(role: Role): boolean {
 
 /** Stable dedupe keys for idempotent notification delivery. */
 export const notificationDedupeKeys = {
+  examScheduled: (examId: string) => `EXAM_SCHEDULED:${examId}`,
+  examCancelled: (examId: string) => `EXAM_CANCELLED:${examId}`,
   examOpen: (examId: string) => `EXAM_OPEN:${examId}`,
   examClosingSoon: (examId: string) => `EXAM_CLOSING_SOON:${examId}`,
   examClosed: (examId: string) => `EXAM_CLOSED:${examId}`,
+  levelUp: (studentId: string, levelId: string) =>
+    `LEVEL_UP:${studentId}:${levelId}`,
   levelAssigned: (studentId: string, levelId: string) =>
     `LEVEL_ASSIGNED:${studentId}:${levelId}`,
   studentJoinedGroup: (groupId: string, studentId: string) =>
@@ -56,6 +69,7 @@ export const notificationDedupeKeys = {
     `GROUP_BANK_BLOCKED:${groupId}:${levelId}`,
   groupQuestionDisabled: (groupId: string, questionId: string) =>
     `GROUP_QUESTION_DISABLED:${groupId}:${questionId}`,
+  bankOnlyBlocked: (levelId: string) => `BANK_ONLY_BLOCKED:${levelId}`,
   bankPartial: (levelId: string) => `BANK_PARTIAL:${levelId}`,
   curriculumBumped: (versionId: string) => `CURRICULUM_BUMPED:${versionId}`,
 } as const;
@@ -65,6 +79,8 @@ export function formatNotificationTypeLabel(type: NotificationType): string {
   switch (type) {
     case NotificationType.EXAM_SCHEDULED:
       return "Exam scheduled";
+    case NotificationType.EXAM_CANCELLED:
+      return "Exam cancelled";
     case NotificationType.EXAM_OPEN:
       return "Exam open";
     case NotificationType.EXAM_CLOSING_SOON:
@@ -105,11 +121,33 @@ export function buildExamScheduledNotification(input: {
   groupName: string;
   opensAt: Date;
   closesAt: Date;
+  actorName?: string | null;
 }): { title: string; body: string; href: string } {
   const label = input.examTitle?.trim() || input.levelName;
+  const actorPrefix = input.actorName?.trim()
+    ? `Scheduled by ${input.actorName.trim()}. `
+    : "";
   return {
     title: "Exam scheduled",
-    body: `${label} for ${input.groupName}. ${formatExamWindow(input.opensAt, input.closesAt)}`,
+    body: `${actorPrefix}${label} for ${input.groupName}. ${formatExamWindow(input.opensAt, input.closesAt)}`,
+    href: STUDENT_PENDING_EXAM_HREF,
+  };
+}
+
+/** Student notification when a scheduled exam is cancelled before it runs. */
+export function buildExamCancelledNotification(input: {
+  examTitle: string | null;
+  levelName: string;
+  groupName: string;
+  actorName?: string | null;
+}): { title: string; body: string; href: string } {
+  const label = input.examTitle?.trim() || input.levelName;
+  const actorPrefix = input.actorName?.trim()
+    ? `Cancelled by ${input.actorName.trim()}. `
+    : "";
+  return {
+    title: "Exam cancelled",
+    body: `${actorPrefix}${label} for ${input.groupName} will not run.`,
     href: STUDENT_PENDING_EXAM_HREF,
   };
 }
@@ -293,6 +331,7 @@ export function notificationTypeFilterOptions(role: Role): NotificationType[] {
     case Role.STUDENT:
       return [
         NotificationType.EXAM_SCHEDULED,
+        NotificationType.EXAM_CANCELLED,
         NotificationType.EXAM_OPEN,
         NotificationType.EXAM_CLOSING_SOON,
         NotificationType.LEVEL_UP,
@@ -413,6 +452,11 @@ export function getNotificationTypePresentation(
       return {
         icon: "exam",
         accentClass: "bg-amber-500/10 text-amber-700 dark:text-amber-400",
+      };
+    case NotificationType.EXAM_CANCELLED:
+      return {
+        icon: "exam",
+        accentClass: "bg-muted text-muted-foreground",
       };
     case NotificationType.LEVEL_UP:
     case NotificationType.LEVEL_ASSIGNED:

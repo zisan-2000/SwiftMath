@@ -621,8 +621,10 @@ export async function setGroupQuestionEnabled(
     await notifyAdminsGroupQuestionDisabled({
       instituteId: teacher.instituteId,
       teacherName: teacherUser?.name ?? "A teacher",
+      groupId,
       groupName: group.name,
       levelName: question.level.name,
+      questionId,
       prompt,
     });
   }

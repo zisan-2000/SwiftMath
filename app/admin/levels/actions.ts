@@ -179,13 +179,11 @@ export async function updateLevelAction(
         bankOnly: parsed.input.bankOnly,
       },
     });
-
-    if (parsed.input.bankOnly) {
-      await maybeNotifyBankOnlyBlocked(admin, levelId);
-    }
   }
 
-  if (!parsed.input.bankOnly) {
+  if (parsed.input.bankOnly) {
+    await maybeNotifyBankOnlyBlocked(admin, levelId);
+  } else {
     await maybeNotifyBankPartialWarning(admin, levelId);
   }
 

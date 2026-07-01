@@ -17,6 +17,11 @@ import {
 } from "@/server/question-bank";
 import { parseLevelQuestionImportCsv } from "@/lib/level-question-csv";
 import { QuestionStatus } from "@/lib/generated/prisma/enums";
+import type { AdminContext } from "@/server/admin";
+import {
+  maybeNotifyBankOnlyBlocked,
+  maybeNotifyBankPartialWarning,
+} from "@/server/notifications";
 
 export interface LevelQuestionFormState {
   error?: string;
@@ -34,6 +39,15 @@ function revalidateLevelQuestions(levelId: string) {
   revalidatePath(`/admin/levels/${levelId}/questions`);
   revalidatePath(`/admin/levels/${levelId}`);
   revalidatePath("/admin/activity");
+}
+
+/** Re-check bank coverage after shrink events (N5.2). */
+async function notifyBankCoverageIfNeeded(
+  admin: AdminContext,
+  levelId: string,
+): Promise<void> {
+  await maybeNotifyBankOnlyBlocked(admin, levelId);
+  await maybeNotifyBankPartialWarning(admin, levelId);
 }
 
 /** Add a bank question to a level (Institute Admin). */
@@ -142,6 +156,10 @@ export async function toggleLevelQuestionActiveAction(
     return { error: result.error };
   }
 
+  if (!isActive) {
+    await notifyBankCoverageIfNeeded(admin, levelId);
+  }
+
   revalidateLevelQuestions(levelId);
   revalidatePath("/teacher");
   return { ok: true };
@@ -186,6 +204,8 @@ export async function unpublishLevelQuestionAction(
     return { error: result.error };
   }
 
+  await notifyBankCoverageIfNeeded(admin, levelId);
+
   revalidateLevelQuestions(levelId);
   revalidatePath("/teacher");
   return { ok: true };
@@ -203,6 +223,8 @@ export async function deleteLevelQuestionAction(
   if (!result.ok) {
     return { error: result.error };
   }
+
+  await notifyBankCoverageIfNeeded(admin, levelId);
 
   revalidateLevelQuestions(levelId);
   revalidatePath("/teacher");

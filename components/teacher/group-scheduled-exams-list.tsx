@@ -1,7 +1,9 @@
 import { ClipboardCheck } from "lucide-react";
 
 import { getExamWindowStatus } from "@/lib/exam-window";
+import { cancelScheduledExamFormAction } from "@/app/teacher/groups/[groupId]/actions";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export interface GroupScheduledExamRow {
@@ -12,6 +14,11 @@ export interface GroupScheduledExamRow {
   level: { name: string };
   attemptCount: number;
   paperQuestionCount: number;
+}
+
+interface GroupScheduledExamsListProps {
+  groupId: string;
+  exams: GroupScheduledExamRow[];
 }
 
 function formatWindow(opensAt: Date, closesAt: Date): string {
@@ -36,12 +43,11 @@ function statusLabel(status: ReturnType<typeof getExamWindowStatus>): string {
   return "Closed";
 }
 
-/** Read-only list of scheduled exams for a teacher group. */
+/** Scheduled exams for a teacher group, with cancel for upcoming zero-attempt exams. */
 export function GroupScheduledExamsList({
+  groupId,
   exams,
-}: {
-  exams: GroupScheduledExamRow[];
-}) {
+}: GroupScheduledExamsListProps) {
   const nowMs = Date.now();
 
   if (exams.length === 0) {
@@ -58,6 +64,8 @@ export function GroupScheduledExamsList({
     <ul className="divide-y divide-border">
       {exams.map((exam) => {
         const status = getExamWindowStatus(nowMs, exam.opensAt, exam.closesAt);
+        const canCancel =
+          status === "upcoming" && exam.attemptCount === 0;
         return (
           <li
             key={exam.id}
@@ -84,6 +92,19 @@ export function GroupScheduledExamsList({
                 {exam.attemptCount}{" "}
                 {exam.attemptCount === 1 ? "attempt" : "attempts"}
               </span>
+              {canCancel ? (
+                <form action={cancelScheduledExamFormAction}>
+                  <input type="hidden" name="groupId" value={groupId} />
+                  <input
+                    type="hidden"
+                    name="scheduledExamId"
+                    value={exam.id}
+                  />
+                  <Button type="submit" variant="outline" size="sm">
+                    Cancel
+                  </Button>
+                </form>
+              ) : null}
             </div>
           </li>
         );

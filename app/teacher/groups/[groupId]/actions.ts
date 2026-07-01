@@ -14,6 +14,7 @@ import {
 } from "@/server/teacher";
 import {
   createScheduledExam,
+  deleteScheduledExam,
   ScheduledExamError,
 } from "@/server/scheduled-exam";
 import { parseScheduleExamForm } from "@/lib/scheduled-exam-form";
@@ -109,6 +110,42 @@ export async function createScheduledExamAction(
   revalidatePath(`/teacher/groups/${groupId}`);
   revalidatePath("/student");
   return { ok: true };
+}
+
+/** Cancel an upcoming exam with no student attempts (N5.3). */
+export async function cancelScheduledExamAction(
+  formData: FormData,
+): Promise<{ error?: string; ok?: boolean }> {
+  const teacher = await requireRole(Role.TEACHER);
+
+  const groupId = String(formData.get("groupId") ?? "");
+  const scheduledExamId = String(formData.get("scheduledExamId") ?? "").trim();
+  if (!scheduledExamId) {
+    return { error: "Exam not found." };
+  }
+
+  try {
+    await deleteScheduledExam(teacher, scheduledExamId);
+  } catch (error) {
+    if (error instanceof ScheduledExamError) {
+      return { error: error.message };
+    }
+    throw error;
+  }
+
+  revalidatePath(`/teacher/groups/${groupId}`);
+  revalidatePath("/student");
+  return { ok: true };
+}
+
+/** Plain form action wrapper (Next.js expects void). */
+export async function cancelScheduledExamFormAction(
+  formData: FormData,
+): Promise<void> {
+  const result = await cancelScheduledExamAction(formData);
+  if (result.error) {
+    throw new Error(result.error);
+  }
 }
 
 /** Teacher enable/disable for one bank question in their group. */

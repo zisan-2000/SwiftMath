@@ -4,6 +4,7 @@ import {
   buildBankOnlyBlockedNotification,
   buildBankPartialWarningNotification,
   buildCurriculumBumpedNotification,
+  buildExamCancelledNotification,
   buildExamClosedSummaryNotification,
   buildExamClosingSoonNotification,
   buildExamOpenNotification,
@@ -48,6 +49,12 @@ describe("roleHasNotificationInbox", () => {
 describe("notificationDedupeKeys", () => {
   it("builds stable keys", () => {
     expect(notificationDedupeKeys.examOpen("exam-1")).toBe("EXAM_OPEN:exam-1");
+    expect(notificationDedupeKeys.examScheduled("exam-1")).toBe(
+      "EXAM_SCHEDULED:exam-1",
+    );
+    expect(notificationDedupeKeys.examCancelled("exam-1")).toBe(
+      "EXAM_CANCELLED:exam-1",
+    );
     expect(notificationDedupeKeys.examClosingSoon("exam-1")).toBe(
       "EXAM_CLOSING_SOON:exam-1",
     );
@@ -65,6 +72,12 @@ describe("notificationDedupeKeys", () => {
       "CURRICULUM_BUMPED:ver-1",
     );
     expect(notificationDedupeKeys.bankPartial("lvl-1")).toBe("BANK_PARTIAL:lvl-1");
+    expect(notificationDedupeKeys.bankOnlyBlocked("lvl-1")).toBe(
+      "BANK_ONLY_BLOCKED:lvl-1",
+    );
+    expect(notificationDedupeKeys.levelUp("stu-1", "lvl-1")).toBe(
+      "LEVEL_UP:stu-1:lvl-1",
+    );
   });
 });
 
@@ -72,6 +85,9 @@ describe("formatNotificationTypeLabel", () => {
   it("returns readable labels", () => {
     expect(formatNotificationTypeLabel(NotificationType.EXAM_SCHEDULED)).toBe(
       "Exam scheduled",
+    );
+    expect(formatNotificationTypeLabel(NotificationType.EXAM_CANCELLED)).toBe(
+      "Exam cancelled",
     );
     expect(formatNotificationTypeLabel(NotificationType.EXAM_OPEN)).toBe(
       "Exam open",
@@ -107,6 +123,35 @@ describe("buildExamScheduledNotification", () => {
     expect(content.title).toBe("Exam scheduled");
     expect(content.body).toContain("Mid-term");
     expect(content.body).toContain("Batch A");
+    expect(content.href).toBe(STUDENT_PENDING_EXAM_HREF);
+  });
+
+  it("includes actor attribution when provided", () => {
+    const content = buildExamScheduledNotification({
+      examTitle: "Mid-term",
+      levelName: "Level 3",
+      groupName: "Batch A",
+      opensAt: new Date("2026-06-01T09:00:00Z"),
+      closesAt: new Date("2026-06-01T10:00:00Z"),
+      actorName: "Rahim",
+    });
+
+    expect(content.body).toContain("Scheduled by Rahim");
+  });
+});
+
+describe("buildExamCancelledNotification", () => {
+  it("explains the exam will not run", () => {
+    const content = buildExamCancelledNotification({
+      examTitle: "Mid-term",
+      levelName: "Level 3",
+      groupName: "Batch A",
+      actorName: "Rahim",
+    });
+
+    expect(content.title).toBe("Exam cancelled");
+    expect(content.body).toContain("will not run");
+    expect(content.body).toContain("Cancelled by Rahim");
     expect(content.href).toBe(STUDENT_PENDING_EXAM_HREF);
   });
 });

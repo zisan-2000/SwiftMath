@@ -27,7 +27,11 @@ import { getActiveCurriculumVersionId } from "@/server/curriculum-version";
 import { buildFixedExamPaper } from "@/lib/exam-paper";
 import { InsufficientBankError } from "@/lib/question-bank";
 import type { SessionQuestionDraft } from "@/lib/question-bank";
-import { notifyExamScheduled } from "@/server/notifications";
+import {
+  notifyExamCancelled,
+  notifyExamRescheduled,
+  notifyExamScheduled,
+} from "@/server/notifications";
 
 export { LevelAccessError };
 
@@ -250,6 +254,113 @@ export async function createScheduledExam(
 
   await notifyExamScheduled(teacher.instituteId, exam.id);
   return exam;
+}
+
+export interface UpdateScheduledExamInput {
+  title?: string | null;
+  opensAt: Date;
+  closesAt: Date;
+}
+
+/**
+ * Reschedule an upcoming exam with no student attempts yet.
+ * Refreshes in-app notifications for every group student (N5.3).
+ */
+export async function updateScheduledExam(
+  teacher: TeacherContext,
+  scheduledExamId: string,
+  input: UpdateScheduledExamInput,
+): Promise<void> {
+  const windowError = validateScheduledExamWindow(input.opensAt, input.closesAt);
+  if (windowError) {
+    throw new ScheduledExamError(windowError);
+  }
+
+  const exam = await prisma.scheduledExam.findFirst({
+    where: {
+      id: scheduledExamId,
+      instituteId: teacher.instituteId,
+      group: { teacherId: teacher.id },
+    },
+    select: {
+      opensAt: true,
+      _count: { select: { practiceSessions: true } },
+    },
+  });
+  if (!exam) {
+    throw new ScheduledExamError("Exam not found.");
+  }
+  if (exam._count.practiceSessions > 0) {
+    throw new ScheduledExamError(
+      "Cannot reschedule an exam after a student has started.",
+    );
+  }
+  if (exam.opensAt.getTime() <= Date.now()) {
+    throw new ScheduledExamError(
+      "Only upcoming exams can be rescheduled.",
+    );
+  }
+
+  const title = input.title?.trim() || null;
+
+  await prisma.scheduledExam.update({
+    where: { id: scheduledExamId },
+    data: {
+      title,
+      opensAt: input.opensAt,
+      closesAt: input.closesAt,
+    },
+  });
+
+  await notifyExamRescheduled(teacher.instituteId, scheduledExamId);
+}
+
+/**
+ * Cancel an upcoming exam with no student attempts yet.
+ * Notifies group students and clears stale exam alerts (N5.3).
+ */
+export async function deleteScheduledExam(
+  teacher: TeacherContext,
+  scheduledExamId: string,
+): Promise<void> {
+  const exam = await prisma.scheduledExam.findFirst({
+    where: {
+      id: scheduledExamId,
+      instituteId: teacher.instituteId,
+      group: { teacherId: teacher.id },
+    },
+    select: {
+      title: true,
+      groupId: true,
+      group: { select: { name: true } },
+      level: { select: { name: true } },
+      _count: { select: { practiceSessions: true } },
+    },
+  });
+  if (!exam) {
+    throw new ScheduledExamError("Exam not found.");
+  }
+  if (exam._count.practiceSessions > 0) {
+    throw new ScheduledExamError(
+      "Cannot cancel an exam after a student has started.",
+    );
+  }
+
+  const teacherUser = await prisma.user.findUnique({
+    where: { id: teacher.id },
+    select: { name: true },
+  });
+
+  await notifyExamCancelled(teacher.instituteId, scheduledExamId, {
+    examTitle: exam.title,
+    levelName: exam.level.name,
+    groupId: exam.groupId,
+    groupName: exam.group.name,
+    actorUserId: teacher.id,
+    actorName: teacherUser?.name ?? "Your teacher",
+  });
+
+  await prisma.scheduledExam.delete({ where: { id: scheduledExamId } });
 }
 
 /** Load a scheduled exam owned by this teacher's group. */

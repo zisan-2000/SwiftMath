@@ -106,6 +106,7 @@ export default async function GroupDetailPage({
         </CardHeader>
         <CardContent className="p-0">
           <GroupScheduledExamsList
+            groupId={groupId}
             exams={scheduledExams.map((exam) => ({
               id: exam.id,
               title: exam.title,
