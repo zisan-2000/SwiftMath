@@ -1,5 +1,6 @@
 import type { Role } from "@/lib/generated/prisma/enums";
 import { roleHasNotificationInbox } from "@/lib/notifications";
+import { getNotificationPollIntervalMs } from "@/lib/notification-poll";
 import {
   getUnreadNotificationCount,
   listRecentNotifications,
@@ -35,6 +36,7 @@ export async function HeaderActions({ user }: HeaderActionsProps) {
           role={user.role}
           unreadCount={unreadCount}
           recent={recent}
+          pollIntervalMs={getNotificationPollIntervalMs()}
         />
       )}
       <ThemeToggle />

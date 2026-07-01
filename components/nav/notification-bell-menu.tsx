@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Bell } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/generated/prisma/enums";
 import type { NotificationListItem } from "@/lib/notifications";
+import { useNotificationBellSync } from "@/components/nav/use-notification-bell-sync";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,57 +16,68 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { NotificationDropdownList } from "@/components/notifications/notification-list";
 
-/** Header bell with unread badge and recent notifications dropdown. */
+/** Header bell with unread badge, polling refresh, and recent dropdown (N10). */
 export function NotificationBellMenu({
   role,
   unreadCount,
   recent,
+  pollIntervalMs,
 }: {
   role: Role;
   unreadCount: number;
   recent: NotificationListItem[];
+  pollIntervalMs?: number;
 }) {
-  const router = useRouter();
-  const [localUnreadCount, setLocalUnreadCount] = useState(unreadCount);
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    setLocalUnreadCount(unreadCount);
-  }, [unreadCount]);
+  const {
+    unreadCount: liveUnreadCount,
+    recent: liveRecent,
+    hasNewUnread,
+    refresh,
+    decrementUnread,
+  } = useNotificationBellSync({
+    initialUnreadCount: unreadCount,
+    initialRecent: recent,
+    pollIntervalMs,
+  });
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
     if (nextOpen) {
-      router.refresh();
+      void refresh();
     }
   }
 
-  function handleItemRead() {
-    setLocalUnreadCount((count) => Math.max(0, count - 1));
-  }
-
   const badgeLabel =
-    localUnreadCount > 99
+    liveUnreadCount > 99
       ? "99+"
-      : localUnreadCount > 0
-        ? String(localUnreadCount)
+      : liveUnreadCount > 0
+        ? String(liveUnreadCount)
         : null;
 
   return (
     <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger
         aria-label={
-          localUnreadCount > 0
-            ? `Notifications, ${localUnreadCount} unread`
+          liveUnreadCount > 0
+            ? `Notifications, ${liveUnreadCount} unread`
             : "Notifications"
         }
+        aria-live="polite"
         className={cn(
           "relative inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         )}
       >
-        <Bell className="h-4 w-4" />
+        <Bell
+          className={cn("h-4 w-4", hasNewUnread && "animate-pulse text-primary")}
+        />
         {badgeLabel && (
-          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground">
+          <span
+            className={cn(
+              "absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-none text-primary-foreground",
+              hasNewUnread && "animate-pulse ring-2 ring-primary/40",
+            )}
+          >
             {badgeLabel}
           </span>
         )}
@@ -76,8 +87,8 @@ export function NotificationBellMenu({
         <DropdownMenuSeparator className="m-0" />
         <NotificationDropdownList
           role={role}
-          items={recent}
-          onItemRead={handleItemRead}
+          items={liveRecent}
+          onItemRead={decrementUnread}
         />
       </DropdownMenuContent>
     </DropdownMenu>
