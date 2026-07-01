@@ -31,7 +31,8 @@ import {
 } from "@/lib/challenge-mode";
 import { buildSessionQuestionsForStudent } from "@/server/question-bank";
 import { getActiveCurriculumVersionId } from "@/server/curriculum-version";
-import { notifyStudentLevelUp } from "@/server/notifications";
+import { notifyStudentLevelUp, notifyTeacherGroupBankBlocked } from "@/server/notifications";
+import { InsufficientBankError } from "@/lib/question-bank";
 
 /** The authenticated student, as needed for scoping. */
 export interface StudentContext {
@@ -77,6 +78,7 @@ export async function startPracticeSession(
       currentLevel: {
         select: {
           id: true,
+          name: true,
           questionCount: true,
           timeLimitSeconds: true,
           operation: true,
@@ -119,19 +121,34 @@ export async function startPracticeSession(
     expiresAt = new Date(startedAt.getTime() + timeLimitSeconds * 1000);
   }
 
-  const questions = await buildSessionQuestionsForStudent({
-    instituteId: student.instituteId,
-    studentId: student.id,
-    level: {
-      id: level.id,
-      questionCount: level.questionCount,
-      operation: level.operation,
-      termsPerQuestion: level.termsPerQuestion,
-      minNumber: level.minNumber,
-      maxNumber: level.maxNumber,
-      bankOnly: level.bankOnly,
-    },
-  });
+  let questions;
+  try {
+    questions = await buildSessionQuestionsForStudent({
+      instituteId: student.instituteId,
+      studentId: student.id,
+      level: {
+        id: level.id,
+        questionCount: level.questionCount,
+        operation: level.operation,
+        termsPerQuestion: level.termsPerQuestion,
+        minNumber: level.minNumber,
+        maxNumber: level.maxNumber,
+        bankOnly: level.bankOnly,
+      },
+    });
+  } catch (error) {
+    if (error instanceof InsufficientBankError) {
+      await notifyTeacherGroupBankBlocked({
+        instituteId: student.instituteId,
+        studentId: student.id,
+        levelId: level.id,
+        levelName: level.name,
+        available: error.available,
+        required: error.required,
+      });
+    }
+    throw error;
+  }
 
   const curriculumVersionId = await getActiveCurriculumVersionId(
     student.instituteId,

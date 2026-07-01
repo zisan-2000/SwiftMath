@@ -43,11 +43,18 @@ export function roleHasNotificationInbox(role: Role): boolean {
 /** Stable dedupe keys for idempotent notification delivery. */
 export const notificationDedupeKeys = {
   examOpen: (examId: string) => `EXAM_OPEN:${examId}`,
+  examClosingSoon: (examId: string) => `EXAM_CLOSING_SOON:${examId}`,
+  examClosed: (examId: string) => `EXAM_CLOSED:${examId}`,
   levelAssigned: (studentId: string, levelId: string) =>
     `LEVEL_ASSIGNED:${studentId}:${levelId}`,
   studentJoinedGroup: (groupId: string, studentId: string) =>
     `STUDENT_JOINED:${groupId}:${studentId}`,
+  groupBankBlocked: (groupId: string, levelId: string) =>
+    `GROUP_BANK_BLOCKED:${groupId}:${levelId}`,
+  groupQuestionDisabled: (groupId: string, questionId: string) =>
+    `GROUP_QUESTION_DISABLED:${groupId}:${questionId}`,
   bankPartial: (levelId: string) => `BANK_PARTIAL:${levelId}`,
+  curriculumBumped: (versionId: string) => `CURRICULUM_BUMPED:${versionId}`,
 } as const;
 
 /** Human-readable type label for badges. */
@@ -57,16 +64,26 @@ export function formatNotificationTypeLabel(type: NotificationType): string {
       return "Exam scheduled";
     case NotificationType.EXAM_OPEN:
       return "Exam open";
+    case NotificationType.EXAM_CLOSING_SOON:
+      return "Exam closing";
+    case NotificationType.EXAM_CLOSED_SUMMARY:
+      return "Exam summary";
     case NotificationType.LEVEL_UP:
       return "Level up";
     case NotificationType.LEVEL_ASSIGNED:
       return "Level set";
     case NotificationType.STUDENT_JOINED_GROUP:
       return "New student";
+    case NotificationType.GROUP_BANK_BLOCKED:
+      return "Bank blocked";
+    case NotificationType.GROUP_QUESTION_DISABLED:
+      return "Question off";
     case NotificationType.BANK_ONLY_BLOCKED:
       return "Bank-only";
     case NotificationType.BANK_PARTIAL_WARNING:
       return "Bank partial";
+    case NotificationType.CURRICULUM_BUMPED:
+      return "Curriculum";
     default:
       return type;
   }
@@ -106,6 +123,80 @@ export function buildExamOpenNotification(input: {
     title: "Exam is open",
     body: `${label} is open now — closes ${closes}.`,
     href: "/student",
+  };
+}
+
+/** Student notification when an exam closes within one hour. */
+export function buildExamClosingSoonNotification(input: {
+  examTitle: string | null;
+  levelName: string;
+  closesAt: Date;
+}): { title: string; body: string; href: string } {
+  const label = input.examTitle?.trim() || input.levelName;
+  const closes = formatNotificationTimestamp(input.closesAt);
+  return {
+    title: "Exam closing soon",
+    body: `${label} closes at ${closes}. Start your attempt if you have not yet.`,
+    href: "/student",
+  };
+}
+
+/** Teacher notification after an exam window ends. */
+export function buildExamClosedSummaryNotification(input: {
+  examTitle: string | null;
+  levelName: string;
+  groupName: string;
+  groupId: string;
+  attemptedCount: number;
+  studentCount: number;
+}): { title: string; body: string; href: string } {
+  const label = input.examTitle?.trim() || input.levelName;
+  return {
+    title: "Exam closed",
+    body: `${label} for ${input.groupName} closed — ${input.attemptedCount}/${input.studentCount} students attempted.`,
+    href: `/teacher/groups/${input.groupId}/analytics`,
+  };
+}
+
+/** Teacher notification when bank-only practice is blocked for a group. */
+export function buildGroupBankBlockedNotification(input: {
+  groupName: string;
+  groupId: string;
+  levelName: string;
+  available: number;
+  required: number;
+}): { title: string; body: string; href: string } {
+  return {
+    title: "Practice blocked",
+    body: `${input.groupName} — ${input.levelName} has only ${input.available}/${input.required} bank questions available. Check group question overrides.`,
+    href: `/teacher/groups/${input.groupId}/questions`,
+  };
+}
+
+/** Admin notification when a teacher disables a bank question for their group. */
+export function buildGroupQuestionDisabledAdminNotification(input: {
+  teacherName: string;
+  groupName: string;
+  levelName: string;
+  prompt: string;
+}): { title: string; body: string; href: string } {
+  return {
+    title: "Teacher disabled a question",
+    body: `${input.teacherName} disabled "${input.prompt}" in ${input.groupName} (${input.levelName}).`,
+    href: "/admin/activity?action=GROUP_QUESTION_DISABLED",
+  };
+}
+
+/** Admin notification after a curriculum version bump. */
+export function buildCurriculumBumpedNotification(input: {
+  versionNumber: number;
+  label: string | null;
+}): { title: string; body: string; href: string } {
+  const suffix = input.label ? ` — ${input.label}` : "";
+  return {
+    title: "Curriculum updated",
+    body: `Curriculum v${input.versionNumber}${suffix} is now active. Publish questions into the new generation when ready.`,
+    href: "/admin/settings",
   };
 }
 

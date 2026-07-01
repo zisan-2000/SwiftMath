@@ -20,7 +20,7 @@ import { getStudentInProgressSession } from "@/server/practice";
 import { getStudentInstituteRank } from "@/server/ranking";
 import { getStudentGamificationSummary } from "@/server/student-gamification";
 import { getStudentPendingScheduledExam } from "@/server/scheduled-exam";
-import { syncExamOpenNotificationsForStudent } from "@/server/notifications";
+import { syncStudentScheduledExamNotifications } from "@/server/notifications";
 import { startExamAction } from "@/app/student/actions";
 import { AppShell } from "@/components/app-shell";
 import { StatCard } from "@/components/stat-card";
@@ -67,7 +67,7 @@ export default async function StudentDashboardPage({
 
   const user = await requireRole(Role.STUDENT);
 
-  await syncExamOpenNotificationsForStudent(user.id, user.instituteId);
+  await syncStudentScheduledExamNotifications(user.id, user.instituteId);
 
   const [profile, practice, pendingSession, pendingExam, instituteRank, gamification] =
     await Promise.all([

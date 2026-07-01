@@ -14,6 +14,7 @@ import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
 import { formatSpeedDuration } from "@/lib/practice-speed";
 import { getTeacherDashboardAnalytics } from "@/server/analytics";
+import { syncTeacherExamClosedNotifications } from "@/server/notifications";
 import { AppShell } from "@/components/app-shell";
 import { StatCard } from "@/components/stat-card";
 import { PracticeActivityChart } from "@/components/practice-activity-chart";
@@ -31,6 +32,8 @@ export const metadata: Metadata = {
  */
 export default async function TeacherDashboardPage() {
   const user = await requireRole(Role.TEACHER);
+
+  await syncTeacherExamClosedNotifications(user.id, user.instituteId);
 
   const [institute, groupCount, studentCount, dashboard] = await Promise.all([
     prisma.institute.findUnique({

@@ -6,8 +6,13 @@ import { prisma } from "@/lib/prisma";
 import {
   buildBankOnlyBlockedNotification,
   buildBankPartialWarningNotification,
+  buildCurriculumBumpedNotification,
+  buildExamClosedSummaryNotification,
+  buildExamClosingSoonNotification,
   buildExamOpenNotification,
   buildExamScheduledNotification,
+  buildGroupBankBlockedNotification,
+  buildGroupQuestionDisabledAdminNotification,
   buildLevelAssignedNotification,
   buildLevelUpNotification,
   buildStudentJoinedGroupNotification,
@@ -214,10 +219,10 @@ export async function notifyExamScheduled(
 }
 
 /**
- * S2 — notify a student about open exam windows they have not been alerted to yet.
- * Called on student page load (no cron in N2).
+ * S2 + S3 — sync open-exam and closing-soon alerts on student page load.
+ * Cron-free until N6.
  */
-export async function syncExamOpenNotificationsForStudent(
+export async function syncStudentScheduledExamNotifications(
   studentId: string,
   instituteId: string,
 ): Promise<void> {
@@ -230,6 +235,8 @@ export async function syncExamOpenNotificationsForStudent(
   }
 
   const now = new Date();
+  const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+
   const openExams = await prisma.scheduledExam.findMany({
     where: {
       instituteId,
@@ -246,7 +253,7 @@ export async function syncExamOpenNotificationsForStudent(
   });
 
   for (const exam of openExams) {
-    const content = buildExamOpenNotification({
+    const openContent = buildExamOpenNotification({
       examTitle: exam.title,
       levelName: exam.level.name,
       closesAt: exam.closesAt,
@@ -256,6 +263,181 @@ export async function syncExamOpenNotificationsForStudent(
       userId: studentId,
       type: NotificationType.EXAM_OPEN,
       dedupeKey: notificationDedupeKeys.examOpen(exam.id),
+      ...openContent,
+    });
+
+    if (exam.closesAt.getTime() <= oneHourFromNow.getTime()) {
+      const closingContent = buildExamClosingSoonNotification({
+        examTitle: exam.title,
+        levelName: exam.level.name,
+        closesAt: exam.closesAt,
+      });
+      await createNotification({
+        instituteId,
+        userId: studentId,
+        type: NotificationType.EXAM_CLOSING_SOON,
+        dedupeKey: notificationDedupeKeys.examClosingSoon(exam.id),
+        ...closingContent,
+      });
+    }
+  }
+}
+
+/** @deprecated Use syncStudentScheduledExamNotifications */
+export async function syncExamOpenNotificationsForStudent(
+  studentId: string,
+  instituteId: string,
+): Promise<void> {
+  await syncStudentScheduledExamNotifications(studentId, instituteId);
+}
+
+/**
+ * T2 — notify a teacher about recently closed exams (page-load sync until N6).
+ */
+export async function syncTeacherExamClosedNotifications(
+  teacherId: string,
+  instituteId: string,
+): Promise<void> {
+  const now = new Date();
+  const lookbackStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const closedExams = await prisma.scheduledExam.findMany({
+    where: {
+      instituteId,
+      closesAt: { lte: now, gte: lookbackStart },
+      group: { teacherId },
+    },
+    select: {
+      id: true,
+      title: true,
+      groupId: true,
+      group: { select: { name: true } },
+      level: { select: { name: true } },
+    },
+  });
+
+  for (const exam of closedExams) {
+    const [studentCount, attemptedCount] = await Promise.all([
+      prisma.user.count({
+        where: {
+          instituteId,
+          groupId: exam.groupId,
+          role: Role.STUDENT,
+          isActive: true,
+        },
+      }),
+      prisma.practiceSession.count({
+        where: { scheduledExamId: exam.id },
+      }),
+    ]);
+
+    const content = buildExamClosedSummaryNotification({
+      examTitle: exam.title,
+      levelName: exam.level.name,
+      groupName: exam.group.name,
+      groupId: exam.groupId,
+      attemptedCount,
+      studentCount,
+    });
+
+    await createNotification({
+      instituteId,
+      userId: teacherId,
+      type: NotificationType.EXAM_CLOSED_SUMMARY,
+      dedupeKey: notificationDedupeKeys.examClosed(exam.id),
+      ...content,
+    });
+  }
+}
+
+/** T3 — alert the group's teacher when bank-only practice cannot start. */
+export async function notifyTeacherGroupBankBlocked(input: {
+  instituteId: string;
+  studentId: string;
+  levelId: string;
+  levelName: string;
+  available: number;
+  required: number;
+}): Promise<void> {
+  const student = await prisma.user.findUnique({
+    where: { id: input.studentId },
+    select: {
+      group: {
+        select: { id: true, name: true, teacherId: true },
+      },
+    },
+  });
+  if (!student?.group) return;
+
+  const content = buildGroupBankBlockedNotification({
+    groupName: student.group.name,
+    groupId: student.group.id,
+    levelName: input.levelName,
+    available: input.available,
+    required: input.required,
+  });
+
+  await createNotification({
+    instituteId: input.instituteId,
+    userId: student.group.teacherId,
+    type: NotificationType.GROUP_BANK_BLOCKED,
+    dedupeKey: notificationDedupeKeys.groupBankBlocked(
+      student.group.id,
+      input.levelId,
+    ),
+    ...content,
+  });
+}
+
+/** A3 — notify institute admins when a teacher disables a group question. */
+export async function notifyAdminsGroupQuestionDisabled(input: {
+  instituteId: string;
+  teacherName: string;
+  groupName: string;
+  levelName: string;
+  prompt: string;
+}): Promise<void> {
+  const admins = await prisma.user.findMany({
+    where: { instituteId: input.instituteId, role: Role.ADMIN, isActive: true },
+    select: { id: true },
+  });
+
+  const content = buildGroupQuestionDisabledAdminNotification(input);
+
+  await createNotificationsForUsers(
+    admins.map((admin) => admin.id),
+    {
+      instituteId: input.instituteId,
+      type: NotificationType.GROUP_QUESTION_DISABLED,
+      ...content,
+    },
+  );
+}
+
+/** A4 — notify institute admins after a curriculum version bump. */
+export async function notifyInstituteAdminsCurriculumBumped(input: {
+  instituteId: string;
+  versionId: string;
+  versionNumber: number;
+  label: string | null;
+}): Promise<void> {
+  const admins = await prisma.user.findMany({
+    where: { instituteId: input.instituteId, role: Role.ADMIN, isActive: true },
+    select: { id: true },
+  });
+
+  const content = buildCurriculumBumpedNotification({
+    versionNumber: input.versionNumber,
+    label: input.label,
+  });
+  const dedupeKey = notificationDedupeKeys.curriculumBumped(input.versionId);
+
+  for (const admin of admins) {
+    await createNotification({
+      instituteId: input.instituteId,
+      userId: admin.id,
+      type: NotificationType.CURRICULUM_BUMPED,
+      dedupeKey,
       ...content,
     });
   }

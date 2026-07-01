@@ -8,6 +8,7 @@ import { nextCurriculumVersionNumber } from "@/lib/curriculum-version";
 import type { AdminContext } from "@/server/admin";
 import type { Prisma } from "@/lib/generated/prisma/client";
 import { auditActorFromAdmin, recordAuditLog } from "@/server/audit-log";
+import { notifyInstituteAdminsCurriculumBumped } from "@/server/notifications";
 
 type DbClient = Prisma.TransactionClient | typeof prisma;
 
@@ -159,6 +160,13 @@ export async function bumpCurriculumVersion(
       versionNumber: result.version.versionNumber,
       label: result.version.label,
     },
+  });
+
+  await notifyInstituteAdminsCurriculumBumped({
+    instituteId: admin.instituteId,
+    versionId: result.version.id,
+    versionNumber: result.version.versionNumber,
+    label: result.version.label,
   });
 
   return result;

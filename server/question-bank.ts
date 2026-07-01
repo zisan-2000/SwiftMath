@@ -25,6 +25,7 @@ import {
   auditActorFromTeacher,
   recordAuditLog,
 } from "@/server/audit-log";
+import { notifyAdminsGroupQuestionDisabled } from "@/server/notifications";
 
 export interface LevelQuestionInput {
   prompt: string;
@@ -611,6 +612,20 @@ export async function setGroupQuestionEnabled(
       enabled,
     },
   });
+
+  if (!enabled) {
+    const teacherUser = await prisma.user.findUnique({
+      where: { id: teacher.id },
+      select: { name: true },
+    });
+    await notifyAdminsGroupQuestionDisabled({
+      instituteId: teacher.instituteId,
+      teacherName: teacherUser?.name ?? "A teacher",
+      groupName: group.name,
+      levelName: question.level.name,
+      prompt,
+    });
+  }
 
   return { ok: true };
 }

@@ -3,8 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   buildBankOnlyBlockedNotification,
   buildBankPartialWarningNotification,
+  buildCurriculumBumpedNotification,
+  buildExamClosedSummaryNotification,
+  buildExamClosingSoonNotification,
   buildExamOpenNotification,
   buildExamScheduledNotification,
+  buildGroupBankBlockedNotification,
+  buildGroupQuestionDisabledAdminNotification,
   buildLevelAssignedNotification,
   buildLevelUpNotification,
   buildStudentJoinedGroupNotification,
@@ -37,11 +42,21 @@ describe("roleHasNotificationInbox", () => {
 describe("notificationDedupeKeys", () => {
   it("builds stable keys", () => {
     expect(notificationDedupeKeys.examOpen("exam-1")).toBe("EXAM_OPEN:exam-1");
+    expect(notificationDedupeKeys.examClosingSoon("exam-1")).toBe(
+      "EXAM_CLOSING_SOON:exam-1",
+    );
+    expect(notificationDedupeKeys.examClosed("exam-1")).toBe("EXAM_CLOSED:exam-1");
     expect(notificationDedupeKeys.levelAssigned("stu-1", "lvl-1")).toBe(
       "LEVEL_ASSIGNED:stu-1:lvl-1",
     );
     expect(notificationDedupeKeys.studentJoinedGroup("grp-1", "stu-1")).toBe(
       "STUDENT_JOINED:grp-1:stu-1",
+    );
+    expect(notificationDedupeKeys.groupBankBlocked("grp-1", "lvl-1")).toBe(
+      "GROUP_BANK_BLOCKED:grp-1:lvl-1",
+    );
+    expect(notificationDedupeKeys.curriculumBumped("ver-1")).toBe(
+      "CURRICULUM_BUMPED:ver-1",
     );
     expect(notificationDedupeKeys.bankPartial("lvl-1")).toBe("BANK_PARTIAL:lvl-1");
   });
@@ -63,6 +78,12 @@ describe("formatNotificationTypeLabel", () => {
     );
     expect(formatNotificationTypeLabel(NotificationType.BANK_PARTIAL_WARNING)).toBe(
       "Bank partial",
+    );
+    expect(formatNotificationTypeLabel(NotificationType.EXAM_CLOSING_SOON)).toBe(
+      "Exam closing",
+    );
+    expect(formatNotificationTypeLabel(NotificationType.CURRICULUM_BUMPED)).toBe(
+      "Curriculum",
     );
   });
 });
@@ -96,6 +117,78 @@ describe("buildExamOpenNotification", () => {
     expect(content.body).toContain("Weekly test");
     expect(content.body).toContain("open now");
     expect(content.href).toBe("/student");
+  });
+});
+
+describe("buildExamClosingSoonNotification", () => {
+  it("warns before the exam closes", () => {
+    const content = buildExamClosingSoonNotification({
+      examTitle: "Weekly test",
+      levelName: "Level 3",
+      closesAt: new Date("2026-06-01T10:00:00Z"),
+    });
+
+    expect(content.title).toBe("Exam closing soon");
+    expect(content.body).toContain("Weekly test");
+    expect(content.href).toBe("/student");
+  });
+});
+
+describe("buildExamClosedSummaryNotification", () => {
+  it("links to group analytics", () => {
+    const content = buildExamClosedSummaryNotification({
+      examTitle: "Weekly test",
+      levelName: "Level 3",
+      groupName: "Class A",
+      groupId: "grp-1",
+      attemptedCount: 18,
+      studentCount: 20,
+    });
+
+    expect(content.body).toContain("18/20");
+    expect(content.href).toBe("/teacher/groups/grp-1/analytics");
+  });
+});
+
+describe("buildGroupBankBlockedNotification", () => {
+  it("links to group question overrides", () => {
+    const content = buildGroupBankBlockedNotification({
+      groupName: "Class A",
+      groupId: "grp-1",
+      levelName: "Level 5",
+      available: 6,
+      required: 10,
+    });
+
+    expect(content.body).toContain("6/10");
+    expect(content.href).toBe("/teacher/groups/grp-1/questions");
+  });
+});
+
+describe("buildGroupQuestionDisabledAdminNotification", () => {
+  it("links to the admin activity filter", () => {
+    const content = buildGroupQuestionDisabledAdminNotification({
+      teacherName: "Rahim",
+      groupName: "Class A",
+      levelName: "Addition II",
+      prompt: "3 + 4",
+    });
+
+    expect(content.body).toContain("Rahim");
+    expect(content.href).toBe("/admin/activity?action=GROUP_QUESTION_DISABLED");
+  });
+});
+
+describe("buildCurriculumBumpedNotification", () => {
+  it("links to admin settings", () => {
+    const content = buildCurriculumBumpedNotification({
+      versionNumber: 3,
+      label: "Term 2",
+    });
+
+    expect(content.body).toContain("v3");
+    expect(content.body).toContain("Term 2");
+    expect(content.href).toBe("/admin/settings");
   });
 });
 
