@@ -7,6 +7,7 @@ import { listNotificationPreferencesForUser } from "@/server/notification-prefer
 import { AppShell } from "@/components/app-shell";
 import { ChangePasswordForm } from "@/components/account/change-password-form";
 import { NotificationPreferencesPanel } from "@/components/account/notification-preferences-panel";
+import { NotificationSoundPanel } from "@/components/account/notification-sound-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -72,6 +73,15 @@ export default async function AccountPage() {
         </CardHeader>
         <CardContent>
           <ChangePasswordForm />
+        </CardContent>
+      </Card>
+
+      <Card className="mt-8 max-w-2xl">
+        <CardHeader>
+          <CardTitle className="text-base">Alert sound</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <NotificationSoundPanel />
         </CardContent>
       </Card>
 

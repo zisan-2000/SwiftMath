@@ -1,10 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import type { NotificationListItem } from "@/lib/notifications";
 import type { NotificationSummaryPayload } from "@/lib/notification-poll";
 import { DEFAULT_NOTIFICATION_POLL_INTERVAL_MS } from "@/lib/notification-poll";
+import {
+  isSoundAlertNotificationType,
+  playNotificationChime,
+  readNotificationSoundEnabled,
+} from "@/lib/notification-sound";
 
 function parseSummary(payload: NotificationSummaryPayload): {
   unreadCount: number;
@@ -43,18 +49,27 @@ export function useNotificationBellSync(input: {
   const [hasNewUnread, setHasNewUnread] = useState(false);
 
   const unreadRef = useRef(input.initialUnreadCount);
+  const recentIdsRef = useRef(new Set(input.initialRecent.map((item) => item.id)));
   const pulseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setUnreadCount(input.initialUnreadCount);
     setRecent(input.initialRecent);
     unreadRef.current = input.initialUnreadCount;
+    recentIdsRef.current = new Set(input.initialRecent.map((item) => item.id));
   }, [input.initialUnreadCount, input.initialRecent]);
 
   const applySummary = useCallback((summary: NotificationSummaryPayload) => {
     const parsed = parseSummary(summary);
     setUnreadCount(parsed.unreadCount);
     setRecent(parsed.recent);
+    const seenIds = recentIdsRef.current;
+    const unseenImportant = parsed.recent.filter(
+      (item) =>
+        item.readAt == null &&
+        !seenIds.has(item.id) &&
+        isSoundAlertNotificationType(item.type),
+    );
 
     if (parsed.unreadCount > unreadRef.current) {
       setHasNewUnread(true);
@@ -66,7 +81,20 @@ export function useNotificationBellSync(input: {
       }, 2500);
     }
 
+    if (
+      unseenImportant.length > 0 &&
+      document.visibilityState === "visible" &&
+      readNotificationSoundEnabled()
+    ) {
+      void playNotificationChime();
+      const latest = unseenImportant[0];
+      toast(latest.title, {
+        description: latest.body,
+      });
+    }
+
     unreadRef.current = parsed.unreadCount;
+    recentIdsRef.current = new Set(parsed.recent.map((item) => item.id));
   }, []);
 
   const refresh = useCallback(async () => {
