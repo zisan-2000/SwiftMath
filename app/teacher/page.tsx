@@ -3,19 +3,20 @@ import Link from "next/link";
 import {
   Boxes,
   Brain,
+  ClipboardCheck,
   GraduationCap,
   Target,
   Timer,
   TrendingUp,
+  Trophy,
 } from "lucide-react";
 
-import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/generated/prisma/enums";
 import { formatSpeedDuration } from "@/lib/practice-speed";
 import { getTeacherDashboardAnalytics } from "@/server/analytics";
 import { syncTeacherExamClosedNotifications } from "@/server/notifications";
-import { AppShell } from "@/components/app-shell";
+import { loadTeacherPageContext } from "@/server/teacher-page";
+import { TeacherPageShell } from "@/components/teacher/teacher-page-shell";
 import { StatCard } from "@/components/stat-card";
 import { PracticeActivityChart } from "@/components/practice-activity-chart";
 import { GroupCompletionTable } from "@/components/teacher/group-completion-table";
@@ -31,31 +32,53 @@ export const metadata: Metadata = {
  * TEACHER dashboard. Scoped to the groups this teacher owns.
  */
 export default async function TeacherDashboardPage() {
-  const user = await requireRole(Role.TEACHER);
+  const { teacher, institute } = await loadTeacherPageContext();
 
-  await syncTeacherExamClosedNotifications(user.id, user.instituteId);
+  await syncTeacherExamClosedNotifications(teacher.id, teacher.instituteId);
 
-  const [institute, groupCount, studentCount, dashboard] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: user.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
-    prisma.group.count({ where: { teacherId: user.id } }),
-    prisma.user.count({ where: { group: { teacherId: user.id } } }),
-    getTeacherDashboardAnalytics(user.id),
+  const [groupCount, studentCount, dashboard] = await Promise.all([
+    prisma.group.count({ where: { teacherId: teacher.id } }),
+    prisma.user.count({ where: { group: { teacherId: teacher.id } } }),
+    getTeacherDashboardAnalytics(teacher.id),
   ]);
 
   const { practice, speed, dailyProgress, groupComparison, groupCompletion } =
     dashboard;
 
   return (
-    <AppShell
-      user={user}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
+    <TeacherPageShell
+      user={teacher}
+      institute={institute}
       title="Teacher dashboard"
-      subtitle="Your groups and students."
+      subtitle="Your groups and students at a glance."
     >
+      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <Button asChild variant="outline" className="h-auto flex-col gap-1 py-4">
+          <Link href="/teacher/students">
+            <GraduationCap className="h-5 w-5" />
+            <span>Students</span>
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="h-auto flex-col gap-1 py-4">
+          <Link href="/teacher/exams">
+            <ClipboardCheck className="h-5 w-5" />
+            <span>Exams</span>
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="h-auto flex-col gap-1 py-4">
+          <Link href="/teacher/groups">
+            <Boxes className="h-5 w-5" />
+            <span>Groups</span>
+          </Link>
+        </Button>
+        <Button asChild variant="outline" className="h-auto flex-col gap-1 py-4">
+          <Link href="/teacher/ranking">
+            <Trophy className="h-5 w-5" />
+            <span>Ranking</span>
+          </Link>
+        </Button>
+      </div>
+
       <div className="grid grid-cols-2 gap-4">
         <StatCard label="My groups" value={groupCount} icon={Boxes} />
         <StatCard label="My students" value={studentCount} icon={GraduationCap} />
@@ -108,12 +131,6 @@ export default async function TeacherDashboardPage() {
         Completion by group
       </h2>
       <GroupCompletionTable rows={groupCompletion} />
-
-      <div className="mt-8">
-        <Button asChild>
-          <Link href="/teacher/groups">Manage groups</Link>
-        </Button>
-      </div>
-    </AppShell>
+    </TeacherPageShell>
   );
 }

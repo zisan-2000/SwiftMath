@@ -42,6 +42,44 @@ export function listTeacherGroups(teacherId: string) {
   });
 }
 
+/** All students across this teacher's groups, for the roster view. */
+export function listTeacherStudents(teacherId: string) {
+  return prisma.user.findMany({
+    where: {
+      role: Role.STUDENT,
+      group: { teacherId },
+    },
+    orderBy: [{ group: { name: "asc" } }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      currentLevel: { select: { name: true } },
+      group: { select: { id: true, name: true } },
+    },
+  });
+}
+
+/** Scheduled exams across all of this teacher's groups. */
+export function listTeacherScheduledExams(teacher: TeacherContext) {
+  return prisma.scheduledExam.findMany({
+    where: {
+      instituteId: teacher.instituteId,
+      group: { teacherId: teacher.id },
+    },
+    orderBy: { opensAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      opensAt: true,
+      closesAt: true,
+      level: { select: { name: true } },
+      group: { select: { id: true, name: true } },
+      _count: { select: { practiceSessions: true, paperQuestions: true } },
+    },
+  });
+}
+
 /** Create a new group owned by this teacher, in their institute. */
 export function createGroup(teacher: TeacherContext, name: string) {
   return prisma.group.create({

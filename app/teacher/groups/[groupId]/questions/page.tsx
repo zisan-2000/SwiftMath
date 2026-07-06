@@ -2,13 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { requireRole } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/generated/prisma/enums";
-import { getTeacherGroup, listInstituteLevels } from "@/server/teacher";
+import { listInstituteLevels } from "@/server/teacher";
 import { listGroupQuestionOverrides } from "@/server/question-bank";
-import { AppShell } from "@/components/app-shell";
-import { BackLink } from "@/components/nav/back-link";
+import { loadTeacherGroupPageContext } from "@/server/teacher-page";
+import { TeacherGroupShell } from "@/components/teacher/teacher-group-shell";
 import { GroupQuestionOverrides } from "@/components/teacher/group-question-overrides";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,11 +16,8 @@ export async function generateMetadata({
   params: Promise<{ groupId: string }>;
 }): Promise<Metadata> {
   const { groupId } = await params;
-  const teacher = await requireRole(Role.TEACHER);
-  const group = await getTeacherGroup(teacher, groupId);
-  return {
-    title: group ? `${group.name} — Question bank` : "Question bank",
-  };
+  const { group } = await loadTeacherGroupPageContext(groupId);
+  return { title: `${group.name} — Questions` };
 }
 
 export default async function GroupQuestionBankPage({
@@ -35,20 +29,8 @@ export default async function GroupQuestionBankPage({
 }) {
   const { groupId } = await params;
   const { levelId: levelIdParam } = await searchParams;
-  const teacher = await requireRole(Role.TEACHER);
-
-  const [institute, group, levels] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: teacher.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
-    getTeacherGroup(teacher, groupId),
-    listInstituteLevels(teacher.instituteId),
-  ]);
-
-  if (!group) {
-    notFound();
-  }
+  const { teacher, institute, group } = await loadTeacherGroupPageContext(groupId);
+  const levels = await listInstituteLevels(teacher.instituteId);
 
   const levelId =
     levelIdParam && levels.some((l) => l.id === levelIdParam)
@@ -65,22 +47,20 @@ export default async function GroupQuestionBankPage({
   }
 
   return (
-    <AppShell
+    <TeacherGroupShell
       user={teacher}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
-      title={`${group.name} — Question bank`}
+      institute={institute}
+      groupId={groupId}
+      groupName={group.name}
       subtitle="Enable or disable institute bank questions for this group."
     >
-      <BackLink href={`/teacher/groups/${group.id}`}>Back to group</BackLink>
-
       {levels.length === 0 ? (
-        <p className="mt-6 text-sm text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           No levels exist yet. Ask your admin to create levels and bank questions.
         </p>
       ) : (
         <>
-          <div className="mt-6 flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2">
             {levels.map((level) => (
               <Button
                 key={level.id}
@@ -117,6 +97,6 @@ export default async function GroupQuestionBankPage({
           </Card>
         </>
       )}
-    </AppShell>
+    </TeacherGroupShell>
   );
 }

@@ -3,6 +3,7 @@ import {
   Boxes,
   Brain,
   Building2,
+  ClipboardCheck,
   GraduationCap,
   Home,
   LayoutDashboard,
@@ -45,10 +46,12 @@ export const NAV_ITEMS: Record<Role, NavItem[]> = {
   ],
   TEACHER: [
     { href: "/teacher", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/teacher/students", label: "Students", icon: GraduationCap },
+    { href: "/teacher/exams", label: "Exams", icon: ClipboardCheck },
     { href: "/teacher/groups", label: "Groups", icon: Boxes },
-    { href: "/teacher/notifications", label: "Notifications", icon: Bell },
-    { href: "/teacher/activity", label: "Your activity", icon: ScrollText },
     { href: "/teacher/ranking", label: "Ranking", icon: Trophy },
+    { href: "/teacher/notifications", label: "Notifications", icon: Bell },
+    { href: "/teacher/activity", label: "Activity", icon: ScrollText },
   ],
   STUDENT: [
     { href: "/student", label: "Home", icon: Home },

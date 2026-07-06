@@ -1,216 +1,130 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { BarChart3, Users } from "lucide-react";
+import {
+  BarChart3,
+  ClipboardCheck,
+  GraduationCap,
+  Settings,
+  Users,
+} from "lucide-react";
 
-import { requireRole } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/generated/prisma/enums";
-import { getTeacherGroup, listGroupLevelTimeRules, listInstituteLevels } from "@/server/teacher";
+import { getExamWindowStatus } from "@/lib/exam-window";
 import { listGroupScheduledExams } from "@/server/scheduled-exam";
 import { listTeacherAuditLogs } from "@/server/audit-log";
-import { AppShell } from "@/components/app-shell";
-import { BackLink } from "@/components/nav/back-link";
-import { AddStudentDialog } from "@/components/teacher/add-student-dialog";
-import { AssignLevelForm } from "@/components/teacher/assign-level-form";
-import { GroupLevelTimeRules } from "@/components/teacher/group-level-time-rules";
-import { GroupScheduledExamsList } from "@/components/teacher/group-scheduled-exams-list";
+import { loadTeacherGroupPageContext } from "@/server/teacher-page";
+import { TeacherGroupShell } from "@/components/teacher/teacher-group-shell";
 import { GroupRecentActivityCard } from "@/components/teacher/group-recent-activity-card";
-import { ScheduleExamForm } from "@/components/teacher/schedule-exam-form";
-import { ResetPasswordForm } from "@/components/reset-password-form";
-import { DeleteGroupSection } from "@/components/teacher/delete-group-section";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { EmptyState } from "@/components/ui/empty-state";
-import { resetStudentPasswordAction } from "./actions";
+import { StatCard } from "@/components/stat-card";
+import { Card, CardContent } from "@/components/ui/card";
 
 export const metadata: Metadata = {
   title: "Group",
 };
 
-export default async function GroupDetailPage({
+export default async function GroupOverviewPage({
   params,
 }: {
-  // Next.js 16: route params are async.
   params: Promise<{ groupId: string }>;
 }) {
   const { groupId } = await params;
-  const teacher = await requireRole(Role.TEACHER);
+  const { teacher, institute, group } = await loadTeacherGroupPageContext(groupId);
 
-  // Scoped lookup — null if the group isn't this teacher's.
-  const group = await getTeacherGroup(teacher, groupId);
-  if (!group) {
-    notFound();
-  }
-
-  const [institute, levels, timeRules, scheduledExams, recentActivity] =
-    await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: teacher.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
-    listInstituteLevels(teacher.instituteId),
-    listGroupLevelTimeRules(teacher, groupId),
+  const [scheduledExams, recentActivity] = await Promise.all([
     listGroupScheduledExams(teacher, groupId),
     listTeacherAuditLogs(teacher, { groupId, limit: 10 }),
   ]);
 
-  return (
-    <AppShell
-      user={teacher}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
-      title={group.name}
-      subtitle="Students in this group and their assigned level."
-      actions={<AddStudentDialog groupId={group.id} />}
-    >
-      <BackLink href="/teacher/groups">All groups</BackLink>
+  const nowMs = Date.now();
+  const openExams = scheduledExams.filter(
+    (exam) => getExamWindowStatus(nowMs, exam.opensAt, exam.closesAt) === "open",
+  ).length;
+  const upcomingExams = scheduledExams.filter(
+    (exam) =>
+      getExamWindowStatus(nowMs, exam.opensAt, exam.closesAt) === "upcoming",
+  ).length;
 
-      <div className="mb-6 flex flex-wrap gap-2">
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/teacher/groups/${group.id}/analytics`}>
-            <BarChart3 className="h-4 w-4" />
-            Group analytics
-          </Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/teacher/groups/${group.id}/questions`}>
-            Question bank overrides
-          </Link>
-        </Button>
+  const shortcuts = [
+    {
+      href: `/teacher/groups/${groupId}/students`,
+      label: "Students",
+      description: "Add students, assign levels, reset passwords",
+      icon: Users,
+    },
+    {
+      href: `/teacher/groups/${groupId}/exams`,
+      label: "Exams",
+      description: "Schedule windows and manage attempts",
+      icon: ClipboardCheck,
+    },
+    {
+      href: `/teacher/groups/${groupId}/analytics`,
+      label: "Analytics",
+      description: "Pass rate, speed, and progress charts",
+      icon: BarChart3,
+    },
+    {
+      href: `/teacher/groups/${groupId}/settings`,
+      label: "Settings",
+      description: "Time limits, question overrides, danger zone",
+      icon: Settings,
+    },
+  ];
+
+  return (
+    <TeacherGroupShell
+      user={teacher}
+      institute={institute}
+      groupId={groupId}
+      groupName={group.name}
+      subtitle="Group overview — use the tabs to manage students, exams, and settings."
+    >
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard
+          label="Students"
+          value={group.students.length}
+          icon={GraduationCap}
+        />
+        <StatCard label="Open exams" value={openExams} icon={ClipboardCheck} />
+        <StatCard
+          label="Upcoming exams"
+          value={upcomingExams}
+          icon={ClipboardCheck}
+        />
       </div>
 
-      {levels.length === 0 && (
-        <Card className="mb-6 border-warning/30 bg-warning/10">
-          <CardContent className="py-4 text-sm text-warning-foreground">
-            No levels exist for your institute yet, so the level menu is empty.
-            Ask your admin to create levels.
-          </CardContent>
-        </Card>
-      )}
-
-      <GroupRecentActivityCard
-        groupId={group.id}
-        groupName={group.name}
-        items={recentActivity.items}
-        total={recentActivity.total}
-      />
-
-      <Card className="mt-8">
-        <CardHeader className="border-b border-border">
-          <CardTitle className="text-base">Scheduled exams</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Students in this group see an open exam on their dashboard. Each
-            student gets one timed attempt using the same fixed question paper.
-          </p>
-        </CardHeader>
-        <CardContent className="p-0">
-          <GroupScheduledExamsList
-            groupId={groupId}
-            exams={scheduledExams.map((exam) => ({
-              id: exam.id,
-              title: exam.title,
-              opensAt: exam.opensAt,
-              closesAt: exam.closesAt,
-              level: exam.level,
-              attemptCount: exam._count.practiceSessions,
-              paperQuestionCount: exam._count.paperQuestions,
-            }))}
-          />
-        </CardContent>
-        <CardContent className="border-t border-border pt-6">
-          <ScheduleExamForm
-            groupId={group.id}
-            levels={levels.map((level) => ({
-              id: level.id,
-              orderIndex: level.orderIndex,
-              name: level.name,
-            }))}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="border-b border-border">
-          <CardTitle className="text-base">
-            Students ({group.students.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {group.students.length === 0 ? (
-            <div className="p-6">
-              <EmptyState
-                icon={Users}
-                title="No students yet"
-                description="Use the “Add student” button to create your first student."
-                action={<AddStudentDialog groupId={group.id} />}
-              />
-            </div>
-          ) : (
-            <ul className="divide-y divide-border">
-              {group.students.map((student) => (
-                <li
-                  key={student.id}
-                  className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
-                >
+      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {shortcuts.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link key={item.href} href={item.href} className="group">
+              <Card className="h-full transition-colors hover:border-primary/40 hover:bg-accent/30">
+                <CardContent className="flex items-start gap-4 p-5">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Icon className="h-5 w-5" />
+                  </div>
                   <div className="min-w-0">
-                    <Link
-                      href={`/teacher/groups/${group.id}/students/${student.id}`}
-                      className="truncate font-medium text-foreground transition-colors hover:text-primary hover:underline"
-                    >
-                      {student.name}
-                    </Link>
-                    <p className="truncate text-sm text-muted-foreground">
-                      {student.email}
+                    <p className="font-medium text-foreground group-hover:text-primary">
+                      {item.label}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {item.description}
                     </p>
                   </div>
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
+      </div>
 
-                  <div className="flex flex-col items-stretch gap-2 sm:items-end">
-                    <AssignLevelForm
-                      groupId={group.id}
-                      studentId={student.id}
-                      currentLevelId={student.currentLevelId ?? null}
-                      levels={levels}
-                    />
-
-                    <ResetPasswordForm
-                      action={resetStudentPasswordAction.bind(null, student.id)}
-                    />
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      {timeRules && timeRules.length > 0 && (
-        <Card className="mt-8">
-          <CardHeader className="border-b border-border">
-            <CardTitle className="text-base">Level time limits</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Override the institute default timer for students in this group.
-              Leave blank and save to use the level default.
-            </p>
-          </CardHeader>
-          <CardContent className="p-0">
-            <GroupLevelTimeRules groupId={group.id} rules={timeRules} />
-          </CardContent>
-        </Card>
-      )}
-
-      <Card className="mt-8 border-destructive/20">
-        <CardHeader>
-          <CardTitle className="text-base text-destructive">Danger zone</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DeleteGroupSection
-            groupId={group.id}
-            groupName={group.name}
-            studentCount={group.students.length}
-          />
-        </CardContent>
-      </Card>
-    </AppShell>
+      <div className="mt-8">
+        <GroupRecentActivityCard
+          groupId={group.id}
+          groupName={group.name}
+          items={recentActivity.items}
+          total={recentActivity.total}
+        />
+      </div>
+    </TeacherGroupShell>
   );
 }

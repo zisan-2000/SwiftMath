@@ -10,14 +10,10 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-import { requireRole } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/generated/prisma/enums";
 import { formatSpeedDuration } from "@/lib/practice-speed";
 import { getGroupPracticeAnalytics } from "@/server/analytics";
-import { getTeacherGroup } from "@/server/teacher";
-import { AppShell } from "@/components/app-shell";
-import { BackLink } from "@/components/nav/back-link";
+import { loadTeacherGroupPageContext } from "@/server/teacher-page";
+import { TeacherGroupShell } from "@/components/teacher/teacher-group-shell";
 import { PracticeActivityChart } from "@/components/practice-activity-chart";
 import { StatCard } from "@/components/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,11 +25,8 @@ export async function generateMetadata({
   params: Promise<{ groupId: string }>;
 }): Promise<Metadata> {
   const { groupId } = await params;
-  const teacher = await requireRole(Role.TEACHER);
-  const group = await getTeacherGroup(teacher, groupId);
-  return {
-    title: group ? `${group.name} analytics` : "Group analytics",
-  };
+  const { group } = await loadTeacherGroupPageContext(groupId);
+  return { title: `${group.name} analytics` };
 }
 
 export default async function GroupAnalyticsPage({
@@ -42,31 +35,21 @@ export default async function GroupAnalyticsPage({
   params: Promise<{ groupId: string }>;
 }) {
   const { groupId } = await params;
-  const teacher = await requireRole(Role.TEACHER);
+  const { teacher, institute, group } = await loadTeacherGroupPageContext(groupId);
+  const analytics = await getGroupPracticeAnalytics(teacher.id, groupId);
 
-  const [institute, group, analytics] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: teacher.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
-    getTeacherGroup(teacher, groupId),
-    getGroupPracticeAnalytics(teacher.id, groupId),
-  ]);
-
-  if (!group || !analytics) {
+  if (!analytics) {
     notFound();
   }
 
   return (
-    <AppShell
+    <TeacherGroupShell
       user={teacher}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
-      title={`${group.name} analytics`}
+      institute={institute}
+      groupId={groupId}
+      groupName={group.name}
       subtitle="Practice stats for students in this group (last 7 days)."
     >
-      <BackLink href={`/teacher/groups/${groupId}`}>Back to group</BackLink>
-
       <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-8">
         <StatCard
           label="Students"
@@ -189,6 +172,6 @@ export default async function GroupAnalyticsPage({
           </CardContent>
         </Card>
       )}
-    </AppShell>
+    </TeacherGroupShell>
   );
 }

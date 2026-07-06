@@ -23,6 +23,8 @@ interface AppShellProps {
   subtitle?: string;
   /** Optional page-level actions rendered on the right of the page header. */
   actions?: ReactNode;
+  /** Optional secondary nav rendered below the page header (e.g. group tabs). */
+  subNav?: ReactNode;
   children: ReactNode;
 }
 
@@ -39,6 +41,7 @@ export function AppShell({
   title,
   subtitle,
   actions,
+  subNav,
   children,
 }: AppShellProps) {
   return (
@@ -110,6 +113,7 @@ export function AppShell({
                 <div className="flex shrink-0 items-center gap-2">{actions}</div>
               )}
             </div>
+            {subNav}
             {children}
           </div>
         </main>

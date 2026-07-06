@@ -1,12 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { requireRole } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/generated/prisma/enums";
 import { getStudentProgress, listTeacherGroups } from "@/server/teacher";
-import { AppShell } from "@/components/app-shell";
-import { BackLink } from "@/components/nav/back-link";
+import { loadTeacherGroupPageContext } from "@/server/teacher-page";
+import { TeacherGroupShell } from "@/components/teacher/teacher-group-shell";
 import { StudentProgressPanel } from "@/components/student-progress-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,24 +14,18 @@ export const metadata: Metadata = {
   title: "Student progress",
 };
 
-/** Native <select> styled to match the Input component. */
 const SELECT_CLASS =
   "h-9 rounded-md border border-input bg-background px-3 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export default async function StudentProgressPage({
   params,
 }: {
-  // Next.js 16: route params are async.
   params: Promise<{ groupId: string; studentId: string }>;
 }) {
   const { groupId, studentId } = await params;
-  const teacher = await requireRole(Role.TEACHER);
+  const { teacher, institute, group } = await loadTeacherGroupPageContext(groupId);
 
-  const [institute, progress, groups] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: teacher.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
+  const [progress, groups] = await Promise.all([
     getStudentProgress(teacher, groupId, studentId),
     listTeacherGroups(teacher.id),
   ]);
@@ -47,15 +38,16 @@ export default async function StudentProgressPage({
   const otherGroups = groups.filter((g) => g.id !== groupId);
 
   return (
-    <AppShell
+    <TeacherGroupShell
       user={teacher}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
+      institute={institute}
+      groupId={groupId}
+      groupName={group.name}
       title={student.name}
       subtitle={student.email}
+      backHref={`/teacher/groups/${groupId}/students`}
+      backLabel="Back to students"
     >
-      <BackLink href={`/teacher/groups/${groupId}`}>Back to group</BackLink>
-
       <StudentProgressPanel progress={progress} />
 
       {otherGroups.length > 0 && (
@@ -100,6 +92,6 @@ export default async function StudentProgressPage({
           </CardContent>
         </Card>
       )}
-    </AppShell>
+    </TeacherGroupShell>
   );
 }
