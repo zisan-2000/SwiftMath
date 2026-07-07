@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requirePermission } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { PERMISSIONS } from "@/lib/permissions";
 import { resetUserPassword, setUserActive } from "@/server/admin";
 import type { ResetPasswordState } from "@/components/reset-password-form";
@@ -16,7 +16,7 @@ export async function resetUserPasswordAction(
   _prevState: ResetPasswordState,
   formData: FormData,
 ): Promise<ResetPasswordState> {
-  const admin = await requirePermission(PERMISSIONS.STUDENT_RESET_PASSWORD);
+  const admin = await requireAdminPermission(PERMISSIONS.STUDENT_RESET_PASSWORD);
 
   const next = String(formData.get("newPassword") ?? "");
   const confirm = String(formData.get("confirmPassword") ?? "");
@@ -47,7 +47,7 @@ export async function setUserActiveAction(
   _formData: FormData,
 ) {
   void _formData;
-  const admin = await requirePermission(PERMISSIONS.STUDENT_DISABLE);
+  const admin = await requireAdminPermission(PERMISSIONS.STUDENT_DISABLE);
 
   await setUserActive(admin, userId, isActive);
 

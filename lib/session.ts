@@ -105,3 +105,26 @@ export async function requirePermission(
   }
   return user;
 }
+
+/**
+ * Require an institute ADMIN who also holds `permission`.
+ *
+ * Defense-in-depth for institute-WIDE admin mutations whose capability
+ * permission is shared with a lower role (e.g. `GROUP_MANAGE`,
+ * `STUDENT_CREATE`, `STUDENT_RESET_PASSWORD` are held by TEACHER too). Those
+ * server actions are directly-callable POST endpoints, and the underlying
+ * `server/admin.ts` helpers scope only by `instituteId` — not by the caller's
+ * role or ownership. Without this role backstop a TEACHER who happens to hold
+ * the same permission could invoke the wider-scoped admin action and act across
+ * the whole institute (e.g. reset a peer teacher's password). The permission is
+ * still checked, so an admin whose capability was explicitly DENYed is blocked.
+ */
+export async function requireAdminPermission(
+  permission: Permission,
+): Promise<SessionUser> {
+  const user = await requireUser();
+  if (user.role !== Role.ADMIN || !(await can(user, permission))) {
+    redirect("/403");
+  }
+  return user;
+}

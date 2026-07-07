@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requirePermission } from "@/lib/session";
+import { requireAdminPermission } from "@/lib/session";
 import { PERMISSIONS } from "@/lib/permissions";
 import { createAdminGroup } from "@/server/admin";
 
@@ -17,7 +17,7 @@ export async function createGroupAction(
   _prevState: CreateGroupState,
   formData: FormData,
 ): Promise<CreateGroupState> {
-  const admin = await requirePermission(PERMISSIONS.GROUP_MANAGE);
+  const admin = await requireAdminPermission(PERMISSIONS.GROUP_MANAGE);
 
   const name = String(formData.get("name") ?? "").trim();
   const teacherId = String(formData.get("teacherId") ?? "");
