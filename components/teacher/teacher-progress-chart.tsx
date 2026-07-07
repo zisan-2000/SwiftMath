@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { TrendingUp } from "lucide-react";
 
 import type { DailyProgressPoint } from "@/lib/teacher-dashboard-charts";
 import {
@@ -19,6 +20,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface TeacherProgressChartProps {
   data: DailyProgressPoint[];
@@ -69,10 +71,12 @@ export function TeacherProgressChart({
       </CardHeader>
       <CardContent className="pt-6">
         {empty ? (
-          <p className="py-12 text-center text-sm text-muted-foreground">
-            No finished attempts yet this week. Progress trends will appear here
-            once students practise.
-          </p>
+          <EmptyState
+            icon={TrendingUp}
+            title="No finished attempts yet"
+            description="Progress trends will appear here once students practise this week."
+            className="border-0 bg-transparent py-8"
+          />
         ) : (
           <div
             className="h-64 w-full"

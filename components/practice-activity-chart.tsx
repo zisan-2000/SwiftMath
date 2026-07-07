@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { BarChart3 } from "lucide-react";
 
 import type { DailySessionCount } from "@/lib/analytics";
 import {
@@ -18,6 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface PracticeActivityChartProps {
   data: DailySessionCount[];
@@ -71,10 +73,12 @@ export function PracticeActivityChart({
       </CardHeader>
       <CardContent className="pt-6">
         {empty ? (
-          <p className="py-12 text-center text-sm text-muted-foreground">
-            No practice sessions yet this week. Activity will appear here once
-            students complete attempts.
-          </p>
+          <EmptyState
+            icon={BarChart3}
+            title="No practice sessions yet"
+            description="Activity will appear here once students complete attempts this week."
+            className="border-0 bg-transparent py-8"
+          />
         ) : (
           <div
             className="h-64 w-full"

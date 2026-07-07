@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BookOpen } from "lucide-react";
 
 import { listInstituteLevels } from "@/server/teacher";
 import { listGroupQuestionOverrides } from "@/server/question-bank";
@@ -9,6 +10,7 @@ import { TeacherGroupShell } from "@/components/teacher/teacher-group-shell";
 import { GroupQuestionOverrides } from "@/components/teacher/group-question-overrides";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export async function generateMetadata({
   params,
@@ -55,9 +57,11 @@ export default async function GroupQuestionBankPage({
       subtitle="Enable or disable institute bank questions for this group."
     >
       {levels.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No levels exist yet. Ask your admin to create levels and bank questions.
-        </p>
+        <EmptyState
+          icon={BookOpen}
+          title="No levels yet"
+          description="Ask your admin to create levels and bank questions before setting overrides."
+        />
       ) : (
         <>
           <div className="flex flex-wrap gap-2">

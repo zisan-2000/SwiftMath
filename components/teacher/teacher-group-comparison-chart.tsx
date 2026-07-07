@@ -9,6 +9,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { BarChart3 } from "lucide-react";
 
 import type { GroupComparisonPoint } from "@/lib/teacher-dashboard-charts";
 import {
@@ -18,6 +19,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 
 interface TeacherGroupComparisonChartProps {
   data: GroupComparisonPoint[];
@@ -66,9 +68,12 @@ export function TeacherGroupComparisonChart({
       </CardHeader>
       <CardContent className="pt-6">
         {empty ? (
-          <p className="py-12 text-center text-sm text-muted-foreground">
-            Create a group and add students to compare activity across classes.
-          </p>
+          <EmptyState
+            icon={BarChart3}
+            title="No groups to compare yet"
+            description="Create a group and add students to compare activity across classes."
+            className="border-0 bg-transparent py-8"
+          />
         ) : (
           <div
             className="h-64 w-full"
