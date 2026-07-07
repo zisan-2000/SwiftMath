@@ -7,6 +7,7 @@ import { AdminPageShell } from "@/components/admin/admin-page-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { ActiveToggle } from "@/components/admin/active-toggle";
 import { EditTeacherForm } from "@/components/admin/edit-teacher-form";
+import { TeacherPermissionsPanel } from "@/components/admin/teacher-permissions-panel";
 import { ResetPasswordForm } from "@/components/reset-password-form";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,7 +33,7 @@ export default async function AdminEditTeacherPage({
   params: Promise<{ teacherId: string }>;
 }) {
   const { teacherId } = await params;
-  const { admin, institute, teacher } =
+  const { admin, institute, teacher, teacherPermissions } =
     await loadAdminTeacherPageContext(teacherId);
 
   return (
@@ -73,6 +74,11 @@ export default async function AdminEditTeacherPage({
           <ActiveToggle userId={teacher.id} isActive={teacher.isActive} />
         </CardContent>
       </Card>
+
+      <TeacherPermissionsPanel
+        teacherId={teacher.id}
+        permissions={teacherPermissions}
+      />
     </AdminPageShell>
   );
 }

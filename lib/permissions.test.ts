@@ -8,6 +8,7 @@ import {
   getRoleDefaultPermissions,
   isKnownPermission,
   permissionsByScope,
+  resolveEffectivePermissions,
   roleHasPermission,
 } from "@/lib/permissions";
 
@@ -21,6 +22,41 @@ describe("permission catalog", () => {
   it("validates known permission strings", () => {
     expect(isKnownPermission(PERMISSIONS.TEACHER_CREATE)).toBe(true);
     expect(isKnownPermission("teacher:fly")).toBe(false);
+  });
+});
+
+describe("effective permission resolver", () => {
+  it("allows teacher permissions beyond role defaults", () => {
+    const permissions = resolveEffectivePermissions(Role.TEACHER, [
+      { permission: PERMISSIONS.LEVEL_MANAGE, effect: "ALLOW" },
+    ]);
+
+    expect(permissions.has(PERMISSIONS.LEVEL_MANAGE)).toBe(true);
+  });
+
+  it("denies teacher default permissions", () => {
+    const permissions = resolveEffectivePermissions(Role.TEACHER, [
+      { permission: PERMISSIONS.EXAM_SCHEDULE, effect: "DENY" },
+    ]);
+
+    expect(permissions.has(PERMISSIONS.EXAM_SCHEDULE)).toBe(false);
+  });
+
+  it("ignores stale permission strings from the database", () => {
+    const permissions = resolveEffectivePermissions(Role.TEACHER, [
+      { permission: "old:permission", effect: "ALLOW" },
+    ]);
+
+    expect(permissions.has(PERMISSIONS.GROUP_MANAGE)).toBe(true);
+    expect(permissions.has(PERMISSIONS.LEVEL_MANAGE)).toBe(false);
+  });
+
+  it("keeps admin role defaults fixed even if a deny override exists", () => {
+    const permissions = resolveEffectivePermissions(Role.ADMIN, [
+      { permission: PERMISSIONS.STUDENT_CREATE, effect: "DENY" },
+    ]);
+
+    expect(permissions.has(PERMISSIONS.STUDENT_CREATE)).toBe(true);
   });
 });
 

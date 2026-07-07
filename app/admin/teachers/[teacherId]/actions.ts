@@ -2,12 +2,19 @@
 
 import { revalidatePath } from "next/cache";
 
+import { PermissionEffect } from "@/lib/generated/prisma/enums";
 import { requirePermission } from "@/lib/session";
 import { PERMISSIONS } from "@/lib/permissions";
 import { updateAdminTeacher } from "@/server/admin";
+import { setTeacherPermissionOverride } from "@/server/user-permissions";
 
 /** Result of the edit-teacher form, surfaced via useActionState. */
 export interface EditTeacherState {
+  error?: string;
+  ok?: boolean;
+}
+
+export interface SetTeacherPermissionState {
   error?: string;
   ok?: boolean;
 }
@@ -29,6 +36,43 @@ export async function updateTeacherAction(
   }
 
   revalidatePath("/admin/teachers");
+  revalidatePath(`/admin/teachers/${teacherId}`);
+  return { ok: true };
+}
+
+export async function setTeacherPermissionAction(
+  teacherId: string,
+  _prevState: SetTeacherPermissionState,
+  formData: FormData,
+): Promise<SetTeacherPermissionState> {
+  const admin = await requirePermission(PERMISSIONS.TEACHER_PERMISSIONS_MANAGE);
+
+  const permission = String(formData.get("permission") ?? "");
+  const effectValue = String(formData.get("effect") ?? "DEFAULT");
+  const effect =
+    effectValue === "DEFAULT"
+      ? null
+      : effectValue === PermissionEffect.ALLOW ||
+          effectValue === PermissionEffect.DENY
+        ? effectValue
+        : undefined;
+
+  if (effect === undefined) {
+    return { error: "Choose a valid permission override." };
+  }
+
+  const result = await setTeacherPermissionOverride(
+    admin,
+    teacherId,
+    permission,
+    effect,
+  );
+
+  if (!result.ok) {
+    return { error: result.error };
+  }
+
+  revalidatePath("/admin/activity");
   revalidatePath(`/admin/teachers/${teacherId}`);
   return { ok: true };
 }

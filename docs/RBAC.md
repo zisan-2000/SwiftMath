@@ -3,7 +3,7 @@
 Enterprise-grade authorization plan for SEFT Abacus. This document is the single
 reference for how access control is modelled, enforced, and administered.
 
-> **Status:** Phase A implemented; Phase B-D pending. Approved direction:
+> **Status:** Phase A-B implemented; Phase C-D pending. Approved direction:
 > **per-user permission overrides + custom permission layer + full role chain**
 > (Super Admin → Admin → Teacher → Student).
 
@@ -273,6 +273,12 @@ grants (Phase B) unlock the "Admin controls each user" requirement.
 (no grants table yet), adds the `requirePermission(...)` primitive, and wires
 selected Super Admin / Admin mutation boundaries. `institute:update` is included
 because the current Super Admin UI can edit tenant identity and branding.
+
+**Phase B implementation note:** `UserPermission` and `PermissionEffect` are now
+persisted; effective permission resolution reads per-user ALLOW/DENY overrides.
+Admin can manage Teacher permissions from `/admin/teachers/[teacherId]`, with
+same-institute validation, teacher-only role ceiling, privilege ceiling, and
+audit log rows for permission grant/revoke changes.
 
 ---
 

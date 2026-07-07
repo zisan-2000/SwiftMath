@@ -311,6 +311,43 @@ export function getRoleDefaultPermissions(role: Role): Set<Permission> {
   }
 }
 
+export type PermissionEffectValue = "ALLOW" | "DENY";
+
+export interface PermissionOverride {
+  permission: string;
+  effect: PermissionEffectValue;
+}
+
+function roleDefaultsAreFixed(role: Role): boolean {
+  return role === Role.ADMIN || role === Role.SUPER_ADMIN;
+}
+
+export function resolveEffectivePermissions(
+  role: Role,
+  overrides: PermissionOverride[],
+): Set<Permission> {
+  const defaults = getRoleDefaultPermissions(role);
+  const effective = new Set(defaults);
+
+  for (const override of overrides) {
+    if (!isKnownPermission(override.permission)) continue;
+
+    if (override.effect === "ALLOW") {
+      effective.add(override.permission);
+    } else {
+      effective.delete(override.permission);
+    }
+  }
+
+  if (roleDefaultsAreFixed(role)) {
+    for (const permission of defaults) {
+      effective.add(permission);
+    }
+  }
+
+  return effective;
+}
+
 export function roleHasPermission(role: Role, permission: Permission): boolean {
   return getRoleDefaultPermissions(role).has(permission);
 }

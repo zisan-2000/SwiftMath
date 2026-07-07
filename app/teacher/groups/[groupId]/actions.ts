@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireRole } from "@/lib/session";
-import { Role } from "@/lib/generated/prisma/enums";
+import { PERMISSIONS } from "@/lib/permissions";
+import { requirePermission } from "@/lib/session";
 import {
   addStudentToGroup,
   assignStudentLevel,
@@ -48,7 +48,7 @@ export async function addStudentAction(
   _prevState: AddStudentState,
   formData: FormData,
 ): Promise<AddStudentState> {
-  const teacher = await requireRole(Role.TEACHER);
+  const teacher = await requirePermission(PERMISSIONS.STUDENT_CREATE);
 
   const groupId = String(formData.get("groupId") ?? "");
   const name = String(formData.get("name") ?? "").trim();
@@ -78,7 +78,7 @@ export async function addStudentAction(
 export async function createScheduledExamAction(
   formData: FormData,
 ): Promise<CreateScheduledExamState> {
-  const teacher = await requireRole(Role.TEACHER);
+  const teacher = await requirePermission(PERMISSIONS.EXAM_SCHEDULE);
 
   const groupId = String(formData.get("groupId") ?? "");
   const parsed = parseScheduleExamForm({
@@ -116,7 +116,7 @@ export async function createScheduledExamAction(
 export async function cancelScheduledExamAction(
   formData: FormData,
 ): Promise<{ error?: string; ok?: boolean }> {
-  const teacher = await requireRole(Role.TEACHER);
+  const teacher = await requirePermission(PERMISSIONS.EXAM_CANCEL);
 
   const groupId = String(formData.get("groupId") ?? "");
   const scheduledExamId = String(formData.get("scheduledExamId") ?? "").trim();
@@ -152,7 +152,7 @@ export async function cancelScheduledExamFormAction(
 export async function setGroupQuestionEnabledAction(
   formData: FormData,
 ): Promise<{ error?: string; ok?: boolean }> {
-  const teacher = await requireRole(Role.TEACHER);
+  const teacher = await requirePermission(PERMISSIONS.GROUP_QUESTION_OVERRIDE);
 
   const groupId = String(formData.get("groupId") ?? "");
   const levelId = String(formData.get("levelId") ?? "");
@@ -184,7 +184,7 @@ export async function setGroupQuestionEnabledAction(
 export async function assignLevelAction(
   formData: FormData,
 ): Promise<{ error?: string; ok?: boolean }> {
-  const teacher = await requireRole(Role.TEACHER);
+  const teacher = await requirePermission(PERMISSIONS.STUDENT_ASSIGN_LEVEL);
 
   const groupId = String(formData.get("groupId") ?? "");
   const studentId = String(formData.get("studentId") ?? "");
@@ -210,7 +210,7 @@ export async function resetStudentPasswordAction(
   _prevState: ResetPasswordState,
   formData: FormData,
 ): Promise<ResetPasswordState> {
-  const teacher = await requireRole(Role.TEACHER);
+  const teacher = await requirePermission(PERMISSIONS.STUDENT_RESET_PASSWORD);
 
   const next = String(formData.get("newPassword") ?? "");
   const confirm = String(formData.get("confirmPassword") ?? "");
@@ -234,7 +234,7 @@ export async function resetStudentPasswordAction(
 export async function setGroupLevelTimeAction(
   formData: FormData,
 ): Promise<{ error?: string; ok?: boolean }> {
-  const teacher = await requireRole(Role.TEACHER);
+  const teacher = await requirePermission(PERMISSIONS.GROUP_MANAGE);
 
   const groupId = String(formData.get("groupId") ?? "");
   const levelId = String(formData.get("levelId") ?? "");
@@ -265,7 +265,7 @@ export async function setGroupLevelTimeAction(
 export async function deleteGroupAction(
   groupId: string,
 ): Promise<{ ok?: boolean; error?: string }> {
-  const teacher = await requireRole(Role.TEACHER);
+  const teacher = await requirePermission(PERMISSIONS.GROUP_MANAGE);
 
   const result = await deleteGroup(teacher, groupId);
   if (!result.ok) {

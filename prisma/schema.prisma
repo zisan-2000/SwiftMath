@@ -97,6 +97,14 @@ enum AuditAction {
   CURRICULUM_VERSION_BUMPED
   LEVEL_BANK_ONLY_ENABLED
   LEVEL_BANK_ONLY_DISABLED
+  PERMISSION_GRANTED
+  PERMISSION_REVOKED
+}
+
+/// Explicit per-user permission override. Missing row means role default.
+enum PermissionEffect {
+  ALLOW
+  DENY
 }
 
 // ---------------------------------------------------------------------------
@@ -230,6 +238,12 @@ model User {
   /// Per-type in-app delivery toggles (N7). Absent row = enabled.
   notificationPreferences NotificationPreference[]
 
+  /// Explicit permission overrides targeting this user.
+  permissionOverrides UserPermission[] @relation("UserPermissionTarget")
+
+  /// Explicit permission overrides granted or revoked by this user.
+  grantedPermissionOverrides UserPermission[] @relation("UserPermissionGranter")
+
   // --- better-auth relations ---
   sessions Session[]
   accounts Account[]
@@ -237,6 +251,29 @@ model User {
   @@index([instituteId])
   @@index([groupId])
   @@map("user")
+}
+
+/// Per-user permission overrides for RBAC Phase 2.
+model UserPermission {
+  userId String
+  user   User @relation("UserPermissionTarget", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Permission string from lib/permissions.ts. Stored as text so the catalog
+  /// can evolve without requiring an enum migration for every app permission.
+  permission String
+
+  /// ALLOW adds beyond role defaults. DENY removes a default permission.
+  effect PermissionEffect
+
+  grantedById String
+  grantedBy   User @relation("UserPermissionGranter", fields: [grantedById], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([userId, permission])
+  @@index([grantedById])
+  @@map("user_permission")
 }
 
 model Session {

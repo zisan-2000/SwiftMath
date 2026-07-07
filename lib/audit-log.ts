@@ -40,6 +40,10 @@ export function formatAuditActionLabel(action: AuditAction): string {
       return "Bank-only on";
     case AuditAction.LEVEL_BANK_ONLY_DISABLED:
       return "Bank-only off";
+    case AuditAction.PERMISSION_GRANTED:
+      return "Permission granted";
+    case AuditAction.PERMISSION_REVOKED:
+      return "Permission revoked";
     default:
       return action;
   }
@@ -56,6 +60,8 @@ export const AUDIT_ACTION_FILTER_OPTIONS: AuditAction[] = [
   AuditAction.QUESTIONS_IMPORTED,
   AuditAction.QUESTIONS_REORDERED,
   AuditAction.CURRICULUM_VERSION_BUMPED,
+  AuditAction.PERMISSION_GRANTED,
+  AuditAction.PERMISSION_REVOKED,
   AuditAction.LEVEL_BANK_ONLY_ENABLED,
   AuditAction.LEVEL_BANK_ONLY_DISABLED,
   AuditAction.QUESTION_CREATED,

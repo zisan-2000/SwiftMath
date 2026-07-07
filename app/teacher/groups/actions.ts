@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireRole } from "@/lib/session";
-import { Role } from "@/lib/generated/prisma/enums";
+import { PERMISSIONS } from "@/lib/permissions";
+import { requirePermission } from "@/lib/session";
 import { createGroup } from "@/server/teacher";
 
 /**
@@ -13,7 +13,7 @@ import { createGroup } from "@/server/teacher";
  * re-checked here.
  */
 export async function createGroupAction(formData: FormData) {
-  const teacher = await requireRole(Role.TEACHER);
+  const teacher = await requirePermission(PERMISSIONS.GROUP_MANAGE);
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) {

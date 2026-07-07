@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireRole } from "@/lib/session";
-import { Role } from "@/lib/generated/prisma/enums";
+import { PERMISSIONS } from "@/lib/permissions";
+import { requirePermission } from "@/lib/session";
 import { moveStudentToGroup } from "@/server/teacher";
 
 /**
@@ -13,7 +13,7 @@ import { moveStudentToGroup } from "@/server/teacher";
  * re-checks ownership of both the source and target groups.
  */
 export async function moveStudentAction(formData: FormData) {
-  const teacher = await requireRole(Role.TEACHER);
+  const teacher = await requirePermission(PERMISSIONS.STUDENT_ASSIGN_GROUP);
 
   const studentId = String(formData.get("studentId") ?? "");
   const currentGroupId = String(formData.get("currentGroupId") ?? "");

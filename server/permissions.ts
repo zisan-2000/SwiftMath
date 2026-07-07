@@ -2,21 +2,27 @@ import "server-only";
 
 import { cache } from "react";
 
+import { prisma } from "@/lib/prisma";
 import {
-  getRoleDefaultPermissions,
+  resolveEffectivePermissions,
   type Permission,
 } from "@/lib/permissions";
 import type { SessionUser } from "@/lib/session";
 
-/** Phase 1 resolver: role defaults only. DB grants are added in Phase 2. */
+/** Resolve role defaults plus persisted per-user allow/deny overrides. */
 export const getEffectivePermissions = cache(
-  async (user: Pick<SessionUser, "role">): Promise<Set<Permission>> => {
-    return getRoleDefaultPermissions(user.role);
+  async (user: Pick<SessionUser, "id" | "role">): Promise<Set<Permission>> => {
+    const overrides = await prisma.userPermission.findMany({
+      where: { userId: user.id },
+      select: { permission: true, effect: true },
+    });
+
+    return resolveEffectivePermissions(user.role, overrides);
   },
 );
 
 export async function can(
-  user: Pick<SessionUser, "role">,
+  user: Pick<SessionUser, "id" | "role">,
   permission: Permission,
 ): Promise<boolean> {
   return (await getEffectivePermissions(user)).has(permission);
