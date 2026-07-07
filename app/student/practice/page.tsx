@@ -1,6 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Clock, ListChecks, Lock, RotateCcw, Target, Zap } from "lucide-react";
+import {
+  Clock,
+  ListChecks,
+  Lock,
+  Play,
+  RotateCcw,
+  Search,
+  Target,
+  Zap,
+} from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
 import { SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
@@ -14,6 +23,7 @@ import { resolveStudentPracticeTimeLimit } from "@/server/teacher";
 import { checkStudentLevelAccess } from "@/server/level-access";
 import { loadStudentPageContext } from "@/server/student-page";
 import { StudentPageShell } from "@/components/student/student-page-shell";
+import { StatCard } from "@/components/stat-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,6 +34,19 @@ import { startSessionAction } from "./actions";
 export const metadata: Metadata = {
   title: "Practice",
 };
+
+function formatAttemptMode(mode: PracticeMode): string {
+  switch (mode) {
+    case PracticeMode.REVIEW:
+      return "Review";
+    case PracticeMode.CHALLENGE:
+      return "Challenge";
+    case PracticeMode.EXAM:
+      return "Exam";
+    default:
+      return "Practice";
+  }
+}
 
 export default async function PracticeHomePage({
   searchParams,
@@ -90,6 +113,13 @@ export default async function PracticeHomePage({
       : null,
   });
 
+  const recentNonExamAttempts = sessions.filter(
+    (session) => session.mode !== PracticeMode.EXAM,
+  );
+  const latestCompletedAttempt = recentNonExamAttempts.find(
+    (session) => session.status !== SessionStatus.IN_PROGRESS,
+  );
+
   return (
     <StudentPageShell
       user={student}
@@ -137,82 +167,139 @@ export default async function PracticeHomePage({
       )}
 
       {level ? (
-        <Card className="mb-8 overflow-hidden">
-          <CardContent className="p-6">
-            <p className="text-sm text-muted-foreground">Current level</p>
-            <h2 className="mt-1 text-xl font-bold text-foreground">
-              {level.name}
-            </h2>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <Badge variant="secondary">
-                <ListChecks className="h-3.5 w-3.5" />
-                {level.questionCount} questions
-              </Badge>
-              <Badge variant="secondary">
-                <Clock className="h-3.5 w-3.5" />
-                {effectiveTimeLimitSeconds ?? level.timeLimitSeconds}s
+        <>
+          <section className="mb-8 overflow-hidden rounded-2xl border border-primary/20 bg-linear-to-br from-primary/10 via-primary/5 to-background p-6 sm:p-8">
+            <div className="flex flex-col gap-6">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-primary">
+                  Current practice level
+                </p>
+                <h2 className="mt-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                  {level.name}
+                </h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Choose how you want to practice today. Standard mode helps you
+                  level up; challenge is faster and stricter; review is untimed.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <StatCard
+                  label="Questions"
+                  value={level.questionCount}
+                  icon={ListChecks}
+                />
+                <StatCard
+                  label="Time limit"
+                  value={`${effectiveTimeLimitSeconds ?? level.timeLimitSeconds}s`}
+                  hint={
+                    hasTimeOverride
+                      ? `Group override from ${level.timeLimitSeconds}s`
+                      : "Standard timer"
+                  }
+                  icon={Clock}
+                />
+                <StatCard
+                  label="Pass target"
+                  value={`${level.passAccuracy}%`}
+                  hint="Needed to pass standard mode"
+                  icon={Target}
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-2">
                 {hasTimeOverride && (
-                  <span className="sr-only"> (group override)</span>
+                  <Badge variant="secondary">Custom group timer</Badge>
                 )}
-              </Badge>
-              <Badge variant="secondary">
-                <Target className="h-3.5 w-3.5" />
-                pass at {level.passAccuracy}%
-              </Badge>
-              {isLocked && (
-                <Badge variant="warning">
-                  <Lock className="h-3.5 w-3.5" />
-                  Locked
-                </Badge>
+                {isLocked && (
+                  <Badge variant="warning">
+                    <Lock className="h-3.5 w-3.5" />
+                    Locked
+                  </Badge>
+                )}
+              </div>
+
+              {isLocked && access?.message ? (
+                <p className="text-sm text-muted-foreground">
+                  {access.message} Ask your teacher if you think this is a
+                  mistake.
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                  <Card className="overflow-hidden border-primary/20">
+                    <CardContent className="flex h-full flex-col p-5">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Play className="h-5 w-5" />
+                      </div>
+                      <h3 className="mt-4 font-semibold text-foreground">
+                        Standard practice
+                      </h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Timed session at your current level. Pass in time to keep
+                        moving forward.
+                      </p>
+                      <form action={startSessionAction} className="mt-5">
+                        <Button type="submit" className="w-full">
+                          Start practice
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="overflow-hidden">
+                    <CardContent className="flex h-full flex-col p-5">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Zap className="h-5 w-5" />
+                      </div>
+                      <h3 className="mt-4 font-semibold text-foreground">
+                        Challenge mode
+                      </h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        Shorter timer, stricter pass target, and no level-up —
+                        best for testing speed.
+                      </p>
+                      {challengeTimeLimitSeconds != null &&
+                        challengePassAccuracy != null && (
+                          <p className="mt-3 text-xs text-muted-foreground">
+                            {challengeTimeLimitSeconds}s timer · pass at{" "}
+                            {challengePassAccuracy}%
+                          </p>
+                        )}
+                      <form action={startSessionAction} className="mt-5">
+                        <input type="hidden" name="mode" value="challenge" />
+                        <Button type="submit" variant="secondary" className="w-full">
+                          <Zap className="h-4 w-4" />
+                          Start challenge
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="overflow-hidden">
+                    <CardContent className="flex h-full flex-col p-5">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Search className="h-5 w-5" />
+                      </div>
+                      <h3 className="mt-4 font-semibold text-foreground">
+                        Review mode
+                      </h3>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        No timer and no level-up. Use this when you want calm
+                        repetition before the real attempt.
+                      </p>
+                      <form action={startSessionAction} className="mt-5">
+                        <input type="hidden" name="mode" value="review" />
+                        <Button type="submit" variant="outline" className="w-full">
+                          Review without timer
+                        </Button>
+                      </form>
+                    </CardContent>
+                  </Card>
+                </div>
               )}
             </div>
-            {hasTimeOverride && (
-              <p className="mt-3 text-sm text-muted-foreground">
-                Your group uses a {effectiveTimeLimitSeconds}s time limit for
-                this level (institute default is {level.timeLimitSeconds}s).
-              </p>
-            )}
-
-            {isLocked && access?.message ? (
-              <p className="mt-6 text-sm text-muted-foreground">
-                {access.message} Ask your teacher if you think this is a mistake.
-              </p>
-            ) : (
-              <>
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <form action={startSessionAction}>
-                    <Button type="submit" size="lg">
-                      Start practice
-                    </Button>
-                  </form>
-                  <form action={startSessionAction}>
-                    <input type="hidden" name="mode" value="challenge" />
-                    <Button type="submit" size="lg" variant="secondary">
-                      <Zap className="h-4 w-4" />
-                      Challenge
-                    </Button>
-                  </form>
-                  <form action={startSessionAction}>
-                    <input type="hidden" name="mode" value="review" />
-                    <Button type="submit" size="lg" variant="outline">
-                      Review (no timer)
-                    </Button>
-                  </form>
-                </div>
-                {challengeTimeLimitSeconds != null &&
-                  challengePassAccuracy != null && (
-                    <p className="mt-4 text-sm text-muted-foreground">
-                      <span className="font-medium text-foreground">
-                        Challenge mode:
-                      </span>{" "}
-                      {challengeTimeLimitSeconds}s timer · pass at{" "}
-                      {challengePassAccuracy}% · no level-up
-                    </p>
-                  )}
-              </>
-            )}
-          </CardContent>
-        </Card>
+          </section>
+        </>
       ) : (
         <EmptyState
           icon={Target}
@@ -222,21 +309,40 @@ export default async function PracticeHomePage({
         />
       )}
 
-      <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        Recent attempts
-      </h2>
+      <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Recent attempts
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Your latest sessions, results, and retries.
+          </p>
+        </div>
+        {latestCompletedAttempt && latestCompletedAttempt.mode === PracticeMode.STANDARD && (
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/student/practice/${latestCompletedAttempt.id}`}>
+              View latest result
+            </Link>
+          </Button>
+        )}
+      </div>
       {sessions.length === 0 ? (
-        <EmptyState title="No attempts yet" description="Start a practice session to see your history here." />
+        <EmptyState
+          title="No attempts yet"
+          description="Start a practice session to build your history here."
+        />
       ) : (
         <Card>
           <ul className="divide-y divide-border">
             {sessions.map((s) => (
               <li
                 key={s.id}
-                className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
-                  <p className="font-medium text-foreground">{s.level.name}</p>
+                  <p className="font-medium text-foreground">
+                    {s.level.name} · {formatAttemptMode(s.mode)}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {s.createdAt.toLocaleString()}
                   </p>
@@ -252,7 +358,12 @@ export default async function PracticeHomePage({
                     <Badge variant="secondary">Exam</Badge>
                   )}
                   {s.status === SessionStatus.IN_PROGRESS ? (
-                    <Badge variant="warning">In progress</Badge>
+                    <>
+                      <Badge variant="warning">In progress</Badge>
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/student/practice/${s.id}`}>Resume</Link>
+                      </Button>
+                    </>
                   ) : (
                     <>
                       <span className="font-semibold tabular-nums text-foreground">
@@ -262,13 +373,13 @@ export default async function PracticeHomePage({
                         {s.passed ? "Passed" : "Try again"}
                       </Badge>
                       {s.leveledUp && <Badge>Leveled up</Badge>}
-                      {!s.passed && s.mode === PracticeMode.STANDARD && (
-                          <Button asChild variant="outline" size="sm">
-                            <Link href={`/student/practice/${s.id}`}>
-                              View results
-                            </Link>
-                          </Button>
-                        )}
+                      <Button asChild variant="outline" size="sm">
+                        <Link href={`/student/practice/${s.id}`}>
+                          {s.passed || s.mode !== PracticeMode.STANDARD
+                            ? "View results"
+                            : "Retry details"}
+                        </Link>
+                      </Button>
                     </>
                   )}
                 </div>
