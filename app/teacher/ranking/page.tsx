@@ -1,10 +1,8 @@
 import type { Metadata } from "next";
 import { Trophy } from "lucide-react";
 
-import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { ACTIVE_LEVEL_FILTER } from "@/lib/active-levels";
-import { Role } from "@/lib/generated/prisma/enums";
 import { parseLeaderboardPeriod } from "@/lib/ranking";
 import {
   buildTeacherRankingSubtitle,
@@ -13,7 +11,8 @@ import {
 } from "@/lib/teacher-ranking";
 import { getInstituteLeaderboard } from "@/server/ranking";
 import { listTeacherGroups } from "@/server/teacher";
-import { AppShell } from "@/components/app-shell";
+import { loadTeacherPageContext } from "@/server/teacher-page";
+import { TeacherPageShell } from "@/components/teacher/teacher-page-shell";
 import { TeacherRankingFilters } from "@/components/teacher/teacher-ranking-filters";
 import { RankingLeaderboardTable } from "@/components/student/ranking-leaderboard-table";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -27,17 +26,13 @@ export default async function TeacherRankingPage({
 }: {
   searchParams: Promise<{ period?: string; view?: string; level?: string }>;
 }) {
-  const teacher = await requireRole(Role.TEACHER);
+  const { teacher, institute } = await loadTeacherPageContext();
   const params = await searchParams;
 
   const period = parseLeaderboardPeriod(params.period);
   const levelParam = params.level && params.level !== "all" ? params.level : "all";
 
-  const [institute, groups, levels] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: teacher.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
+  const [groups, levels] = await Promise.all([
     listTeacherGroups(teacher.id),
     prisma.level.findMany({
       where: { instituteId: teacher.instituteId, ...ACTIVE_LEVEL_FILTER },
@@ -80,10 +75,9 @@ export default async function TeacherRankingPage({
   };
 
   return (
-    <AppShell
+    <TeacherPageShell
       user={teacher}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
+      institute={institute}
       title="Ranking"
       subtitle={buildTeacherRankingSubtitle(leaderboard.length, {
         scope,
@@ -126,6 +120,6 @@ export default async function TeacherRankingPage({
           }
         />
       )}
-    </AppShell>
+    </TeacherPageShell>
   );
 }

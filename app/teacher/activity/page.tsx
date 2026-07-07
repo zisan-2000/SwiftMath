@@ -3,9 +3,6 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ScrollText } from "lucide-react";
 
-import { requireRole } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/generated/prisma/enums";
 import {
   parseTeacherActivityGroupFilter,
   teacherActivityHref,
@@ -13,7 +10,8 @@ import {
 import { parsePageParam } from "@/lib/pagination";
 import { listTeacherAuditLogs } from "@/server/audit-log";
 import { getTeacherGroup } from "@/server/teacher";
-import { AppShell } from "@/components/app-shell";
+import { loadTeacherPageContext } from "@/server/teacher-page";
+import { TeacherPageShell } from "@/components/teacher/teacher-page-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { TeacherActivityList } from "@/components/teacher/teacher-activity-list";
 import { Button } from "@/components/ui/button";
@@ -28,7 +26,7 @@ export default async function TeacherActivityPage({
 }: {
   searchParams: Promise<{ page?: string; group?: string }>;
 }) {
-  const teacher = await requireRole(Role.TEACHER);
+  const { teacher, institute } = await loadTeacherPageContext();
   const params = await searchParams;
   const page = parsePageParam(params.page);
   const groupId = parseTeacherActivityGroupFilter(params.group);
@@ -40,11 +38,7 @@ export default async function TeacherActivityPage({
     }
   }
 
-  const [institute, activity, scopedGroup] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: teacher.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
+  const [activity, scopedGroup] = await Promise.all([
     listTeacherAuditLogs(teacher, { page, groupId }),
     groupId ? getTeacherGroup(teacher, groupId) : Promise.resolve(null),
   ]);
@@ -58,10 +52,9 @@ export default async function TeacherActivityPage({
     : "Your question enable/disable changes across all groups.";
 
   return (
-    <AppShell
+    <TeacherPageShell
       user={teacher}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
+      institute={institute}
       title="Your activity"
       subtitle={subtitle}
     >
@@ -109,6 +102,6 @@ export default async function TeacherActivityPage({
         <ScrollText className="size-3.5 shrink-0" aria-hidden />
         Only your own group question enable/disable actions are listed.
       </p>
-    </AppShell>
+    </TeacherPageShell>
   );
 }
