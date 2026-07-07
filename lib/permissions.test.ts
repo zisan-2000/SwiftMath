@@ -69,7 +69,7 @@ describe("effective permission resolver", () => {
 });
 
 describe("role default permissions", () => {
-  it("gives super admins platform permissions only in phase 1", () => {
+  it("gives super admins platform permissions only", () => {
     const permissions = getRoleDefaultPermissions(Role.SUPER_ADMIN);
 
     for (const permission of permissionsByScope("platform")) {
@@ -105,7 +105,12 @@ describe("role default permissions", () => {
     );
   });
 
-  it("keeps students out of the permission system", () => {
-    expect(getRoleDefaultPermissions(Role.STUDENT).size).toBe(0);
+  it("gives students only self-service practice permissions", () => {
+    const permissions = getRoleDefaultPermissions(Role.STUDENT);
+
+    expect(permissions.has(PERMISSIONS.STUDENT_PRACTICE_START)).toBe(true);
+    expect(permissions.has(PERMISSIONS.STUDENT_PRACTICE_SUBMIT)).toBe(true);
+    expect(permissions.has(PERMISSIONS.STUDENT_EXAM_START)).toBe(true);
+    expect(permissions.has(PERMISSIONS.STUDENT_CREATE)).toBe(false);
   });
 });

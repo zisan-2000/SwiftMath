@@ -3,7 +3,7 @@
 Enterprise-grade authorization plan for SEFT Abacus. This document is the single
 reference for how access control is modelled, enforced, and administered.
 
-> **Status:** Phase A-C implemented; Phase D pending. Approved direction:
+> **Status:** Phase A-D implemented. Approved direction:
 > **per-user permission overrides + custom permission layer + full role chain**
 > (Super Admin → Admin → Teacher → Student).
 
@@ -75,6 +75,9 @@ export const PERMISSIONS = {
   STUDENT_ASSIGN_LEVEL:        "student:assign_level",
   STUDENT_EXPORT:              "student:export",
   STUDENT_PERMISSIONS_MANAGE:  "student:permissions:manage",
+  STUDENT_PRACTICE_START:      "student:practice:start",
+  STUDENT_PRACTICE_SUBMIT:     "student:practice:submit",
+  STUDENT_EXAM_START:          "student:exam:start",
 
   GROUP_MANAGE:                "group:manage",          // create/update/delete
   GROUP_ASSIGN_TEACHER:        "group:assign_teacher",
@@ -121,7 +124,7 @@ unit-testable.
 | **SUPER_ADMIN** | `*` — all platform permissions + admin management (cross-tenant) |
 | **ADMIN** | all institute-scoped permissions (wildcard *within their tenant*) + `teacher:permissions:manage` + `student:permissions:manage` |
 | **TEACHER** | `group:manage` (own), `group:question:override`, `student:create`, `student:assign_group`, `student:assign_level`, `exam:schedule`, `exam:cancel`, `analytics:view` (own) — **customizable by Admin** |
-| **STUDENT** | none in the permission system — practice is gated by role only |
+| **STUDENT** | `student:practice:start`, `student:practice:submit`, `student:exam:start` — customizable by Admin |
 
 > **Design rule:** ADMIN holds an institute-scoped wildcard and SUPER_ADMIN a
 > platform wildcard. These wildcards are **non-revocable** (see guardrails), so
@@ -281,11 +284,16 @@ same-institute validation, teacher-only role ceiling, privilege ceiling, and
 audit log rows for permission grant/revoke changes.
 
 **Phase C implementation note:** Admin can now open Student permission controls
-from `/admin/students/[studentId]` (currently empty by design because students
-have no configurable capabilities yet). Super Admin can create, disable/enable,
+from `/admin/students/[studentId]`. Super Admin can create, disable/enable,
 reset, and tune institute Admin capabilities from
 `/super/institutes/[instituteId]/admins`. Permission changes now create
 `PERMISSION_CHANGED` in-app notifications for the affected user.
+
+**Phase D implementation note:** remaining mutation boundaries now use
+`requirePermission(...)`, including student practice/exam actions and the
+question-import template route. `requireRole(...)` remains only for coarse page
+context loaders and metadata reads. A boundary test scans server actions and
+route handlers so future RBAC regressions fail in CI.
 
 ---
 

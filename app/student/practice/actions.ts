@@ -3,8 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireRole } from "@/lib/session";
-import { PracticeMode, Role } from "@/lib/generated/prisma/enums";
+import { PracticeMode } from "@/lib/generated/prisma/enums";
+import { PERMISSIONS } from "@/lib/permissions";
+import { requirePermission } from "@/lib/session";
 import {
   startPracticeSession,
   submitPracticeSession,
@@ -27,7 +28,7 @@ function parsePracticeMode(formData: FormData): PracticeMode {
  * Hidden input `mode=review` starts an untimed review drill.
  */
 export async function startSessionAction(formData: FormData) {
-  const student = await requireRole(Role.STUDENT);
+  const student = await requirePermission(PERMISSIONS.STUDENT_PRACTICE_START);
   const mode = parsePracticeMode(formData);
 
   let sessionId: string;
@@ -55,7 +56,7 @@ export async function submitSessionAction(
   answers: { id: string; answer: number | null }[],
   telemetry: PracticeSubmitTelemetry = {},
 ): Promise<SubmitResult> {
-  const student = await requireRole(Role.STUDENT);
+  const student = await requirePermission(PERMISSIONS.STUDENT_PRACTICE_SUBMIT);
 
   const result = await submitPracticeSession(
     student,

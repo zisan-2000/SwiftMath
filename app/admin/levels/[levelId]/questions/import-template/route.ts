@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
-import { requireRole } from "@/lib/session";
-import { Role } from "@/lib/generated/prisma/enums";
+import { PERMISSIONS } from "@/lib/permissions";
+import { requirePermission } from "@/lib/session";
 import { buildLevelQuestionImportTemplate } from "@/lib/level-question-csv";
 import { slugifyFilename } from "@/lib/csv";
 import { getLevel } from "@/server/admin";
@@ -12,7 +12,7 @@ export async function GET(
   context: { params: Promise<{ levelId: string }> },
 ) {
   const { levelId } = await context.params;
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.QUESTION_MANAGE);
   const level = await getLevel(admin, levelId);
 
   if (!level) {

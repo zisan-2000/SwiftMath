@@ -13,6 +13,9 @@ export const PERMISSIONS = {
   STUDENT_ASSIGN_LEVEL: "student:assign_level",
   STUDENT_EXPORT: "student:export",
   STUDENT_PERMISSIONS_MANAGE: "student:permissions:manage",
+  STUDENT_PRACTICE_START: "student:practice:start",
+  STUDENT_PRACTICE_SUBMIT: "student:practice:submit",
+  STUDENT_EXAM_START: "student:exam:start",
 
   GROUP_MANAGE: "group:manage",
   GROUP_ASSIGN_TEACHER: "group:assign_teacher",
@@ -130,6 +133,27 @@ export const PERMISSION_METADATA = {
     domain: "Students",
     scope: "institute",
     assignableTo: [Role.ADMIN],
+  },
+  [PERMISSIONS.STUDENT_PRACTICE_START]: {
+    label: "Start practice",
+    description: "Start standard, review, or challenge practice sessions.",
+    domain: "Student access",
+    scope: "institute",
+    assignableTo: [Role.STUDENT],
+  },
+  [PERMISSIONS.STUDENT_PRACTICE_SUBMIT]: {
+    label: "Submit practice",
+    description: "Submit answers for an active practice session.",
+    domain: "Student access",
+    scope: "institute",
+    assignableTo: [Role.STUDENT],
+  },
+  [PERMISSIONS.STUDENT_EXAM_START]: {
+    label: "Start exams",
+    description: "Start scheduled exam attempts during an open exam window.",
+    domain: "Student access",
+    scope: "institute",
+    assignableTo: [Role.STUDENT],
   },
   [PERMISSIONS.GROUP_MANAGE]: {
     label: "Manage groups",
@@ -305,7 +329,11 @@ export function getRoleDefaultPermissions(role: Role): Set<Permission> {
         PERMISSIONS.ACTIVITY_VIEW,
       ]);
     case Role.STUDENT:
-      return new Set();
+      return new Set([
+        PERMISSIONS.STUDENT_PRACTICE_START,
+        PERMISSIONS.STUDENT_PRACTICE_SUBMIT,
+        PERMISSIONS.STUDENT_EXAM_START,
+      ]);
     default:
       return new Set();
   }
