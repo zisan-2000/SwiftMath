@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 
-import { requireRole } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { Role, OperationType } from "@/lib/generated/prisma/enums";
+import { OperationType } from "@/lib/generated/prisma/enums";
 import { listLevels } from "@/server/admin";
-import { AppShell } from "@/components/app-shell";
+import { loadAdminPageContext } from "@/server/admin-page";
+import { AdminPageShell } from "@/components/admin/admin-page-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { LevelForm } from "@/components/admin/level-form";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,25 +19,18 @@ export const metadata: Metadata = {
  * to the list on success.
  */
 export default async function NewLevelPage() {
-  const admin = await requireRole(Role.ADMIN);
+  const { admin, institute } = await loadAdminPageContext();
 
-  const [institute, levels] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: admin.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
-    listLevels(admin.instituteId),
-  ]);
+  const levels = await listLevels(admin.instituteId);
 
   // Suggest the next free order position.
   const nextOrder =
     levels.reduce((max, l) => Math.max(max, l.orderIndex), 0) + 1;
 
   return (
-    <AppShell
+    <AdminPageShell
       user={admin}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
+      institute={institute}
       title="New level"
       subtitle="Add a level to your institute's practice curriculum."
     >
@@ -65,6 +57,6 @@ export default async function NewLevelPage() {
           />
         </CardContent>
       </Card>
-    </AppShell>
+    </AdminPageShell>
   );
 }

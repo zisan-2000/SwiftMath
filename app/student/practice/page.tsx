@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Clock, ListChecks, Lock, RotateCcw, Target, Zap } from "lucide-react";
 
-import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { Role, SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
+import { SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
 import {
   resolveChallengePassAccuracy,
   resolveChallengeTimeLimitSeconds,
@@ -13,7 +12,8 @@ import { shouldShowPracticeHomeRetryHint } from "@/lib/practice-result-messaging
 import { listRecentSessions } from "@/server/practice";
 import { resolveStudentPracticeTimeLimit } from "@/server/teacher";
 import { checkStudentLevelAccess } from "@/server/level-access";
-import { AppShell } from "@/components/app-shell";
+import { loadStudentPageContext } from "@/server/student-page";
+import { StudentPageShell } from "@/components/student/student-page-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,14 +30,13 @@ export default async function PracticeHomePage({
 }: {
   searchParams: Promise<{ locked?: string; bank?: string }>;
 }) {
-  const student = await requireRole(Role.STUDENT);
+  const { student, institute } = await loadStudentPageContext();
   const params = await searchParams;
 
   const [profile, sessions] = await Promise.all([
     prisma.user.findUnique({
       where: { id: student.id },
       select: {
-        institute: { select: { name: true, logoUrl: true } },
         currentLevel: {
           select: {
             id: true,
@@ -92,10 +91,9 @@ export default async function PracticeHomePage({
   });
 
   return (
-    <AppShell
+    <StudentPageShell
       user={student}
-      instituteName={profile?.institute.name ?? "Institute"}
-      instituteLogoUrl={profile?.institute.logoUrl}
+      institute={institute}
       title="Practice"
       subtitle="Timed practice at your current level."
     >
@@ -279,6 +277,6 @@ export default async function PracticeHomePage({
           </ul>
         </Card>
       )}
-    </AppShell>
+    </StudentPageShell>
   );
 }

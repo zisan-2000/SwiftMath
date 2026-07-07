@@ -1,17 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { Check, X } from "lucide-react";
 
-import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { Role, SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
+import { SessionStatus, PracticeMode } from "@/lib/generated/prisma/enums";
 import {
   resolveChallengePassAccuracy,
 } from "@/lib/challenge-mode";
-import { getStudentSession } from "@/server/practice";
 import { getPracticeResultMessaging } from "@/lib/practice-result-messaging";
-import { AppShell } from "@/components/app-shell";
+import { loadStudentPracticeSessionContext } from "@/server/student-page";
+import { StudentPageShell } from "@/components/student/student-page-shell";
 import { PracticeFocusShell } from "@/components/student/practice-focus-shell";
 import { PracticeRunner } from "@/components/student/practice-runner";
 import { LevelUpCelebration } from "@/components/student/level-up-celebration";
@@ -31,23 +29,13 @@ export default async function PracticeSessionPage({
   params: Promise<{ sessionId: string }>;
 }) {
   const { sessionId } = await params;
-  const student = await requireRole(Role.STUDENT);
+  const { student, institute, session } =
+    await loadStudentPracticeSessionContext(sessionId);
 
-  const [session, institute, profile] = await Promise.all([
-    getStudentSession(student.id, sessionId),
-    prisma.institute.findUnique({
-      where: { id: student.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
-    prisma.user.findUnique({
-      where: { id: student.id },
-      select: { currentLevel: { select: { name: true } } },
-    }),
-  ]);
-
-  if (!session) {
-    notFound();
-  }
+  const profile = await prisma.user.findUnique({
+    where: { id: student.id },
+    select: { currentLevel: { select: { name: true } } },
+  });
 
   const instituteName = institute?.name ?? "Institute";
   const instituteLogoUrl = institute?.logoUrl ?? null;
@@ -113,10 +101,9 @@ export default async function PracticeSessionPage({
   });
 
   return (
-    <AppShell
+    <StudentPageShell
       user={student}
-      instituteName={instituteName}
-      instituteLogoUrl={instituteLogoUrl}
+      institute={institute}
       title="Results"
       subtitle={session.level.name}
     >
@@ -227,6 +214,6 @@ export default async function PracticeSessionPage({
           ))}
         </ol>
       </Card>
-    </AppShell>
+    </StudentPageShell>
   );
 }

@@ -3,12 +3,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Users } from "lucide-react";
 
-import { requireRole } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/generated/prisma/enums";
 import { parsePageParam } from "@/lib/pagination";
 import { listInstituteTeachers } from "@/server/admin";
-import { AppShell } from "@/components/app-shell";
+import { loadAdminPageContext } from "@/server/admin-page";
+import { AdminPageShell } from "@/components/admin/admin-page-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { AddTeacherDialog } from "@/components/admin/add-teacher-dialog";
 import {
@@ -35,17 +33,11 @@ export default async function AdminTeachersPage({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
-  const admin = await requireRole(Role.ADMIN);
+  const { admin, institute } = await loadAdminPageContext();
   const { page: pageParam } = await searchParams;
   const page = parsePageParam(pageParam);
 
-  const [institute, roster] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: admin.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
-    listInstituteTeachers(admin.instituteId, page),
-  ]);
+  const roster = await listInstituteTeachers(admin.instituteId, page);
 
   if (page > roster.totalPages && roster.total > 0) {
     redirect(`${LIST_PATH}?page=${roster.totalPages}`);
@@ -54,10 +46,9 @@ export default async function AdminTeachersPage({
   const { items: teachers } = roster;
 
   return (
-    <AppShell
+    <AdminPageShell
       user={admin}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
+      institute={institute}
       title="Teachers"
       subtitle="Create and edit teacher accounts in your institute."
       actions={<AddTeacherDialog />}
@@ -128,6 +119,6 @@ export default async function AdminTeachersPage({
           )}
         </CardContent>
       </Card>
-    </AppShell>
+    </AdminPageShell>
   );
 }

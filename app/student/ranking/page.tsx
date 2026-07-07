@@ -2,13 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Trophy } from "lucide-react";
 
-import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { ACTIVE_LEVEL_FILTER } from "@/lib/active-levels";
-import { Role } from "@/lib/generated/prisma/enums";
 import { parseLeaderboardPeriod, formatStrictHundredPolicy } from "@/lib/ranking";
 import { getInstituteLeaderboard } from "@/server/ranking";
-import { AppShell } from "@/components/app-shell";
+import { loadStudentPageContext } from "@/server/student-page";
+import { StudentPageShell } from "@/components/student/student-page-shell";
 import { RankingTabs } from "@/components/student/ranking-tabs";
 import { RankingFilters } from "@/components/student/ranking-filters";
 import { RankingLeaderboardTable } from "@/components/student/ranking-leaderboard-table";
@@ -55,18 +54,14 @@ export default async function StudentRankingPage({
 }: {
   searchParams: Promise<{ period?: string; scope?: string; level?: string }>;
 }) {
-  const student = await requireRole(Role.STUDENT);
+  const { student, institute } = await loadStudentPageContext();
   const params = await searchParams;
 
   const period = parseLeaderboardPeriod(params.period);
   const scope = params.scope === "group" ? "group" : "all";
   const levelParam = params.level && params.level !== "all" ? params.level : "all";
 
-  const [institute, studentRow, levels] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: student.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
+  const [studentRow, levels] = await Promise.all([
     prisma.user.findUnique({
       where: { id: student.id },
       select: {
@@ -108,10 +103,9 @@ export default async function StudentRankingPage({
   };
 
   return (
-    <AppShell
+    <StudentPageShell
       user={student}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
+      institute={institute}
       title="Ranking"
       subtitle={buildRankingSubtitle(
         myRank?.rank,
@@ -167,6 +161,6 @@ export default async function StudentRankingPage({
           currentStudentId={student.id}
         />
       )}
-    </AppShell>
+    </StudentPageShell>
   );
 }

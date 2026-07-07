@@ -3,9 +3,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Globe, Trophy } from "lucide-react";
 
-import { requireRole } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/generated/prisma/enums";
 import {
   getGlobalRankingLevelName,
   formatCanonicalLevelRules,
@@ -15,7 +12,8 @@ import {
 } from "@/lib/global-ranking";
 import { parseLeaderboardPeriod, formatStrictHundredPolicy } from "@/lib/ranking";
 import { getGlobalLeaderboard } from "@/server/ranking";
-import { AppShell } from "@/components/app-shell";
+import { loadStudentPageContext } from "@/server/student-page";
+import { StudentPageShell } from "@/components/student/student-page-shell";
 import { RankingTabs } from "@/components/student/ranking-tabs";
 import { GlobalRankingFilters } from "@/components/student/global-ranking-filters";
 import { GlobalRankingStepTabs } from "@/components/student/global-ranking-step-tabs";
@@ -55,7 +53,7 @@ export default async function StudentGlobalRankingPage({
 }: {
   searchParams: Promise<{ period?: string; step?: string }>;
 }) {
-  const student = await requireRole(Role.STUDENT);
+  const { student, institute } = await loadStudentPageContext();
   const params = await searchParams;
 
   const period = parseLeaderboardPeriod(params.period);
@@ -69,24 +67,17 @@ export default async function StudentGlobalRankingPage({
   const levelStepName = getGlobalRankingLevelName(levelStep);
   const canonicalRules = formatCanonicalLevelRules(levelStep);
 
-  const [institute, leaderboard] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: student.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
-    getGlobalLeaderboard({
-      period,
-      levelOrderIndex: levelStep,
-    }),
-  ]);
+  const leaderboard = await getGlobalLeaderboard({
+    period,
+    levelOrderIndex: levelStep,
+  });
 
   const myRank = leaderboard.find((row) => row.studentId === student.id);
 
   return (
-    <AppShell
+    <StudentPageShell
       user={student}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
+      institute={institute}
       title="Global elite ranking"
       subtitle={buildGlobalSubtitle(myRank?.rank, leaderboard.length, {
         period,
@@ -148,6 +139,6 @@ export default async function StudentGlobalRankingPage({
         {formatGlobalRankingCompositionPolicy()} so times stay fair across
         institutes. Your institute board remains the main place for daily progress.
       </p>
-    </AppShell>
+    </StudentPageShell>
   );
 }

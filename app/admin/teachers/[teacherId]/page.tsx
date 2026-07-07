@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 
 import { requireRole } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
-import { getAdminTeacher } from "@/server/admin";
-import { AppShell } from "@/components/app-shell";
+import { loadAdminTeacherPageContext } from "@/server/admin-page";
+import { AdminPageShell } from "@/components/admin/admin-page-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { ActiveToggle } from "@/components/admin/active-toggle";
 import { EditTeacherForm } from "@/components/admin/edit-teacher-form";
@@ -21,6 +19,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { teacherId } = await params;
   const admin = await requireRole(Role.ADMIN);
+  const { getAdminTeacher } = await import("@/server/admin");
   const teacher = await getAdminTeacher(admin, teacherId);
   return {
     title: teacher ? `Edit ${teacher.name}` : "Edit teacher",
@@ -33,25 +32,13 @@ export default async function AdminEditTeacherPage({
   params: Promise<{ teacherId: string }>;
 }) {
   const { teacherId } = await params;
-  const admin = await requireRole(Role.ADMIN);
-
-  const [institute, teacher] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: admin.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
-    getAdminTeacher(admin, teacherId),
-  ]);
-
-  if (!teacher) {
-    notFound();
-  }
+  const { admin, institute, teacher } =
+    await loadAdminTeacherPageContext(teacherId);
 
   return (
-    <AppShell
+    <AdminPageShell
       user={admin}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
+      institute={institute}
       title={teacher.name}
       subtitle={`${teacher._count.taughtGroups} ${
         teacher._count.taughtGroups === 1 ? "group" : "groups"
@@ -86,6 +73,6 @@ export default async function AdminEditTeacherPage({
           <ActiveToggle userId={teacher.id} isActive={teacher.isActive} />
         </CardContent>
       </Card>
-    </AppShell>
+    </AdminPageShell>
   );
 }

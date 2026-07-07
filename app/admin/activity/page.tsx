@@ -3,13 +3,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ScrollText } from "lucide-react";
 
-import { requireRole } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/generated/prisma/enums";
 import { parseAuditActionFilter } from "@/lib/audit-log";
 import { parsePageParam } from "@/lib/pagination";
 import { listInstituteAuditLogs } from "@/server/audit-log";
-import { AppShell } from "@/components/app-shell";
+import { loadAdminPageContext } from "@/server/admin-page";
+import { AdminPageShell } from "@/components/admin/admin-page-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { ActivityLogPanel } from "@/components/admin/activity-log-panel";
 import { Button } from "@/components/ui/button";
@@ -25,18 +23,12 @@ export default async function AdminActivityPage({
 }: {
   searchParams: Promise<{ page?: string; action?: string }>;
 }) {
-  const admin = await requireRole(Role.ADMIN);
+  const { admin, institute } = await loadAdminPageContext();
   const params = await searchParams;
   const page = parsePageParam(params.page);
   const actionFilter = parseAuditActionFilter(params.action);
 
-  const [institute, activity] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: admin.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
-    listInstituteAuditLogs(admin, { page, action: actionFilter }),
-  ]);
+  const activity = await listInstituteAuditLogs(admin, { page, action: actionFilter });
 
   if (page > activity.totalPages && activity.total > 0) {
     const qs = new URLSearchParams();
@@ -47,10 +39,9 @@ export default async function AdminActivityPage({
   }
 
   return (
-    <AppShell
+    <AdminPageShell
       user={admin}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
+      institute={institute}
       title="Activity log"
       subtitle="Who changed your question bank, curriculum version, and group overrides."
     >
@@ -87,6 +78,6 @@ export default async function AdminActivityPage({
         Events are recorded server-side when admins or teachers change question
         control settings.
       </p>
-    </AppShell>
+    </AdminPageShell>
   );
 }

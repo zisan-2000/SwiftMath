@@ -8,7 +8,7 @@ import { notFound } from "next/navigation";
 import { Role } from "@/lib/generated/prisma/enums";
 import { requireRole } from "@/lib/session";
 import { loadInstituteBranding } from "@/server/institute-branding";
-import { getLevel, getAdminGroup } from "@/server/admin";
+import { getLevel, getAdminGroup, getAdminTeacher, getAdminStudentProgress } from "@/server/admin";
 
 /** Signed-in admin + institute branding. */
 export const loadAdminPageContext = cache(async () => {
@@ -31,4 +31,20 @@ export const loadAdminGroupPageContext = cache(async (groupId: string) => {
   const group = await getAdminGroup(admin, groupId);
   if (!group) notFound();
   return { admin, institute, group, groupId };
+});
+
+/** Admin + institute + scoped teacher. Calls `notFound()` when missing. */
+export const loadAdminTeacherPageContext = cache(async (teacherId: string) => {
+  const { admin, institute } = await loadAdminPageContext();
+  const teacher = await getAdminTeacher(admin, teacherId);
+  if (!teacher) notFound();
+  return { admin, institute, teacher, teacherId };
+});
+
+/** Admin + institute + scoped student progress. Calls `notFound()` when missing. */
+export const loadAdminStudentPageContext = cache(async (studentId: string) => {
+  const { admin, institute } = await loadAdminPageContext();
+  const progress = await getAdminStudentProgress(admin, studentId);
+  if (!progress) notFound();
+  return { admin, institute, progress, studentId };
 });

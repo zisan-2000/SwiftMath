@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import { GitBranch, Settings } from "lucide-react";
 
-import { requireRole } from "@/lib/session";
-import { Role } from "@/lib/generated/prisma/enums";
 import {
   getActiveCurriculumVersion,
   listCurriculumVersions,
 } from "@/server/curriculum-version";
 import { getInstituteBranding } from "@/server/admin";
-import { AppShell } from "@/components/app-shell";
+import { loadAdminPageContext } from "@/server/admin-page";
+import { AdminPageShell } from "@/components/admin/admin-page-shell";
 import { InstituteSettingsForm } from "@/components/admin/institute-settings-form";
 import { CurriculumVersionPanel } from "@/components/admin/curriculum-version-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 export default async function AdminSettingsPage() {
-  const admin = await requireRole(Role.ADMIN);
+  const { admin, institute: branding } = await loadAdminPageContext();
 
   const [institute, activeVersion, history] = await Promise.all([
     getInstituteBranding(admin),
@@ -31,10 +30,9 @@ export default async function AdminSettingsPage() {
   }
 
   return (
-    <AppShell
+    <AdminPageShell
       user={admin}
-      instituteName={institute.name}
-      instituteLogoUrl={institute.logoUrl}
+      institute={branding}
       title="Institute settings"
       subtitle="Branding and curriculum generation."
     >
@@ -78,6 +76,6 @@ export default async function AdminSettingsPage() {
           />
         </CardContent>
       </Card>
-    </AppShell>
+    </AdminPageShell>
   );
 }

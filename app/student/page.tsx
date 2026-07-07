@@ -12,17 +12,17 @@ import {
   Trophy,
 } from "lucide-react";
 
-import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { Role, PracticeMode } from "@/lib/generated/prisma/enums";
+import { PracticeMode } from "@/lib/generated/prisma/enums";
 import { getStudentPracticeAnalytics } from "@/server/analytics";
 import { getStudentInProgressSession } from "@/server/practice";
 import { getStudentInstituteRank } from "@/server/ranking";
 import { getStudentGamificationSummary } from "@/server/student-gamification";
 import { getStudentPendingScheduledExam } from "@/server/scheduled-exam";
 import { syncStudentScheduledExamNotifications } from "@/server/notifications";
+import { loadStudentPageContext } from "@/server/student-page";
 import { startExamAction } from "@/app/student/actions";
-import { AppShell } from "@/components/app-shell";
+import { StudentPageShell } from "@/components/student/student-page-shell";
 import { StatCard } from "@/components/stat-card";
 import { PracticeActivityChart } from "@/components/practice-activity-chart";
 import { StudentHomeHero } from "@/components/student/student-home-hero";
@@ -66,7 +66,7 @@ export default async function StudentDashboardPage({
   const { examError } = await searchParams;
   const examErrorMessage = resolveExamErrorMessage(examError);
 
-  const user = await requireRole(Role.STUDENT);
+  const { student: user, institute } = await loadStudentPageContext();
 
   await syncStudentScheduledExamNotifications(user.id, user.instituteId);
 
@@ -75,7 +75,6 @@ export default async function StudentDashboardPage({
     prisma.user.findUnique({
       where: { id: user.id },
       select: {
-        institute: { select: { name: true, logoUrl: true } },
         group: { select: { name: true } },
         currentLevel: { select: { name: true } },
       },
@@ -97,10 +96,9 @@ export default async function StudentDashboardPage({
     pendingSession.mode !== PracticeMode.EXAM;
 
   return (
-    <AppShell
+    <StudentPageShell
       user={user}
-      instituteName={profile?.institute.name ?? "Institute"}
-      instituteLogoUrl={profile?.institute.logoUrl}
+      institute={institute}
       title={`Hello, ${user.name}`}
       subtitle="Your practice home."
     >
@@ -270,6 +268,6 @@ export default async function StudentDashboardPage({
           <Link href="/student/ranking">View ranking</Link>
         </Button>
       </div>
-    </AppShell>
+    </StudentPageShell>
   );
 }

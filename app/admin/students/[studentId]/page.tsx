@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 
 import { requireRole } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
-import { getAdminStudentProgress } from "@/server/admin";
-import { AppShell } from "@/components/app-shell";
+import { loadAdminStudentPageContext } from "@/server/admin-page";
+import { AdminPageShell } from "@/components/admin/admin-page-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { StudentProgressPanel } from "@/components/student-progress-panel";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +15,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { studentId } = await params;
   const admin = await requireRole(Role.ADMIN);
+  const { getAdminStudentProgress } = await import("@/server/admin");
   const progress = await getAdminStudentProgress(admin, studentId);
   return {
     title: progress ? `${progress.student.name} — Progress` : "Student progress",
@@ -33,28 +32,16 @@ export default async function AdminStudentProgressPage({
   params: Promise<{ studentId: string }>;
 }) {
   const { studentId } = await params;
-  const admin = await requireRole(Role.ADMIN);
-
-  const [institute, progress] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: admin.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
-    getAdminStudentProgress(admin, studentId),
-  ]);
-
-  if (!progress) {
-    notFound();
-  }
+  const { admin, institute, progress } =
+    await loadAdminStudentPageContext(studentId);
 
   const { student, group, isActive } = progress;
   const groupLabel = group?.name ?? "Unassigned";
 
   return (
-    <AppShell
+    <AdminPageShell
       user={admin}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
+      institute={institute}
       title={student.name}
       subtitle={`${student.email} · ${groupLabel}`}
     >
@@ -69,6 +56,6 @@ export default async function AdminStudentProgressPage({
       <div className="mt-6">
         <StudentProgressPanel progress={progress} />
       </div>
-    </AppShell>
+    </AdminPageShell>
   );
 }

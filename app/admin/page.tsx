@@ -13,16 +13,16 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-import { requireRole } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { ACTIVE_LEVEL_FILTER } from "@/lib/active-levels";
 import { Role, SessionStatus } from "@/lib/generated/prisma/enums";
 import { getInstitutePracticeAnalytics } from "@/server/analytics";
+import { loadAdminPageContext } from "@/server/admin-page";
 import {
   buildAdminOnboardingSteps,
   isAdminOnboardingComplete,
 } from "@/lib/admin-onboarding";
-import { AppShell } from "@/components/app-shell";
+import { AdminPageShell } from "@/components/admin/admin-page-shell";
 import { AdminOnboardingChecklist } from "@/components/admin/onboarding-checklist";
 import { StatCard } from "@/components/stat-card";
 import { PracticeActivityChart } from "@/components/practice-activity-chart";
@@ -79,15 +79,11 @@ const ADMIN_LINKS: {
  * counts plus navigation into the management areas.
  */
 export default async function AdminDashboardPage() {
-  const user = await requireRole(Role.ADMIN);
+  const { admin: user, institute } = await loadAdminPageContext();
   const { instituteId } = user;
 
-  const [institute, teachers, students, groups, levels, practice, finishedSessions] =
+  const [teachers, students, groups, levels, practice, finishedSessions] =
     await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: instituteId },
-      select: { name: true, logoUrl: true },
-    }),
     prisma.user.count({ where: { instituteId, role: Role.TEACHER } }),
     prisma.user.count({ where: { instituteId, role: Role.STUDENT } }),
     prisma.group.count({ where: { instituteId } }),
@@ -110,10 +106,9 @@ export default async function AdminDashboardPage() {
   const showOnboarding = !isAdminOnboardingComplete(onboardingSteps);
 
   return (
-    <AppShell
+    <AdminPageShell
       user={user}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
+      institute={institute}
       title="Admin dashboard"
       subtitle="Overview of your institute."
     >
@@ -182,6 +177,6 @@ export default async function AdminDashboardPage() {
           );
         })}
       </div>
-    </AppShell>
+    </AdminPageShell>
   );
 }

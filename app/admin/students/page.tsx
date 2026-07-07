@@ -3,12 +3,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { GraduationCap } from "lucide-react";
 
-import { requireRole } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/generated/prisma/enums";
 import { parsePageParam } from "@/lib/pagination";
 import { listInstituteGroups, listInstituteStudents, listLevels } from "@/server/admin";
-import { AppShell } from "@/components/app-shell";
+import { loadAdminPageContext } from "@/server/admin-page";
+import { AdminPageShell } from "@/components/admin/admin-page-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { AddStudentDialog } from "@/components/admin/add-student-dialog";
 import { ExportStudentsButton } from "@/components/admin/export-students-button";
@@ -35,15 +33,11 @@ export default async function AdminStudentsPage({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
-  const admin = await requireRole(Role.ADMIN);
+  const { admin, institute } = await loadAdminPageContext();
   const { page: pageParam } = await searchParams;
   const page = parsePageParam(pageParam);
 
-  const [institute, roster, groups, levels] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: admin.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
+  const [roster, groups, levels] = await Promise.all([
     listInstituteStudents(admin.instituteId, page),
     listInstituteGroups(admin.instituteId),
     listLevels(admin.instituteId),
@@ -67,10 +61,9 @@ export default async function AdminStudentsPage({
   const { items: students } = roster;
 
   return (
-    <AppShell
+    <AdminPageShell
       user={admin}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
+      institute={institute}
       title="Students"
       subtitle="Create students, view progress, and manage accounts across your institute."
       actions={
@@ -161,6 +154,6 @@ export default async function AdminStudentsPage({
           )}
         </CardContent>
       </Card>
-    </AppShell>
+    </AdminPageShell>
   );
 }
