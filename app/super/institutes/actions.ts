@@ -168,10 +168,10 @@ export async function updateInstituteAction(
   return { ok: true };
 }
 
-/** Revalidate list + dashboard + institute drill-in after edits. */
+/** Revalidate list + dashboard + institute workspace after edits. */
 function revalidateInstitutePaths(instituteId: string) {
   revalidatePath("/super/institutes");
-  revalidatePath(`/super/institutes/${instituteId}`);
+  revalidatePath(`/super/institutes/${instituteId}`, "layout");
   revalidatePath("/super");
 }
 

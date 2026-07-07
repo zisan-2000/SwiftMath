@@ -11,10 +11,10 @@ import {
   ArrowRight,
 } from "lucide-react";
 
-import { requireSuperAdmin } from "@/lib/session";
 import { getPlatformStats } from "@/server/super";
 import { getPlatformPracticeAnalytics } from "@/server/analytics";
-import { AppShell } from "@/components/app-shell";
+import { loadSuperPageContext } from "@/server/super-page";
+import { SuperPageShell } from "@/components/super/super-page-shell";
 import { StatCard } from "@/components/stat-card";
 import { PracticeActivityChart } from "@/components/practice-activity-chart";
 import { Card } from "@/components/ui/card";
@@ -29,16 +29,15 @@ export const metadata: Metadata = {
  * `requireSuperAdmin`; the data layer (`server/super.ts`) is cross-tenant.
  */
 export default async function SuperAdminDashboardPage() {
-  const user = await requireSuperAdmin();
+  const { user } = await loadSuperPageContext();
   const [stats, practice] = await Promise.all([
     getPlatformStats(),
     getPlatformPracticeAnalytics(),
   ]);
 
   return (
-    <AppShell
+    <SuperPageShell
       user={user}
-      instituteName="Platform"
       title="Super Admin"
       subtitle="Platform-wide overview across all institutes."
     >
@@ -93,6 +92,6 @@ export default async function SuperAdminDashboardPage() {
           </Card>
         </Link>
       </div>
-    </AppShell>
+    </SuperPageShell>
   );
 }

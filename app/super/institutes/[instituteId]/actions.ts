@@ -9,7 +9,7 @@ import { resetInstituteAdminPassword } from "@/server/super";
 /** Revalidate every Super Admin view that shows institute data. */
 function revalidateInstituteViews(instituteId: string) {
   revalidatePath("/super/institutes");
-  revalidatePath(`/super/institutes/${instituteId}`);
+  revalidatePath(`/super/institutes/${instituteId}`, "layout");
   revalidatePath("/super");
 }
 
