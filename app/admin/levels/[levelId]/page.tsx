@@ -1,22 +1,31 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BookOpen } from "lucide-react";
+import {
+  BookOpen,
+  Clock,
+  GraduationCap,
+  ListChecks,
+  Settings,
+  Target,
+} from "lucide-react";
 
-import { requireRole } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/generated/prisma/enums";
-import { getLevel } from "@/server/admin";
+import { OperationType } from "@/lib/generated/prisma/enums";
 import { getLevelBankStats } from "@/server/question-bank";
-import { AppShell } from "@/components/app-shell";
-import { BackLink } from "@/components/nav/back-link";
-import { LevelForm } from "@/components/admin/level-form";
-import { ArchiveLevelSection } from "@/components/admin/archive-level-section";
+import { loadAdminLevelPageContext } from "@/server/admin-page";
+import { AdminLevelShell } from "@/components/admin/admin-level-shell";
 import { LevelBankCoverageBanner } from "@/components/admin/level-bank-coverage-banner";
+import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { updateLevelAction } from "../actions";
+import { Card, CardContent } from "@/components/ui/card";
+
+const OPERATION_LABEL: Record<OperationType, string> = {
+  [OperationType.ADDITION]: "Addition",
+  [OperationType.SUBTRACTION]: "Subtraction",
+  [OperationType.MULTIPLICATION]: "Multiplication",
+  [OperationType.DIVISION]: "Division",
+  [OperationType.MIXED]: "Mixed",
+};
 
 export async function generateMetadata({
   params,
@@ -24,137 +33,154 @@ export async function generateMetadata({
   params: Promise<{ levelId: string }>;
 }): Promise<Metadata> {
   const { levelId } = await params;
-  const admin = await requireRole(Role.ADMIN);
-  const level = await getLevel(admin, levelId);
+  const { level } = await loadAdminLevelPageContext(levelId);
   return {
-    title: level
-      ? level.archivedAt
-        ? `${level.name} (archived)`
-        : `Edit ${level.name}`
-      : "Edit level",
+    title: level.archivedAt ? `${level.name} (archived)` : level.name,
   };
 }
 
-export default async function EditLevelPage({
+export default async function AdminLevelOverviewPage({
   params,
 }: {
-  // Next.js 16: route params are async.
   params: Promise<{ levelId: string }>;
 }) {
   const { levelId } = await params;
-  const admin = await requireRole(Role.ADMIN);
+  const { admin, institute, level } = await loadAdminLevelPageContext(levelId);
+  const bankStats = await getLevelBankStats(admin, levelId);
 
-  const [institute, level, bankStats] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: admin.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
-    getLevel(admin, levelId),
-    getLevelBankStats(admin, levelId),
-  ]);
-
-  if (!level) {
+  if (!bankStats) {
     notFound();
   }
 
   const isArchived = level.archivedAt != null;
-  const action = updateLevelAction.bind(null, level.id);
+
+  const shortcuts = [
+    {
+      href: `/admin/levels/${levelId}/questions`,
+      label: "Question bank",
+      description: "Add, import, publish, and reorder fixed prompts",
+      icon: BookOpen,
+    },
+    {
+      href: `/admin/levels/${levelId}/settings`,
+      label: "Settings",
+      description: "Edit rules, timers, bank-only mode, archive level",
+      icon: Settings,
+    },
+  ];
 
   return (
-    <AppShell
+    <AdminLevelShell
       user={admin}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
-      title={level.name}
+      institute={institute}
+      levelId={levelId}
+      levelName={level.name}
       subtitle={
         isArchived
-          ? "Archived — restore to edit or assign again."
-          : "Changes apply to new practice sessions started after saving."
+          ? "Archived level — restore from Settings to edit again."
+          : "Level overview — open the tabs to manage the bank and rules."
       }
     >
-      <BackLink href="/admin/levels">All levels</BackLink>
-
       {isArchived && (
-        <div className="mt-4">
-          <Badge variant="muted">Archived</Badge>
-        </div>
+        <Badge variant="muted" className="mb-4">
+          Archived
+        </Badge>
       )}
 
-      {!isArchived && (
-        <Card className="mt-6">
-          <CardContent className="pt-6">
-            <LevelForm
-              action={action}
-              submitLabel="Save changes"
-              defaults={{
-                name: level.name,
-                operation: level.operation,
-                orderIndex: level.orderIndex,
-                termsPerQuestion: level.termsPerQuestion,
-                minNumber: level.minNumber,
-                maxNumber: level.maxNumber,
-                questionCount: level.questionCount,
-                timeLimitSeconds: level.timeLimitSeconds,
-                passAccuracy: level.passAccuracy,
-                requiresPreviousPass: level.requiresPreviousPass,
-                bankOnly: level.bankOnly,
-              }}
-            />
-          </CardContent>
-        </Card>
-      )}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label="Students on level"
+          value={level._count.studentsOnLevel}
+          icon={GraduationCap}
+        />
+        <StatCard
+          label="Questions / session"
+          value={level.questionCount}
+          icon={ListChecks}
+        />
+        <StatCard
+          label="Time limit"
+          value={`${level.timeLimitSeconds}s`}
+          icon={Clock}
+        />
+        <StatCard
+          label="Pass accuracy"
+          value={`${level.passAccuracy}%`}
+          icon={Target}
+        />
+      </div>
 
-      <Card className="mt-8">
-        <CardHeader className="border-b border-border">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <BookOpen className="h-4 w-4" aria-hidden />
-            Question bank
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Fixed prompts for this level. Teachers can disable specific items
-            per group
-            {level.bankOnly
-              ? "; bank-only mode is on — no dynamic generation."
-              : "; empty bank uses dynamic generation."}
-          </p>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4 pt-6">
-          {bankStats && (
-            <LevelBankCoverageBanner
-              sessionQuestionCount={level.questionCount}
-              totalBankCount={bankStats.totalBankCount}
-              activeBankCount={bankStats.activeBankCount}
-              bankOnly={level.bankOnly}
-            />
-          )}
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-muted-foreground">
-              Manage institute-owned questions for {level.name}.
-            </p>
-            <Button asChild variant="outline" size="sm">
-              <Link href={`/admin/levels/${level.id}/questions`}>
-                Open question bank
-              </Link>
-            </Button>
-          </div>
+      <Card className="mt-6">
+        <CardContent className="pt-6">
+          <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-muted-foreground">Operation</dt>
+              <dd className="font-medium text-foreground">
+                {OPERATION_LABEL[level.operation]}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Order index</dt>
+              <dd className="font-medium text-foreground">{level.orderIndex}</dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Number range</dt>
+              <dd className="font-medium text-foreground">
+                {level.minNumber}–{level.maxNumber} · {level.termsPerQuestion}{" "}
+                terms
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Prerequisite</dt>
+              <dd className="font-medium text-foreground">
+                {level.orderIndex > 1 && level.requiresPreviousPass
+                  ? "Previous level pass required"
+                  : "Open entry"}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-muted-foreground">Bank mode</dt>
+              <dd className="font-medium text-foreground">
+                {level.bankOnly ? "Bank-only (no dynamic generation)" : "Hybrid"}
+              </dd>
+            </div>
+          </dl>
         </CardContent>
       </Card>
 
-      <Card className="mt-8">
-        <CardHeader>
-          <CardTitle className="text-base">
-            {isArchived ? "Restore level" : "Archive level"}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ArchiveLevelSection
-            levelId={level.id}
-            levelName={level.name}
-            studentCount={level._count.studentsOnLevel}
-            isArchived={isArchived}
-          />
-        </CardContent>
-      </Card>
-    </AppShell>
+      <div className="mt-6">
+        <LevelBankCoverageBanner
+          sessionQuestionCount={level.questionCount}
+          totalBankCount={bankStats.totalBankCount}
+          activeBankCount={bankStats.activeBankCount}
+          bankOnly={level.bankOnly}
+        />
+      </div>
+
+      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {shortcuts.map((item) => {
+          const Icon = item.icon;
+          return (
+            <Link key={item.href} href={item.href} className="group">
+              <Card className="h-full transition-colors hover:border-primary/40 hover:bg-accent/30">
+                <CardContent className="flex items-start gap-4 p-5">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <Icon className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-foreground group-hover:text-primary">
+                      {item.label}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {item.description}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          );
+        })}
+      </div>
+    </AdminLevelShell>
   );
 }

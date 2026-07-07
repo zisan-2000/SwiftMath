@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Layers, Plus } from "lucide-react";
+import { ArrowRight, BookOpen, Layers, Plus, Settings } from "lucide-react";
 
-import { requireRole } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { Role, OperationType } from "@/lib/generated/prisma/enums";
+import { OperationType } from "@/lib/generated/prisma/enums";
 import { listLevels } from "@/server/admin";
-import { AppShell } from "@/components/app-shell";
+import { loadAdminPageContext } from "@/server/admin-page";
+import { AdminPageShell } from "@/components/admin/admin-page-shell";
 import { BackLink } from "@/components/nav/back-link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -25,7 +24,6 @@ export const metadata: Metadata = {
   title: "Levels",
 };
 
-/** Short symbol per operation for the compact table. */
 const OPERATION_SYMBOL: Record<OperationType, string> = {
   [OperationType.ADDITION]: "+",
   [OperationType.SUBTRACTION]: "−",
@@ -34,31 +32,19 @@ const OPERATION_SYMBOL: Record<OperationType, string> = {
   [OperationType.MIXED]: "+ / −",
 };
 
-/**
- * ADMIN → levels. Lists the institute's practice curriculum and lets the admin
- * add a new level. Editing a level lives on its own page.
- */
 export default async function AdminLevelsPage() {
-  const admin = await requireRole(Role.ADMIN);
-
-  const [institute, levels] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: admin.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
-    listLevels(admin.instituteId, { includeArchived: true }),
-  ]);
+  const { admin, institute } = await loadAdminPageContext();
+  const levels = await listLevels(admin.instituteId, { includeArchived: true });
 
   const activeLevels = levels.filter((level) => level.archivedAt == null);
   const archivedLevels = levels.filter((level) => level.archivedAt != null);
 
   return (
-    <AppShell
+    <AdminPageShell
       user={admin}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
+      institute={institute}
       title="Levels"
-      subtitle="The practice curriculum students progress through."
+      subtitle="Your institute curriculum — open a level to manage its bank and rules."
       actions={
         <Button asChild>
           <Link href="/admin/levels/new">
@@ -70,166 +56,111 @@ export default async function AdminLevelsPage() {
     >
       <BackLink href="/admin">Admin dashboard</BackLink>
 
-      <Card>
-        <CardHeader className="border-b border-border">
-          <CardTitle className="text-base">
-            Active levels ({activeLevels.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {activeLevels.length === 0 ? (
-            <div className="p-6">
-              <EmptyState
-                icon={Layers}
-                title="No levels yet"
-                description="Use the “Add level” button to create your first level."
-                action={
-                  <Button asChild>
-                    <Link href="/admin/levels/new">
-                      <Plus className="h-4 w-4" />
-                      Add level
-                    </Link>
-                  </Button>
-                }
-              />
-            </div>
-          ) : (
-            <>
-              {/* Compact cards on small screens */}
-              <ul className="divide-y divide-border md:hidden">
-                {activeLevels.map((level) => (
-                  <li
-                    key={level.id}
-                    className="flex items-start justify-between gap-3 px-5 py-4"
+      {activeLevels.length === 0 ? (
+        <EmptyState
+          icon={Layers}
+          className="mt-6"
+          title="No levels yet"
+          description="Use the “Add level” button to create your first level."
+          action={
+            <Button asChild>
+              <Link href="/admin/levels/new">
+                <Plus className="h-4 w-4" />
+                Add level
+              </Link>
+            </Button>
+          }
+        />
+      ) : (
+        <ul className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {activeLevels.map((level) => (
+            <li key={level.id}>
+              <Card className="overflow-hidden transition-colors hover:border-primary/40">
+                <CardContent className="p-0">
+                  <Link
+                    href={`/admin/levels/${level.id}`}
+                    className="group flex items-center justify-between gap-3 border-b border-border px-5 py-4 transition-colors hover:bg-accent/30"
                   >
                     <div className="min-w-0">
-                      <p className="font-medium text-foreground">
+                      <span className="block truncate text-lg font-semibold text-foreground group-hover:text-primary">
                         <span className="mr-2 tabular-nums text-muted-foreground">
                           {level.orderIndex}.
                         </span>
                         {level.name}
-                      </p>
-                      <p className="mt-1 text-sm text-muted-foreground">
+                      </span>
+                      <span className="text-sm text-muted-foreground">
                         {OPERATION_SYMBOL[level.operation]} · {level.questionCount}{" "}
                         qs · {level.timeLimitSeconds}s · pass {level.passAccuracy}%
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {level.termsPerQuestion} terms · {level.minNumber}–
-                        {level.maxNumber} · {level._count.studentsOnLevel} students
-                        {level.orderIndex > 1 &&
-                          (level.requiresPreviousPass
-                            ? " · requires previous pass"
-                            : " · open entry")}
-                      </p>
+                        {" · "}
+                        {level._count.studentsOnLevel}{" "}
+                        {level._count.studentsOnLevel === 1 ? "student" : "students"}
+                      </span>
                     </div>
-                    <Button variant="ghost" size="sm" asChild className="shrink-0">
-                      <Link href={`/admin/levels/${level.id}`}>Edit</Link>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                  </Link>
+                  <div className="flex flex-wrap gap-2 px-5 py-3">
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/admin/levels/${level.id}/questions`}>
+                        <BookOpen className="h-3.5 w-3.5" />
+                        Question bank
+                      </Link>
                     </Button>
-                  </li>
-                ))}
-              </ul>
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/admin/levels/${level.id}/settings`}>
+                        <Settings className="h-3.5 w-3.5" />
+                        Settings
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </li>
+          ))}
+        </ul>
+      )}
 
-              {/* Full table on md+ */}
-              <div className="hidden md:block">
-                <Table>
+      {archivedLevels.length > 0 && (
+        <Card className="mt-8">
+          <CardContent className="p-0">
+            <div className="border-b border-border px-5 py-4">
+              <h2 className="text-base font-semibold text-foreground">
+                Archived levels ({archivedLevels.length})
+              </h2>
+            </div>
+            <Table>
               <TableHeader>
-                <TableRow className="hover:bg-transparent">
+                <TableRow>
                   <TableHead>#</TableHead>
                   <TableHead>Name</TableHead>
-                  <TableHead>Op</TableHead>
-                  <TableHead className="text-right">Terms</TableHead>
-                  <TableHead className="text-right">Range</TableHead>
-                  <TableHead className="text-right">Qs</TableHead>
-                  <TableHead className="text-right">Time</TableHead>
-                  <TableHead className="text-right">Pass</TableHead>
-                  <TableHead className="text-right">Students</TableHead>
-                  <TableHead className="text-right" />
+                  <TableHead>Students</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {activeLevels.map((level) => (
+                {archivedLevels.map((level) => (
                   <TableRow key={level.id}>
-                    <TableCell className="font-semibold tabular-nums text-foreground">
-                      {level.orderIndex}
-                    </TableCell>
-                    <TableCell className="font-medium text-foreground">
-                      {level.name}
+                    <TableCell className="tabular-nums">{level.orderIndex}</TableCell>
+                    <TableCell>
+                      <span className="font-medium">{level.name}</span>
+                      <Badge variant="muted" className="ml-2">
+                        Archived
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {OPERATION_SYMBOL[level.operation]}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {level.termsPerQuestion}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {level.minNumber}–{level.maxNumber}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {level.questionCount}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {level.timeLimitSeconds}s
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {level.passAccuracy}%
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
                       {level._count.studentsOnLevel}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="sm" asChild>
-                        <Link href={`/admin/levels/${level.id}`}>Edit</Link>
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href={`/admin/levels/${level.id}`}>View</Link>
                       </Button>
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {archivedLevels.length > 0 && (
-        <Card className="mt-8">
-          <CardHeader className="border-b border-border">
-            <CardTitle className="text-base">
-              Archived levels ({archivedLevels.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <ul className="divide-y divide-border">
-              {archivedLevels.map((level) => (
-                <li
-                  key={level.id}
-                  className="flex items-start justify-between gap-3 px-5 py-4"
-                >
-                  <div className="min-w-0">
-                    <p className="flex flex-wrap items-center gap-2 font-medium text-foreground">
-                      <span className="tabular-nums text-muted-foreground">
-                        {level.orderIndex}.
-                      </span>
-                      {level.name}
-                      <Badge variant="muted">Archived</Badge>
-                    </p>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      {level._count.studentsOnLevel}{" "}
-                      {level._count.studentsOnLevel === 1
-                        ? "student"
-                        : "students"}{" "}
-                      still assigned
-                    </p>
-                  </div>
-                  <Button variant="ghost" size="sm" asChild className="shrink-0">
-                    <Link href={`/admin/levels/${level.id}`}>View</Link>
-                  </Button>
-                </li>
-              ))}
-            </ul>
           </CardContent>
         </Card>
       )}
-    </AppShell>
+    </AdminPageShell>
   );
 }
