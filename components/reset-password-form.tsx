@@ -5,8 +5,8 @@ import { KeyRound } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { FormMessage } from "@/components/ui/form-message";
 
 /** Shared shape returned by every reset-password server action. */
@@ -67,10 +67,9 @@ export function ResetPasswordForm({ action }: { action: ResetPasswordAction }) {
     >
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="reset-new-password">New password</Label>
-        <Input
+        <PasswordInput
           id="reset-new-password"
           name="newPassword"
-          type="password"
           placeholder="Min. 8 characters"
           autoComplete="new-password"
           minLength={8}
@@ -80,10 +79,9 @@ export function ResetPasswordForm({ action }: { action: ResetPasswordAction }) {
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="reset-confirm-password">Confirm new password</Label>
-        <Input
+        <PasswordInput
           id="reset-confirm-password"
           name="confirmPassword"
-          type="password"
           placeholder="Repeat password"
           autoComplete="new-password"
           minLength={8}

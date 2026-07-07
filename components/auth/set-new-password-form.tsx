@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 
 import { resetPassword } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { FormMessage } from "@/components/ui/form-message";
 
 /**
@@ -60,9 +60,8 @@ export function SetNewPasswordForm({ token }: { token: string }) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="new-password">New password</Label>
-        <Input
+        <PasswordInput
           id="new-password"
-          type="password"
           autoComplete="new-password"
           minLength={8}
           required
@@ -73,9 +72,8 @@ export function SetNewPasswordForm({ token }: { token: string }) {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="confirm-password">Confirm new password</Label>
-        <Input
+        <PasswordInput
           id="confirm-password"
-          type="password"
           autoComplete="new-password"
           minLength={8}
           required

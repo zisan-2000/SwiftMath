@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { FormMessage } from "@/components/ui/form-message";
 
 /** Form for an admin to create a teacher in their institute. */
@@ -55,10 +56,9 @@ export function AddTeacherForm({ onSuccess }: { onSuccess?: () => void }) {
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="teacher-password">Temporary password</Label>
-          <Input
+          <PasswordInput
             id="teacher-password"
             name="password"
-            type="password"
             placeholder="Min. 8 characters"
             autoComplete="new-password"
             minLength={8}

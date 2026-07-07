@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { FormMessage } from "@/components/ui/form-message";
 
 const SELECT_CLASS =
@@ -97,10 +98,9 @@ export function AddStudentForm({
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="admin-student-password">Temporary password</Label>
-          <Input
+          <PasswordInput
             id="admin-student-password"
             name="password"
-            type="password"
             placeholder="Min. 8 characters"
             autoComplete="new-password"
             minLength={8}

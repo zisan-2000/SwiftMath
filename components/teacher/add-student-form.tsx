@@ -10,6 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { FormMessage } from "@/components/ui/form-message";
 
 /** Form for a teacher to create a student and add them to this group. */
@@ -63,10 +64,9 @@ export function AddStudentForm({
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="student-password">Temporary password</Label>
-          <Input
+          <PasswordInput
             id="student-password"
             name="password"
-            type="password"
             placeholder="Min. 8 characters"
             autoComplete="new-password"
             minLength={8}

@@ -8,8 +8,8 @@ import {
   type ChangePasswordState,
 } from "@/app/account/actions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { FormMessage } from "@/components/ui/form-message";
 
 /** Lets the signed-in user change their own password (verifies the current one). */
@@ -31,10 +31,9 @@ export function ChangePasswordForm() {
     <form ref={formRef} action={formAction} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="currentPassword">Current password</Label>
-        <Input
+        <PasswordInput
           id="currentPassword"
           name="currentPassword"
-          type="password"
           autoComplete="current-password"
           required
         />
@@ -42,10 +41,9 @@ export function ChangePasswordForm() {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="newPassword">New password</Label>
-        <Input
+        <PasswordInput
           id="newPassword"
           name="newPassword"
-          type="password"
           autoComplete="new-password"
           minLength={8}
           required
@@ -54,10 +52,9 @@ export function ChangePasswordForm() {
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="confirmPassword">Confirm new password</Label>
-        <Input
+        <PasswordInput
           id="confirmPassword"
           name="confirmPassword"
-          type="password"
           autoComplete="new-password"
           minLength={8}
           required
