@@ -15,6 +15,8 @@ export interface NotificationSummaryPayload {
     readAt: string | null;
     createdAt: string;
   }>;
+  /** Student-only: an exam window is open or an attempt is in progress. */
+  hasPendingExam?: boolean;
 }
 
 /** Parse poll interval from env (server) or use default. */

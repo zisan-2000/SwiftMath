@@ -5,8 +5,7 @@ import { Bell } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/generated/prisma/enums";
-import type { NotificationListItem } from "@/lib/notifications";
-import { useNotificationBellSync } from "@/components/nav/use-notification-bell-sync";
+import { useNotificationSync } from "@/components/nav/notification-sync-provider";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,17 +16,7 @@ import {
 import { NotificationDropdownList } from "@/components/notifications/notification-list";
 
 /** Header bell with unread badge, polling refresh, and recent dropdown (N10). */
-export function NotificationBellMenu({
-  role,
-  unreadCount,
-  recent,
-  pollIntervalMs,
-}: {
-  role: Role;
-  unreadCount: number;
-  recent: NotificationListItem[];
-  pollIntervalMs?: number;
-}) {
+export function NotificationBellMenu({ role }: { role: Role }) {
   const [open, setOpen] = useState(false);
   const {
     unreadCount: liveUnreadCount,
@@ -35,11 +24,7 @@ export function NotificationBellMenu({
     hasNewUnread,
     refresh,
     decrementUnread,
-  } = useNotificationBellSync({
-    initialUnreadCount: unreadCount,
-    initialRecent: recent,
-    pollIntervalMs,
-  });
+  } = useNotificationSync();
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);

@@ -12,7 +12,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Brand } from "@/components/nav/brand";
-import { SidebarNav } from "@/components/nav/sidebar-nav";
+import { SidebarNav, SidebarNavWithBadges } from "@/components/nav/sidebar-nav";
 
 /**
  * Hamburger + slide-in drawer holding the primary navigation. Visible only on
@@ -23,12 +23,15 @@ export function MobileNav({
   role,
   instituteName,
   instituteLogoUrl,
+  showNavBadges = false,
 }: {
   role: Role;
   instituteName: string;
   instituteLogoUrl?: string | null;
+  showNavBadges?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const NavComponent = showNavBadges ? SidebarNavWithBadges : SidebarNav;
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -48,7 +51,7 @@ export function MobileNav({
           />
         </SheetHeader>
         <div className="flex-1 overflow-y-auto p-3">
-          <SidebarNav role={role} onNavigate={() => setOpen(false)} />
+          <NavComponent role={role} onNavigate={() => setOpen(false)} />
         </div>
       </SheetContent>
     </Sheet>

@@ -6,18 +6,37 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/generated/prisma/enums";
 import { NAV_ITEMS, getActiveHref } from "@/components/nav/nav-config";
+import { useNotificationSync } from "@/components/nav/notification-sync-provider";
+import type { NavBadgeMap } from "@/lib/nav-badges";
 
 /**
- * Vertical navigation list, shared by the desktop sidebar and the mobile
- * drawer. Highlights the active route via longest-prefix matching.
- *
- * `onNavigate` lets the mobile drawer close itself when a link is tapped.
+ * Vertical navigation list with live sidebar badges from notification sync.
  */
-export function SidebarNav({
+export function SidebarNavWithBadges({
   role,
   onNavigate,
 }: {
   role: Role;
+  onNavigate?: () => void;
+}) {
+  const { navBadges } = useNotificationSync();
+
+  return (
+    <SidebarNav role={role} badges={navBadges} onNavigate={onNavigate} />
+  );
+}
+
+/**
+ * Vertical navigation list, shared by the desktop sidebar and the mobile
+ * drawer. Highlights the active route via longest-prefix matching.
+ */
+export function SidebarNav({
+  role,
+  badges = {},
+  onNavigate,
+}: {
+  role: Role;
+  badges?: NavBadgeMap;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
@@ -29,6 +48,9 @@ export function SidebarNav({
       {items.map((item) => {
         const active = item.href === activeHref;
         const Icon = item.icon;
+        const badge = badges[item.href];
+        const isExamDot = badge === "!";
+
         return (
           <Link
             key={item.href}
@@ -42,15 +64,29 @@ export function SidebarNav({
                 : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
             )}
           >
-            <Icon
-              className={cn(
-                "h-4 w-4 shrink-0 transition-colors",
-                active
-                  ? "text-primary"
-                  : "text-muted-foreground/70 group-hover:text-accent-foreground",
+            <span className="relative shrink-0">
+              <Icon
+                className={cn(
+                  "h-4 w-4 transition-colors",
+                  active
+                    ? "text-primary"
+                    : "text-muted-foreground/70 group-hover:text-accent-foreground",
+                )}
+              />
+              {isExamDot && (
+                <span
+                  className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-amber-500 ring-2 ring-card"
+                  aria-hidden="true"
+                />
               )}
-            />
-            {item.label}
+            </span>
+            <span className="min-w-0 flex-1 truncate">{item.label}</span>
+            {badge != null && badge !== "!" && (
+              <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-semibold leading-none text-primary-foreground">
+                {badge}
+              </span>
+            )}
+            {isExamDot && <span className="sr-only">Exam available</span>}
           </Link>
         );
       })}

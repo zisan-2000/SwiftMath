@@ -1,14 +1,14 @@
 import type { ReactNode } from "react";
-import { Suspense } from "react";
 
 import type { Role } from "@/lib/generated/prisma/enums";
-import {
-  HeaderActions,
-  HeaderActionsFallback,
-} from "@/components/nav/header-actions";
+import { roleHasNotificationInbox } from "@/lib/notifications";
+import { getNotificationPollIntervalMs } from "@/lib/notification-poll";
+import { getNotificationSummaryPayload } from "@/server/notification-summary";
+import { HeaderActions } from "@/components/nav/header-actions";
 import { Brand } from "@/components/nav/brand";
-import { SidebarNav } from "@/components/nav/sidebar-nav";
+import { SidebarNav, SidebarNavWithBadges } from "@/components/nav/sidebar-nav";
 import { MobileNav } from "@/components/nav/mobile-nav";
+import { NotificationSyncProvider } from "@/components/nav/notification-sync-provider";
 
 interface AppShellProps {
   /** The signed-in user, already fetched + authorised by the page. */
@@ -34,7 +34,7 @@ interface AppShellProps {
  * and user menu, and a titled content area. Presentational only — pages do
  * their own auth (requireRole) and pass the resulting user in.
  */
-export function AppShell({
+export async function AppShell({
   user,
   instituteName,
   instituteLogoUrl,
@@ -44,7 +44,14 @@ export function AppShell({
   subNav,
   children,
 }: AppShellProps) {
-  return (
+  const showNotificationSync = roleHasNotificationInbox(user.role);
+  const notificationInitial = showNotificationSync
+    ? await getNotificationSummaryPayload(user)
+    : null;
+  const pollIntervalMs = getNotificationPollIntervalMs();
+  const NavComponent = showNotificationSync ? SidebarNavWithBadges : SidebarNav;
+
+  const shell = (
     <div className="flex min-h-svh">
       <a
         href="#main-content"
@@ -53,7 +60,6 @@ export function AppShell({
         Skip to main content
       </a>
 
-      {/* Desktop sidebar — frosted glass so the mesh shows at the edge */}
       <aside
         aria-label="Primary navigation"
         className="sticky top-0 hidden h-svh w-64 shrink-0 flex-col border-r border-border/80 bg-card/75 backdrop-blur-xl lg:flex"
@@ -66,17 +72,17 @@ export function AppShell({
           />
         </div>
         <div className="flex-1 overflow-y-auto p-3">
-          <SidebarNav role={user.role} />
+          <NavComponent role={user.role} />
         </div>
       </aside>
 
-      {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-border/80 bg-background/70 px-4 backdrop-blur-xl sm:gap-3 lg:px-8">
           <MobileNav
             role={user.role}
             instituteName={instituteName}
             instituteLogoUrl={instituteLogoUrl}
+            showNavBadges={showNotificationSync}
           />
           <div className="min-w-0 flex-1 lg:hidden">
             <Brand
@@ -86,9 +92,7 @@ export function AppShell({
             />
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <Suspense fallback={<HeaderActionsFallback user={user} />}>
-              <HeaderActions user={user} />
-            </Suspense>
+            <HeaderActions user={user} />
           </div>
         </header>
 
@@ -119,5 +123,19 @@ export function AppShell({
         </main>
       </div>
     </div>
+  );
+
+  if (!showNotificationSync || !notificationInitial) {
+    return shell;
+  }
+
+  return (
+    <NotificationSyncProvider
+      role={user.role}
+      initial={notificationInitial}
+      pollIntervalMs={pollIntervalMs}
+    >
+      {shell}
+    </NotificationSyncProvider>
   );
 }
