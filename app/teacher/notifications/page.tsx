@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
-import { requireRole } from "@/lib/session";
 import { Role } from "@/lib/generated/prisma/enums";
+import { loadTeacherPageContext } from "@/server/teacher-page";
 import { NotificationsInboxShell } from "@/components/notifications/notifications-inbox-shell";
 
 export const metadata: Metadata = {
@@ -13,11 +13,12 @@ export default async function TeacherNotificationsPage({
 }: {
   searchParams: Promise<{ page?: string; type?: string; read?: string }>;
 }) {
-  const teacher = await requireRole(Role.TEACHER);
+  const { teacher, institute } = await loadTeacherPageContext();
 
   return (
     <NotificationsInboxShell
       user={teacher}
+      institute={institute}
       role={Role.TEACHER}
       searchParams={searchParams}
       subtitle="Alerts about your groups and students."

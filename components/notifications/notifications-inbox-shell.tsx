@@ -1,6 +1,7 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Bell, Settings } from "lucide-react";
 
-import { prisma } from "@/lib/prisma";
 import type { Role } from "@/lib/generated/prisma/enums";
 import {
   notificationInboxHref,
@@ -9,14 +10,16 @@ import {
   type NotificationInboxFilters,
 } from "@/lib/notifications";
 import { parsePageParam } from "@/lib/pagination";
-import {
-  getUnreadNotificationCount,
-  listUserNotifications,
-} from "@/server/notifications";
-import { AppShell } from "@/components/app-shell";
+import { roleHomePath } from "@/lib/roles";
+import { loadNotificationsInboxData } from "@/server/notifications-page";
+import type { InstituteBranding } from "@/server/institute-branding";
+import { BackLink } from "@/components/nav/back-link";
+import { NotificationsPageShell } from "@/components/notifications/notifications-page-shell";
 import { MarkAllReadButton } from "@/components/notifications/mark-all-read-button";
 import { NotificationInboxFilters as NotificationInboxFilterBar } from "@/components/notifications/notification-inbox-filters";
 import { NotificationList } from "@/components/notifications/notification-list";
+import { StatCard } from "@/components/stat-card";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface NotificationsInboxShellProps {
@@ -26,15 +29,17 @@ interface NotificationsInboxShellProps {
     role: Role;
     instituteId: string;
   };
+  institute: InstituteBranding | null;
   role: Role;
   searchParams: Promise<{ page?: string; type?: string; read?: string }>;
   subtitle: string;
   cardTitle: string;
 }
 
-/** Shared notifications inbox page body for student, teacher, and admin. */
+/** Shared notifications inbox for student, teacher, admin, and super admin. */
 export async function NotificationsInboxShell({
   user,
+  institute,
   role,
   searchParams,
   subtitle,
@@ -46,18 +51,10 @@ export async function NotificationsInboxShell({
   const read = parseNotificationReadFilter(params.read);
   const filters: NotificationInboxFilters = { page, type, read };
 
-  const [institute, notifications, unreadCount] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: user.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
-    listUserNotifications(user.id, user.instituteId, {
-      page,
-      type,
-      read,
-    }),
-    getUnreadNotificationCount(user.id, user.instituteId),
-  ]);
+  const { notifications, unreadCount } = await loadNotificationsInboxData(
+    user,
+    filters,
+  );
 
   if (page > notifications.totalPages && notifications.total > 0) {
     redirect(
@@ -70,15 +67,40 @@ export async function NotificationsInboxShell({
   }
 
   return (
-    <AppShell
+    <NotificationsPageShell
       user={user}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
-      title="Notifications"
+      institute={institute}
       subtitle={subtitle}
       actions={<MarkAllReadButton disabled={unreadCount === 0} />}
     >
-      <Card className="overflow-hidden">
+      <BackLink href={roleHomePath(role)}>Back to dashboard</BackLink>
+
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <StatCard label="Unread" value={unreadCount} icon={Bell} />
+        <StatCard
+          label="In this view"
+          value={notifications.total}
+          hint={
+            filters.read === "unread"
+              ? "Unread only"
+              : filters.type
+                ? "Filtered by type"
+                : "All notifications"
+          }
+          icon={Bell}
+        />
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <Button asChild variant="outline" size="sm">
+          <Link href="/account">
+            <Settings className="h-3.5 w-3.5" />
+            Notification settings
+          </Link>
+        </Button>
+      </div>
+
+      <Card className="mt-6 overflow-hidden">
         <CardHeader className="border-b border-border">
           <CardTitle className="text-base">{cardTitle}</CardTitle>
         </CardHeader>
@@ -98,6 +120,6 @@ export async function NotificationsInboxShell({
           />
         </CardContent>
       </Card>
-    </AppShell>
+    </NotificationsPageShell>
   );
 }
