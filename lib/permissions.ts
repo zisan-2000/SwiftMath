@@ -346,6 +346,14 @@ export interface PermissionOverride {
   effect: PermissionEffectValue;
 }
 
+/**
+ * Whether a role's default permissions are non-revocable (re-applied after DENY
+ * filtering). Only the SUPER_ADMIN platform wildcard is fixed — a Super Admin
+ * must never be denied out of their own domain. An ADMIN's institute permissions
+ * are intentionally revocable so a Super Admin can tune them (Goal 2 / worked
+ * example 3); self-lockout + the role ceiling stop anyone at or below admin from
+ * reducing an admin.
+ */
 function roleDefaultsAreFixed(role: Role): boolean {
   return role === Role.SUPER_ADMIN;
 }

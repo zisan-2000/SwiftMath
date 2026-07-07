@@ -126,9 +126,12 @@ unit-testable.
 | **TEACHER** | `group:manage` (own), `group:question:override`, `student:create`, `student:assign_group`, `student:assign_level`, `exam:schedule`, `exam:cancel`, `analytics:view` (own) — **customizable by Admin** |
 | **STUDENT** | `student:practice:start`, `student:practice:submit`, `student:exam:start` — customizable by Admin |
 
-> **Design rule:** ADMIN holds an institute-scoped wildcard and SUPER_ADMIN a
-> platform wildcard. These wildcards are **non-revocable** (see guardrails), so
-> "Admin = full control" is guaranteed by construction.
+> **Design rule:** ADMIN holds an institute-scoped wildcard **by default**
+> (so "Admin = full control" out of the box), and SUPER_ADMIN a platform
+> wildcard. The **SUPER_ADMIN platform wildcard is non-revocable**; the ADMIN
+> institute wildcard is the default set but a **Super Admin may tune it** (see
+> Goal 2 and worked example 3). No role at or below ADMIN can reduce an admin
+> (role ceiling + self-lockout protection).
 
 ### Layer 3 — Per-user overrides (DB)
 
@@ -167,9 +170,14 @@ effective(user) =
     \  { p | grant(user, p) = DENY }
 ```
 
-- **DENY always wins** over ALLOW and over role defaults.
-- ADMIN / SUPER_ADMIN wildcards are applied **after** DENY filtering for their
-  own scope, so they can never be denied out of their own domain.
+- **DENY always wins** over ALLOW and over role defaults. (A single
+  `@@id([userId, permission])` row per permission means ALLOW and DENY never
+  coexist for the same key, but DENY precedence is the intended rule.)
+- The **SUPER_ADMIN** platform wildcard is re-applied **after** DENY filtering,
+  so a Super Admin can never be denied out of their own domain. The **ADMIN**
+  institute wildcard is *not* re-applied — an admin's institute permissions are
+  revocable by a Super Admin (Goal 2 / worked example 3), while self-lockout and
+  the role ceiling stop anyone at or below admin from reducing them.
 - Resolution runs per request and is memoised with React `cache()` to avoid
   repeat DB hits within a render.
 
@@ -231,7 +239,8 @@ or an explicit grant, so operators understand *why* a capability is on/off.
 | **Tenant isolation** | A user can only manage targets in the **same institute** (Super Admin exempt). |
 | **Self-lockout protection** | You cannot revoke your own critical permissions. |
 | **Last-admin protection** | An institute must keep ≥1 active Admin; the last one cannot be disabled/demoted. |
-| **Non-revocable wildcards** | ADMIN (tenant) and SUPER_ADMIN (platform) wildcards cannot be DENYed. |
+| **Non-revocable SUPER_ADMIN wildcard** | The SUPER_ADMIN platform wildcard cannot be DENYed. The ADMIN institute wildcard is the default but a Super Admin may tune it; role ceiling + self-lockout stop anyone at or below admin from reducing an admin. |
+| **Admin-action role backstop** | Institute-WIDE admin mutations whose capability permission is shared with a lower role (e.g. `GROUP_MANAGE`, `STUDENT_CREATE`, `STUDENT_RESET_PASSWORD`) are guarded by `requireAdminPermission(...)` (role + permission), never plain `requirePermission(...)`. Server actions are directly-callable, so this stops a TEACHER holding the shared capability from invoking the wider-scoped admin action. Enforced by `lib/rbac-boundary.test.ts`. |
 | **Audit** | Every grant/revoke writes an `AuditLog` row (`PERMISSION_GRANTED` / `PERMISSION_REVOKED`) with actor, target, permission, effect. |
 | **Notify (optional)** | Affected user may receive an in-app notification when capabilities change. |
 
