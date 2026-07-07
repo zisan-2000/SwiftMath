@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
+import { APP_NAME } from "@/lib/constants";
+
 interface LegalDocumentProps {
   title: string;
   lastUpdated: string;
@@ -34,6 +36,26 @@ export function LegalDocument({
 
         <div className="mt-8 space-y-10 text-foreground">{children}</div>
       </main>
+
+      <footer className="mt-auto border-t border-border/60 px-6 py-6 text-center text-xs text-muted-foreground">
+        <p>
+          © {new Date().getFullYear()} {APP_NAME}. All rights reserved.
+        </p>
+        <nav
+          aria-label="Legal"
+          className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1"
+        >
+          <Link href="/" className="hover:text-foreground">
+            Home
+          </Link>
+          <Link href="/privacy" className="hover:text-foreground">
+            Privacy Policy
+          </Link>
+          <Link href="/terms" className="hover:text-foreground">
+            Terms of Service
+          </Link>
+        </nav>
+      </footer>
     </div>
   );
 }

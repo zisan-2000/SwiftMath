@@ -97,13 +97,16 @@ export default function Home() {
           {APP_TAGLINE}
         </p>
 
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <Button asChild size="lg">
+        <div className="mt-8 flex flex-col items-center gap-3">
+          <Button asChild size="lg" className="w-full sm:w-auto">
             <Link href="/login">Sign in</Link>
           </Button>
-          <Button asChild size="lg" variant="outline">
-            <Link href="/forgot-password">Forgot password?</Link>
-          </Button>
+          <Link
+            href="/forgot-password"
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Forgot your password?
+          </Link>
         </div>
       </header>
 
