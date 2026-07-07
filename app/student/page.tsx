@@ -25,6 +25,7 @@ import { startExamAction } from "@/app/student/actions";
 import { AppShell } from "@/components/app-shell";
 import { StatCard } from "@/components/stat-card";
 import { PracticeActivityChart } from "@/components/practice-activity-chart";
+import { StudentHomeHero } from "@/components/student/student-home-hero";
 import { StudentBadgesPanel } from "@/components/student/student-badges-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -107,6 +108,14 @@ export default async function StudentDashboardPage({
         <FormMessage variant="error" className="mb-6">
           {examErrorMessage}
         </FormMessage>
+      )}
+
+      {!pendingExam && !showPracticeInProgress && (
+        <StudentHomeHero
+          studentName={user.name}
+          levelName={profile?.currentLevel?.name ?? null}
+          streakDays={gamification.streakDays}
+        />
       )}
 
       {pendingExam && (
@@ -257,9 +266,6 @@ export default async function StudentDashboardPage({
       <StudentBadgesPanel badges={gamification.badges} />
 
       <div className="mt-8 flex flex-wrap gap-3">
-        <Button asChild>
-          <Link href="/student/practice">Go to practice</Link>
-        </Button>
         <Button asChild variant="outline">
           <Link href="/student/ranking">View ranking</Link>
         </Button>
