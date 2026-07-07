@@ -12,6 +12,7 @@ import {
 import { getStudentSession } from "@/server/practice";
 import { getPracticeResultMessaging } from "@/lib/practice-result-messaging";
 import { AppShell } from "@/components/app-shell";
+import { PracticeFocusShell } from "@/components/student/practice-focus-shell";
 import { PracticeRunner } from "@/components/student/practice-runner";
 import { LevelUpCelebration } from "@/components/student/level-up-celebration";
 import { PracticeRetryPrompt } from "@/components/student/practice-retry-prompt";
@@ -63,8 +64,7 @@ export default async function PracticeSessionPage({
     }));
 
     return (
-      <AppShell
-        user={student}
+      <PracticeFocusShell
         instituteName={instituteName}
         instituteLogoUrl={instituteLogoUrl}
         title={session.level.name}
@@ -79,6 +79,8 @@ export default async function PracticeSessionPage({
                 ? "Challenge mode — shorter timer, higher pass bar, no level-up."
                 : "Answer as many as you can before time runs out."
         }
+        exitHref={isExam ? "/student" : "/student/practice"}
+        exitLabel={isExam ? "Exit exam" : "Exit"}
       >
         <PracticeRunner
           sessionId={session.id}
@@ -86,7 +88,7 @@ export default async function PracticeSessionPage({
           expiresAt={session.expiresAt.toISOString()}
           questions={safeQuestions}
         />
-      </AppShell>
+      </PracticeFocusShell>
     );
   }
 
