@@ -153,25 +153,33 @@ export default async function PracticeSessionPage({
             )}
           </div>
 
-          <div className="mt-6 flex justify-center gap-3">
+          <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
             {isExam ? (
-              <Button asChild size={resultCopy.showRetryPrompt ? "lg" : "default"}>
+              <Button
+                asChild
+                size={resultCopy.showRetryPrompt ? "lg" : "default"}
+                className="w-full sm:w-auto"
+              >
                 <Link href="/student">{resultCopy.primaryActionLabel}</Link>
               </Button>
             ) : (
-              <form action={startSessionAction}>
+              <form action={startSessionAction} className="w-full sm:w-auto">
                 {isReview && (
                   <input type="hidden" name="mode" value="review" />
                 )}
                 {isChallenge && (
                   <input type="hidden" name="mode" value="challenge" />
                 )}
-                <Button type="submit" size={resultCopy.showRetryPrompt ? "lg" : "default"}>
+                <Button
+                  type="submit"
+                  size={resultCopy.showRetryPrompt ? "lg" : "default"}
+                  className="w-full sm:w-auto"
+                >
                   {resultCopy.primaryActionLabel}
                 </Button>
               </form>
             )}
-            <Button asChild variant="outline">
+            <Button asChild variant="outline" className="w-full sm:w-auto">
               <Link href="/student/practice">
                 {isExam ? "Practice home" : "Back"}
               </Link>
@@ -188,7 +196,7 @@ export default async function PracticeSessionPage({
               key={q.id}
               className="flex flex-col gap-2 px-5 py-3 sm:flex-row sm:items-center sm:justify-between"
             >
-              <span className="min-w-0 break-words font-mono text-foreground">
+              <span className="min-w-0 wrap-break-word font-mono text-foreground">
                 <span className="mr-3 text-sm text-muted-foreground">
                   {q.index + 1}.
                 </span>

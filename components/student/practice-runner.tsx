@@ -131,7 +131,7 @@ export function PracticeRunner({
             return (
               <li key={q.id}>
                 <Card className="flex flex-col gap-3 px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="min-w-0 break-words font-mono text-lg text-foreground">
+                  <span className="min-w-0 wrap-break-word font-mono text-lg text-foreground">
                     <span className="mr-3 text-sm text-muted-foreground">
                       {q.index + 1}.
                     </span>
@@ -163,7 +163,12 @@ export function PracticeRunner({
         </ol>
 
         <div className="mt-6 flex justify-end">
-          <Button type="submit" size="lg" disabled={submitting}>
+          <Button
+            type="submit"
+            size="lg"
+            disabled={submitting}
+            className="w-full sm:w-auto"
+          >
             {submitting ? "Submitting…" : "Submit answers"}
           </Button>
         </div>
