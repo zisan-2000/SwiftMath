@@ -302,6 +302,16 @@ export function getAdminGroup(admin: AdminContext, groupId: string) {
       name: true,
       teacherId: true,
       teacher: { select: { name: true, email: true } },
+      students: {
+        orderBy: { name: "asc" },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          isActive: true,
+          currentLevel: { select: { name: true } },
+        },
+      },
       _count: { select: { students: true } },
     },
   });

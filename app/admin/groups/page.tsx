@@ -1,43 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Boxes } from "lucide-react";
+import { ArrowRight, Boxes, GraduationCap, Settings } from "lucide-react";
 
-import { requireRole } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/generated/prisma/enums";
-import {
-  listInstituteGroups,
-  listInstituteTeacherOptions,
-} from "@/server/admin";
-import { AppShell } from "@/components/app-shell";
+import { listInstituteGroups, listInstituteTeacherOptions } from "@/server/admin";
+import { loadAdminPageContext } from "@/server/admin-page";
+import { AdminPageShell } from "@/components/admin/admin-page-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { CreateGroupDialog } from "@/components/admin/create-group-dialog";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
 export const metadata: Metadata = {
   title: "Groups",
 };
 
 /**
- * ADMIN → groups. Institute-wide group list with create and edit.
+ * ADMIN → groups. Institute-wide group list with create and per-group workspace.
  */
 export default async function AdminGroupsPage() {
-  const admin = await requireRole(Role.ADMIN);
+  const { admin, institute } = await loadAdminPageContext();
 
-  const [institute, groups, teachers] = await Promise.all([
-    prisma.institute.findUnique({
-      where: { id: admin.instituteId },
-      select: { name: true, logoUrl: true },
-    }),
+  const [groups, teachers] = await Promise.all([
     listInstituteGroups(admin.instituteId),
     listInstituteTeacherOptions(admin.instituteId),
   ]);
@@ -49,73 +33,72 @@ export default async function AdminGroupsPage() {
   }));
 
   return (
-    <AppShell
+    <AdminPageShell
       user={admin}
-      instituteName={institute?.name ?? "Institute"}
-      instituteLogoUrl={institute?.logoUrl}
+      institute={institute}
       title="Groups"
-      subtitle="Create groups and assign them to teachers."
+      subtitle="Create groups, assign teachers, and open a group to view its students."
       actions={<CreateGroupDialog teachers={teacherOptions} />}
     >
       <BackLink href="/admin">Admin dashboard</BackLink>
 
-      <Card>
-        <CardHeader className="border-b border-border">
-          <CardTitle className="text-base">
-            All groups ({groups.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {groups.length === 0 ? (
-            <div className="p-6">
-              <EmptyState
-                icon={Boxes}
-                title="No groups yet"
-                description={
-                  teachers.length === 0
-                    ? "Create a teacher first, then add a group."
-                    : "Use “Create group” to add your first class."
-                }
-              />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Group</TableHead>
-                  <TableHead>Teacher</TableHead>
-                  <TableHead className="text-right">Students</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {groups.map((group) => (
-                  <TableRow key={group.id}>
-                    <TableCell className="font-medium text-foreground">
-                      <Link
-                        href={`/admin/groups/${group.id}`}
-                        className="transition-colors hover:text-primary hover:underline"
-                      >
+      {groups.length === 0 ? (
+        <EmptyState
+          icon={Boxes}
+          className="mt-6"
+          title="No groups yet"
+          description={
+            teachers.length === 0
+              ? "Create a teacher first, then add a group."
+              : "Use “Create group” to add your first class."
+          }
+          action={
+            teachers.length > 0 ? (
+              <CreateGroupDialog teachers={teacherOptions} />
+            ) : undefined
+          }
+        />
+      ) : (
+        <ul className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {groups.map((group) => (
+            <li key={group.id}>
+              <Card className="overflow-hidden transition-colors hover:border-primary/40">
+                <CardContent className="p-0">
+                  <Link
+                    href={`/admin/groups/${group.id}`}
+                    className="group flex items-center justify-between gap-3 border-b border-border px-5 py-4 transition-colors hover:bg-accent/30"
+                  >
+                    <div className="min-w-0">
+                      <span className="block truncate text-lg font-semibold text-foreground group-hover:text-primary">
                         {group.name}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {group.teacher.name} · {group._count.students}{" "}
+                        {group._count.students === 1 ? "student" : "students"}
+                      </span>
+                    </div>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-primary" />
+                  </Link>
+                  <div className="flex flex-wrap gap-2 px-5 py-3">
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/admin/groups/${group.id}/students`}>
+                        <GraduationCap className="h-3.5 w-3.5" />
+                        Students
                       </Link>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-foreground">
-                        {group.teacher.name}
-                      </span>
-                      <span className="block text-xs text-muted-foreground">
-                        {group.teacher.email}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {group._count.students}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-    </AppShell>
+                    </Button>
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={`/admin/groups/${group.id}/settings`}>
+                        <Settings className="h-3.5 w-3.5" />
+                        Settings
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </li>
+          ))}
+        </ul>
+      )}
+    </AdminPageShell>
   );
 }
