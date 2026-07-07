@@ -319,7 +319,7 @@ export interface PermissionOverride {
 }
 
 function roleDefaultsAreFixed(role: Role): boolean {
-  return role === Role.ADMIN || role === Role.SUPER_ADMIN;
+  return role === Role.SUPER_ADMIN;
 }
 
 export function resolveEffectivePermissions(

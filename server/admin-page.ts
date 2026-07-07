@@ -9,7 +9,10 @@ import { Role } from "@/lib/generated/prisma/enums";
 import { requireRole } from "@/lib/session";
 import { loadInstituteBranding } from "@/server/institute-branding";
 import { getLevel, getAdminGroup, getAdminTeacher, getAdminStudentProgress } from "@/server/admin";
-import { listTeacherPermissionControls } from "@/server/user-permissions";
+import {
+  listStudentPermissionControls,
+  listTeacherPermissionControls,
+} from "@/server/user-permissions";
 
 /** Signed-in admin + institute branding. */
 export const loadAdminPageContext = cache(async () => {
@@ -51,5 +54,9 @@ export const loadAdminStudentPageContext = cache(async (studentId: string) => {
   const { admin, institute } = await loadAdminPageContext();
   const progress = await getAdminStudentProgress(admin, studentId);
   if (!progress) notFound();
-  return { admin, institute, progress, studentId };
+  const studentPermissions = await listStudentPermissionControls(
+    admin,
+    studentId,
+  );
+  return { admin, institute, progress, studentId, studentPermissions };
 });

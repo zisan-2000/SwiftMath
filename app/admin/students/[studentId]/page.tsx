@@ -5,8 +5,10 @@ import { Role } from "@/lib/generated/prisma/enums";
 import { loadAdminStudentPageContext } from "@/server/admin-page";
 import { AdminPageShell } from "@/components/admin/admin-page-shell";
 import { BackLink } from "@/components/nav/back-link";
+import { PermissionControlsPanel } from "@/components/permission-controls-panel";
 import { StudentProgressPanel } from "@/components/student-progress-panel";
 import { Badge } from "@/components/ui/badge";
+import { setStudentPermissionAction } from "./actions";
 
 export async function generateMetadata({
   params,
@@ -32,7 +34,7 @@ export default async function AdminStudentProgressPage({
   params: Promise<{ studentId: string }>;
 }) {
   const { studentId } = await params;
-  const { admin, institute, progress } =
+  const { admin, institute, progress, studentPermissions } =
     await loadAdminStudentPageContext(studentId);
 
   const { student, group, isActive } = progress;
@@ -56,6 +58,15 @@ export default async function AdminStudentProgressPage({
       <div className="mt-6">
         <StudentProgressPanel progress={progress} />
       </div>
+
+      <PermissionControlsPanel
+        title="Student permissions"
+        description="Adjust access for this student without changing the role defaults."
+        emptyTitle="No student permissions"
+        emptyDescription="Students currently have no configurable app permissions. Practice access is still controlled by role, group, level, and active status."
+        permissions={studentPermissions}
+        action={setStudentPermissionAction.bind(null, student.id)}
+      />
     </AdminPageShell>
   );
 }

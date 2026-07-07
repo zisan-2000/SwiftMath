@@ -51,12 +51,20 @@ describe("effective permission resolver", () => {
     expect(permissions.has(PERMISSIONS.LEVEL_MANAGE)).toBe(false);
   });
 
-  it("keeps admin role defaults fixed even if a deny override exists", () => {
+  it("allows super admins to deny admin role defaults in phase 3", () => {
     const permissions = resolveEffectivePermissions(Role.ADMIN, [
       { permission: PERMISSIONS.STUDENT_CREATE, effect: "DENY" },
     ]);
 
-    expect(permissions.has(PERMISSIONS.STUDENT_CREATE)).toBe(true);
+    expect(permissions.has(PERMISSIONS.STUDENT_CREATE)).toBe(false);
+  });
+
+  it("keeps super admin role defaults fixed even if a deny override exists", () => {
+    const permissions = resolveEffectivePermissions(Role.SUPER_ADMIN, [
+      { permission: PERMISSIONS.INSTITUTE_CREATE, effect: "DENY" },
+    ]);
+
+    expect(permissions.has(PERMISSIONS.INSTITUTE_CREATE)).toBe(true);
   });
 });
 

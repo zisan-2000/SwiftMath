@@ -7,11 +7,12 @@ import { AdminPageShell } from "@/components/admin/admin-page-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { ActiveToggle } from "@/components/admin/active-toggle";
 import { EditTeacherForm } from "@/components/admin/edit-teacher-form";
-import { TeacherPermissionsPanel } from "@/components/admin/teacher-permissions-panel";
+import { PermissionControlsPanel } from "@/components/permission-controls-panel";
 import { ResetPasswordForm } from "@/components/reset-password-form";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { resetUserPasswordAction } from "../../actions";
+import { setTeacherPermissionAction } from "./actions";
 
 export async function generateMetadata({
   params,
@@ -75,9 +76,13 @@ export default async function AdminEditTeacherPage({
         </CardContent>
       </Card>
 
-      <TeacherPermissionsPanel
-        teacherId={teacher.id}
+      <PermissionControlsPanel
+        title="Teacher permissions"
+        description="Adjust access for this teacher without changing the role defaults."
+        emptyTitle="No teacher permissions"
+        emptyDescription="There are no configurable teacher permissions yet."
         permissions={teacherPermissions}
+        action={setTeacherPermissionAction.bind(null, teacher.id)}
       />
     </AdminPageShell>
   );

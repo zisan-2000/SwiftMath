@@ -11,6 +11,9 @@ export interface NotificationMetadata {
   levelId?: string;
   groupId?: string;
   questionId?: string;
+  targetUserId?: string;
+  permission?: string;
+  permissionEffect?: string;
   actorName?: string;
   /** Target tenant for platform (super-admin) alerts (N9). */
   targetInstituteId?: string;
@@ -88,6 +91,8 @@ export const notificationDedupeKeys = {
   instituteCreated: (instituteId: string) => `INSTITUTE_CREATED:${instituteId}`,
   instituteDisabled: (instituteId: string) => `INSTITUTE_DISABLED:${instituteId}`,
   instituteEnabled: (instituteId: string) => `INSTITUTE_ENABLED:${instituteId}`,
+  permissionChanged: (userId: string, permission: string) =>
+    `PERMISSION_CHANGED:${userId}:${permission}`,
 } as const;
 
 /** Human-readable type label for badges. */
@@ -125,6 +130,8 @@ export function formatNotificationTypeLabel(type: NotificationType): string {
       return "Institute disabled";
     case NotificationType.INSTITUTE_ENABLED:
       return "Institute enabled";
+    case NotificationType.PERMISSION_CHANGED:
+      return "Permission changed";
     default:
       return type;
   }
@@ -187,6 +194,29 @@ export function buildInstituteEnabledNotification(input: {
     title: "Institute enabled",
     body: `${actorPrefix}${input.instituteName} is active again — members can sign in.`,
     href: superInstituteHref(input.instituteId),
+  };
+}
+
+/** User notification when staff changes one account permission. */
+export function buildPermissionChangedNotification(input: {
+  permissionLabel: string;
+  effect: string;
+  actorName?: string | null;
+  href: string;
+}): { title: string; body: string; href: string } {
+  const actorPrefix = input.actorName?.trim()
+    ? `${input.actorName.trim()} updated your access. `
+    : "Your access was updated. ";
+  const effectLabel =
+    input.effect === "ALLOW"
+      ? "enabled"
+      : input.effect === "DENY"
+        ? "disabled"
+        : "returned to role default";
+  return {
+    title: "Access updated",
+    body: `${actorPrefix}${input.permissionLabel} is now ${effectLabel}.`,
+    href: input.href,
   };
 }
 
@@ -451,6 +481,8 @@ export function notificationPreferenceDescription(
       return "When a tenant is disabled and members lose access.";
     case NotificationType.INSTITUTE_ENABLED:
       return "When a disabled tenant is re-enabled.";
+    case NotificationType.PERMISSION_CHANGED:
+      return "When staff changes one of your account permissions.";
     default:
       return "In-app alerts for this category.";
   }
@@ -467,12 +499,14 @@ export function notificationTypeFilterOptions(role: Role): NotificationType[] {
         NotificationType.EXAM_CLOSING_SOON,
         NotificationType.LEVEL_UP,
         NotificationType.LEVEL_ASSIGNED,
+        NotificationType.PERMISSION_CHANGED,
       ];
     case Role.TEACHER:
       return [
         NotificationType.EXAM_CLOSED_SUMMARY,
         NotificationType.STUDENT_JOINED_GROUP,
         NotificationType.GROUP_BANK_BLOCKED,
+        NotificationType.PERMISSION_CHANGED,
       ];
     case Role.ADMIN:
       return [
@@ -480,6 +514,7 @@ export function notificationTypeFilterOptions(role: Role): NotificationType[] {
         NotificationType.BANK_PARTIAL_WARNING,
         NotificationType.GROUP_QUESTION_DISABLED,
         NotificationType.CURRICULUM_BUMPED,
+        NotificationType.PERMISSION_CHANGED,
       ];
     case Role.SUPER_ADMIN:
       return [
@@ -604,6 +639,7 @@ export function getNotificationTypePresentation(
       };
     case NotificationType.LEVEL_UP:
     case NotificationType.LEVEL_ASSIGNED:
+    case NotificationType.PERMISSION_CHANGED:
       return {
         icon: "level",
         accentClass: "bg-primary/10 text-primary",

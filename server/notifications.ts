@@ -19,7 +19,9 @@ import {
   buildInstituteEnabledNotification,
   buildLevelAssignedNotification,
   buildLevelUpNotification,
+  buildPermissionChangedNotification,
   buildStudentJoinedGroupNotification,
+  notificationsPageHref,
   notificationDedupeKeys,
   type NotificationListItem,
   type NotificationMetadata,
@@ -804,6 +806,44 @@ export async function notifyTeacherStudentJoined(input: {
       input.groupId,
       input.studentId,
     ),
+    ...content,
+  });
+}
+
+/** U1 — notify a user when staff changes one account permission. */
+export async function notifyUserPermissionChanged(input: {
+  instituteId: string;
+  userId: string;
+  role: Role;
+  permission: string;
+  permissionLabel: string;
+  effect: string;
+  actorUserId: string;
+  actorName: string;
+}): Promise<void> {
+  const href = notificationsPageHref(input.role) ?? "/account";
+  const content = buildPermissionChangedNotification({
+    permissionLabel: input.permissionLabel,
+    effect: input.effect,
+    actorName: input.actorName,
+    href,
+  });
+
+  await upsertNotification({
+    instituteId: input.instituteId,
+    userId: input.userId,
+    type: NotificationType.PERMISSION_CHANGED,
+    dedupeKey: notificationDedupeKeys.permissionChanged(
+      input.userId,
+      input.permission,
+    ),
+    metadata: {
+      targetUserId: input.userId,
+      permission: input.permission,
+      permissionEffect: input.effect,
+      actorName: input.actorName,
+    },
+    actorUserId: input.actorUserId,
     ...content,
   });
 }

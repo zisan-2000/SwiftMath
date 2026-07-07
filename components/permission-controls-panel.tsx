@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 import { PermissionEffect } from "@/lib/generated/prisma/enums";
@@ -14,15 +15,27 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { FormMessage } from "@/components/ui/form-message";
-import {
-  setTeacherPermissionAction,
-  type SetTeacherPermissionState,
-} from "@/app/admin/teachers/[teacherId]/actions";
 
-interface TeacherPermissionsPanelProps {
-  teacherId: string;
+export interface SetPermissionState {
+  error?: string;
+  ok?: boolean;
+}
+
+export type SetPermissionAction = (
+  prevState: SetPermissionState,
+  formData: FormData,
+) => Promise<SetPermissionState>;
+
+interface PermissionControlsPanelProps {
+  title: string;
+  description: string;
+  emptyTitle: string;
+  emptyDescription: string;
   permissions: PermissionControlRow[];
+  action: SetPermissionAction;
+  framed?: boolean;
 }
 
 function groupPermissions(rows: PermissionControlRow[]) {
@@ -35,20 +48,20 @@ function groupPermissions(rows: PermissionControlRow[]) {
 }
 
 function PermissionControlForm({
-  teacherId,
   row,
+  action,
 }: {
-  teacherId: string;
   row: PermissionControlRow;
+  action: SetPermissionAction;
 }) {
   const [state, formAction, pending] = useActionState<
-    SetTeacherPermissionState,
+    SetPermissionState,
     FormData
-  >(setTeacherPermissionAction.bind(null, teacherId), {});
+  >(action, {});
 
   useEffect(() => {
     if (state.ok) {
-      toast.success("Teacher permission updated");
+      toast.success("Permission updated");
     }
   }, [state]);
 
@@ -89,36 +102,59 @@ function PermissionControlForm({
   );
 }
 
-export function TeacherPermissionsPanel({
-  teacherId,
+export function PermissionControlsPanel({
+  title,
+  description,
+  emptyTitle,
+  emptyDescription,
   permissions,
-}: TeacherPermissionsPanelProps) {
+  action,
+  framed = true,
+}: PermissionControlsPanelProps) {
   const grouped = groupPermissions(permissions);
+  const content = (
+    <>
+      <CardHeader className={framed ? undefined : "px-0 pt-0"}>
+        <CardTitle className="text-base">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent className={framed ? "space-y-6" : "space-y-6 px-0 pb-0"}>
+        {permissions.length === 0 ? (
+          <EmptyState
+            icon={ShieldCheck}
+            title={emptyTitle}
+            description={emptyDescription}
+            className="rounded-md"
+          />
+        ) : (
+          [...grouped.entries()].map(([domain, rows]) => (
+            <section key={domain} className="space-y-3">
+              <h3 className="text-sm font-semibold text-foreground">
+                {domain}
+              </h3>
+              <div className="divide-y divide-border rounded-md border border-border">
+                {rows.map((row) => (
+                  <PermissionControlForm
+                    key={row.permission}
+                    row={row}
+                    action={action}
+                  />
+                ))}
+              </div>
+            </section>
+          ))
+        )}
+      </CardContent>
+    </>
+  );
+
+  if (!framed) {
+    return <section className="mt-4">{content}</section>;
+  }
 
   return (
     <Card className="mt-8">
-      <CardHeader>
-        <CardTitle className="text-base">Teacher permissions</CardTitle>
-        <CardDescription>
-          Adjust access for this teacher without changing the role defaults.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {[...grouped.entries()].map(([domain, rows]) => (
-          <section key={domain} className="space-y-3">
-            <h3 className="text-sm font-semibold text-foreground">{domain}</h3>
-            <div className="divide-y divide-border rounded-md border border-border">
-              {rows.map((row) => (
-                <PermissionControlForm
-                  key={row.permission}
-                  teacherId={teacherId}
-                  row={row}
-                />
-              ))}
-            </div>
-          </section>
-        ))}
-      </CardContent>
+      {content}
     </Card>
   );
 }

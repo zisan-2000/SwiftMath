@@ -14,7 +14,7 @@ import { prisma } from "@/lib/prisma";
 import { DEFAULT_STARTER_LEVELS } from "@/lib/default-levels";
 import { buildStarterQuestionBankRows } from "@/lib/default-question-bank";
 import { createInitialCurriculumVersionInTransaction } from "@/server/curriculum-version";
-import { setUserPassword } from "@/server/users";
+import { createUserAccount, setUserPassword } from "@/server/users";
 import { Role } from "@/lib/generated/prisma/enums";
 
 /** Platform-wide headline counts for the Super Admin dashboard. */
@@ -238,6 +238,77 @@ export async function getInstituteDetail(instituteId: string) {
   ]);
 
   return { institute, admins, teachers, students, groups, levels };
+}
+
+export type CreateInstituteAdminResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/** Create an additional ADMIN account inside an existing institute. */
+export async function createInstituteAdmin(
+  instituteId: string,
+  input: { name: string; email: string; password: string },
+): Promise<CreateInstituteAdminResult> {
+  const institute = await prisma.institute.findUnique({
+    where: { id: instituteId },
+    select: { id: true },
+  });
+  if (!institute) {
+    return { ok: false, error: "Institute not found." };
+  }
+
+  await createUserAccount({
+    name: input.name,
+    email: input.email,
+    password: input.password,
+    role: Role.ADMIN,
+    instituteId,
+  });
+
+  return { ok: true };
+}
+
+export type SetInstituteAdminActiveResult =
+  | { ok: true }
+  | { ok: false; error: string };
+
+/** Enable/disable an institute ADMIN, preserving at least one active admin. */
+export async function setInstituteAdminActive(
+  instituteId: string,
+  userId: string,
+  isActive: boolean,
+): Promise<SetInstituteAdminActiveResult> {
+  const target = await prisma.user.findFirst({
+    where: { id: userId, instituteId, role: Role.ADMIN },
+    select: { id: true, isActive: true },
+  });
+  if (!target) {
+    return { ok: false, error: "Admin not found in this institute." };
+  }
+
+  if (!isActive && target.isActive) {
+    const activeAdmins = await prisma.user.count({
+      where: { instituteId, role: Role.ADMIN, isActive: true },
+    });
+    if (activeAdmins <= 1) {
+      return {
+        ok: false,
+        error: "This institute must keep at least one active admin.",
+      };
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: userId },
+      data: { isActive },
+    });
+    if (!isActive) {
+      await tx.session.deleteMany({ where: { userId } });
+    }
+  });
+
+  return { ok: true };
 }
 
 /**

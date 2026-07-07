@@ -16,6 +16,7 @@ import {
   buildInstituteEnabledNotification,
   buildLevelAssignedNotification,
   buildLevelUpNotification,
+  buildPermissionChangedNotification,
   buildStudentJoinedGroupNotification,
   formatNotificationTypeLabel,
   getNotificationTypePresentation,
@@ -94,6 +95,8 @@ describe("notificationDedupeKeys", () => {
     expect(notificationDedupeKeys.levelUp("stu-1", "lvl-1")).toBe(
       "LEVEL_UP:stu-1:lvl-1",
     );
+    expect(notificationDedupeKeys.permissionChanged("user-1", "exam:schedule"))
+      .toBe("PERMISSION_CHANGED:user-1:exam:schedule");
   });
 });
 
@@ -158,6 +161,9 @@ describe("formatNotificationTypeLabel", () => {
     expect(formatNotificationTypeLabel(NotificationType.CURRICULUM_BUMPED)).toBe(
       "Curriculum",
     );
+    expect(formatNotificationTypeLabel(NotificationType.PERMISSION_CHANGED)).toBe(
+      "Permission changed",
+    );
   });
 });
 
@@ -187,6 +193,36 @@ describe("buildInstituteDisabledNotification", () => {
 
     expect(content.body).toContain("sign-in is blocked");
     expect(content.href).toBe("/super/institutes/inst-1");
+  });
+});
+
+describe("buildInstituteEnabledNotification", () => {
+  it("links to the institute drill-in page", () => {
+    const content = buildInstituteEnabledNotification({
+      instituteId: "inst-1",
+      instituteName: "SEFT Institute",
+      actorName: "Platform Ops",
+    });
+
+    expect(content.body).toContain("active again");
+    expect(content.href).toBe("/super/institutes/inst-1");
+  });
+});
+
+describe("buildPermissionChangedNotification", () => {
+  it("explains the new permission state", () => {
+    const content = buildPermissionChangedNotification({
+      permissionLabel: "Schedule exams",
+      effect: "DENY",
+      actorName: "Platform Ops",
+      href: "/admin/notifications",
+    });
+
+    expect(content.title).toBe("Access updated");
+    expect(content.body).toContain("Platform Ops");
+    expect(content.body).toContain("Schedule exams");
+    expect(content.body).toContain("disabled");
+    expect(content.href).toBe("/admin/notifications");
   });
 });
 

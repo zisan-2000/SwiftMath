@@ -750,6 +750,7 @@ enum NotificationType {
   INSTITUTE_CREATED
   INSTITUTE_DISABLED
   INSTITUTE_ENABLED
+  PERMISSION_CHANGED
 }
 
 /// Per-user in-app notification. Email/push are out of scope for N1.
