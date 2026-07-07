@@ -12,6 +12,8 @@ import { redirect } from "next/navigation";
 import { auth, type AuthSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { Role } from "@/lib/generated/prisma/enums";
+import type { Permission } from "@/lib/permissions";
+import { can } from "@/server/permissions";
 
 /**
  * Session user with `role` narrowed from a plain string to our `Role` enum.
@@ -91,4 +93,15 @@ export async function requireRole(...roles: Role[]): Promise<SessionUser> {
  */
 export async function requireSuperAdmin(): Promise<SessionUser> {
   return requireRole(Role.SUPER_ADMIN);
+}
+
+/** Require a signed-in user with a specific server-side permission. */
+export async function requirePermission(
+  permission: Permission,
+): Promise<SessionUser> {
+  const user = await requireUser();
+  if (!(await can(user, permission))) {
+    redirect("/403");
+  }
+  return user;
 }

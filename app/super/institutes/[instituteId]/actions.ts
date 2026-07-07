@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 
 import type { ResetPasswordState } from "@/components/reset-password-form";
-import { requireSuperAdmin } from "@/lib/session";
+import { requirePermission } from "@/lib/session";
+import { PERMISSIONS } from "@/lib/permissions";
 import { resetInstituteAdminPassword } from "@/server/super";
 
 /** Revalidate every Super Admin view that shows institute data. */
@@ -24,7 +25,7 @@ export async function resetInstituteAdminPasswordAction(
   _prevState: ResetPasswordState,
   formData: FormData,
 ): Promise<ResetPasswordState> {
-  await requireSuperAdmin();
+  await requirePermission(PERMISSIONS.ADMIN_RESET_PASSWORD);
 
   const next = String(formData.get("newPassword") ?? "");
   const confirm = String(formData.get("confirmPassword") ?? "");

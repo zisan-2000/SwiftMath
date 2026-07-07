@@ -2,8 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireSuperAdmin } from "@/lib/session";
+import { requirePermission } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
+import { PERMISSIONS } from "@/lib/permissions";
 import {
   createInstitute,
   setInstituteActive,
@@ -79,7 +80,7 @@ export async function addInstituteAction(
   _prevState: AddInstituteState,
   formData: FormData,
 ): Promise<AddInstituteState> {
-  const actor = await requireSuperAdmin();
+  const actor = await requirePermission(PERMISSIONS.INSTITUTE_CREATE);
 
   const name = String(formData.get("name") ?? "").trim();
   const slug = String(formData.get("slug") ?? "")
@@ -137,7 +138,7 @@ export async function updateInstituteAction(
   _prevState: UpdateInstituteState,
   formData: FormData,
 ): Promise<UpdateInstituteState> {
-  await requireSuperAdmin();
+  await requirePermission(PERMISSIONS.INSTITUTE_UPDATE);
 
   const name = String(formData.get("name") ?? "").trim();
   const slug = String(formData.get("slug") ?? "")
@@ -184,7 +185,8 @@ export async function setInstituteActiveAction(
   isActive: boolean,
   _formData: FormData,
 ) {
-  const actor = await requireSuperAdmin();
+  void _formData;
+  const actor = await requirePermission(PERMISSIONS.INSTITUTE_TOGGLE_ACTIVE);
 
   const institute = await prisma.institute.findUnique({
     where: { id: instituteId },

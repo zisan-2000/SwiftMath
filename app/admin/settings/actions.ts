@@ -6,8 +6,8 @@ import {
   normalizeInstitutePrimaryColor,
   validateInstituteBranding,
 } from "@/lib/institute-branding";
-import { requireRole } from "@/lib/session";
-import { Role } from "@/lib/generated/prisma/enums";
+import { requirePermission } from "@/lib/session";
+import { PERMISSIONS } from "@/lib/permissions";
 import { updateInstituteBranding } from "@/server/admin";
 import { uploadInstituteLogo } from "@/server/institute-logo";
 import { bumpCurriculumVersion } from "@/server/curriculum-version";
@@ -30,7 +30,7 @@ export async function updateInstituteSettingsAction(
   _prevState: UpdateInstituteSettingsState,
   formData: FormData,
 ): Promise<UpdateInstituteSettingsState> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.INSTITUTE_BRANDING);
 
   const name = String(formData.get("name") ?? "").trim();
   const tagline = String(formData.get("tagline") ?? "").trim();
@@ -69,7 +69,7 @@ export async function updateInstituteSettingsAction(
 export async function bumpCurriculumVersionAction(
   formData: FormData,
 ): Promise<BumpCurriculumVersionState> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.CURRICULUM_PUBLISH);
   const label = String(formData.get("label") ?? "");
 
   const result = await bumpCurriculumVersion(admin, label);

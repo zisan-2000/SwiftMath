@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireRole } from "@/lib/session";
-import { Role } from "@/lib/generated/prisma/enums";
+import { requirePermission } from "@/lib/session";
+import { PERMISSIONS } from "@/lib/permissions";
 import { resetUserPassword, setUserActive } from "@/server/admin";
 import type { ResetPasswordState } from "@/components/reset-password-form";
 
@@ -16,7 +16,7 @@ export async function resetUserPasswordAction(
   _prevState: ResetPasswordState,
   formData: FormData,
 ): Promise<ResetPasswordState> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.STUDENT_RESET_PASSWORD);
 
   const next = String(formData.get("newPassword") ?? "");
   const confirm = String(formData.get("confirmPassword") ?? "");
@@ -46,7 +46,8 @@ export async function setUserActiveAction(
   isActive: boolean,
   _formData: FormData,
 ) {
-  const admin = await requireRole(Role.ADMIN);
+  void _formData;
+  const admin = await requirePermission(PERMISSIONS.STUDENT_DISABLE);
 
   await setUserActive(admin, userId, isActive);
 

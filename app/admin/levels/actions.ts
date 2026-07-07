@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { requireRole } from "@/lib/session";
+import { requirePermission } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { Role, OperationType, AuditAction } from "@/lib/generated/prisma/enums";
+import { OperationType, AuditAction } from "@/lib/generated/prisma/enums";
+import { PERMISSIONS } from "@/lib/permissions";
 import { createLevel, updateLevel, archiveLevel, unarchiveLevel, type LevelInput } from "@/server/admin";
 import { auditActorFromAdmin, recordAuditLog } from "@/server/audit-log";
 import { maybeNotifyBankOnlyBlocked, maybeNotifyBankPartialWarning } from "@/server/notifications";
@@ -109,7 +110,7 @@ export async function createLevelAction(
   _prevState: LevelFormState,
   formData: FormData,
 ): Promise<LevelFormState> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.LEVEL_MANAGE);
 
   const parsed = parseLevelInput(formData);
   if ("error" in parsed) return { error: parsed.error };
@@ -138,7 +139,7 @@ export async function updateLevelAction(
   _prevState: LevelFormState,
   formData: FormData,
 ): Promise<LevelFormState> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.LEVEL_MANAGE);
 
   const parsed = parseLevelInput(formData);
   if ("error" in parsed) return { error: parsed.error };
@@ -197,7 +198,7 @@ export async function updateLevelAction(
 export async function archiveLevelAction(
   levelId: string,
 ): Promise<{ error?: string }> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.LEVEL_MANAGE);
   const result = await archiveLevel(admin, levelId);
   if (!result.ok) {
     return { error: result.error };
@@ -212,7 +213,7 @@ export async function archiveLevelAction(
 export async function unarchiveLevelAction(
   levelId: string,
 ): Promise<{ error?: string }> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.LEVEL_MANAGE);
   const result = await unarchiveLevel(admin, levelId);
   if (!result.ok) {
     return { error: result.error };

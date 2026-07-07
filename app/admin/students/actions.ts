@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireRole } from "@/lib/session";
-import { Role } from "@/lib/generated/prisma/enums";
+import { requirePermission } from "@/lib/session";
+import { PERMISSIONS } from "@/lib/permissions";
 import { createStudentInGroup } from "@/server/admin";
 
 /** Result of the add-student form, surfaced via useActionState. */
@@ -27,7 +27,7 @@ export async function addStudentAction(
   _prevState: AddStudentState,
   formData: FormData,
 ): Promise<AddStudentState> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.STUDENT_CREATE);
 
   const groupId = String(formData.get("groupId") ?? "");
   const name = String(formData.get("name") ?? "").trim();

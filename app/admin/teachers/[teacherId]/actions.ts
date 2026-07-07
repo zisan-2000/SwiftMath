@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireRole } from "@/lib/session";
-import { Role } from "@/lib/generated/prisma/enums";
+import { requirePermission } from "@/lib/session";
+import { PERMISSIONS } from "@/lib/permissions";
 import { updateAdminTeacher } from "@/server/admin";
 
 /** Result of the edit-teacher form, surfaced via useActionState. */
@@ -18,7 +18,7 @@ export async function updateTeacherAction(
   _prevState: EditTeacherState,
   formData: FormData,
 ): Promise<EditTeacherState> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.TEACHER_CREATE);
 
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();

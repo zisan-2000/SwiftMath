@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireRole } from "@/lib/session";
-import { Role } from "@/lib/generated/prisma/enums";
+import { requirePermission } from "@/lib/session";
+import { PERMISSIONS } from "@/lib/permissions";
 import { deleteAdminGroup, updateAdminGroup } from "@/server/admin";
 
 /** Result of the edit-group form, surfaced via useActionState. */
@@ -18,7 +18,7 @@ export async function updateGroupAction(
   _prevState: EditGroupState,
   formData: FormData,
 ): Promise<EditGroupState> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.GROUP_MANAGE);
 
   const name = String(formData.get("name") ?? "").trim();
   const teacherId = String(formData.get("teacherId") ?? "");
@@ -39,7 +39,7 @@ export async function updateGroupAction(
 export async function deleteGroupAction(
   groupId: string,
 ): Promise<{ ok?: boolean; error?: string }> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.GROUP_MANAGE);
 
   const result = await deleteAdminGroup(admin, groupId);
   if (!result.ok) {

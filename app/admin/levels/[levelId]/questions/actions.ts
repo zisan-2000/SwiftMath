@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 
-import { requireRole } from "@/lib/session";
-import { Role } from "@/lib/generated/prisma/enums";
+import { requirePermission } from "@/lib/session";
+import { PERMISSIONS } from "@/lib/permissions";
 import { parseLevelQuestionForm } from "@/lib/level-question-form";
 import {
   createLevelQuestion,
@@ -54,7 +54,7 @@ async function notifyBankCoverageIfNeeded(
 export async function addLevelQuestionAction(
   formData: FormData,
 ): Promise<LevelQuestionFormState> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.QUESTION_MANAGE);
   const levelId = String(formData.get("levelId") ?? "");
 
   const parsed = parseLevelQuestionForm({
@@ -82,7 +82,7 @@ export async function addLevelQuestionAction(
 export async function updateLevelQuestionAction(
   formData: FormData,
 ): Promise<LevelQuestionFormState> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.QUESTION_MANAGE);
   const levelId = String(formData.get("levelId") ?? "");
   const questionId = String(formData.get("questionId") ?? "");
 
@@ -117,7 +117,7 @@ export async function importLevelQuestionsCsvAction(
   _prevState: LevelQuestionImportState,
   formData: FormData,
 ): Promise<LevelQuestionImportState> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.QUESTION_MANAGE);
   const levelId = String(formData.get("levelId") ?? "");
   const file = formData.get("file");
 
@@ -146,7 +146,7 @@ export async function importLevelQuestionsCsvAction(
 export async function toggleLevelQuestionActiveAction(
   formData: FormData,
 ): Promise<LevelQuestionFormState> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.QUESTION_MANAGE);
   const levelId = String(formData.get("levelId") ?? "");
   const questionId = String(formData.get("questionId") ?? "");
   const isActive = formData.get("isActive") === "true";
@@ -169,7 +169,7 @@ export async function toggleLevelQuestionActiveAction(
 export async function publishLevelQuestionAction(
   formData: FormData,
 ): Promise<LevelQuestionFormState> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.QUESTION_PUBLISH);
   const levelId = String(formData.get("levelId") ?? "");
   const questionId = String(formData.get("questionId") ?? "");
 
@@ -191,7 +191,7 @@ export async function publishLevelQuestionAction(
 export async function unpublishLevelQuestionAction(
   formData: FormData,
 ): Promise<LevelQuestionFormState> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.QUESTION_PUBLISH);
   const levelId = String(formData.get("levelId") ?? "");
   const questionId = String(formData.get("questionId") ?? "");
 
@@ -215,7 +215,7 @@ export async function unpublishLevelQuestionAction(
 export async function deleteLevelQuestionAction(
   formData: FormData,
 ): Promise<LevelQuestionFormState> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.QUESTION_MANAGE);
   const levelId = String(formData.get("levelId") ?? "");
   const questionId = String(formData.get("questionId") ?? "");
 
@@ -236,7 +236,7 @@ export async function reorderLevelQuestionsAction(
   levelId: string,
   orderedQuestionIds: string[],
 ): Promise<LevelQuestionFormState> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.QUESTION_MANAGE);
 
   const result = await reorderLevelQuestions(admin, levelId, orderedQuestionIds);
   if (!result.ok) {
@@ -251,7 +251,7 @@ export async function reorderLevelQuestionsAction(
 export async function moveLevelQuestionAction(
   formData: FormData,
 ): Promise<LevelQuestionFormState> {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.QUESTION_MANAGE);
   const levelId = String(formData.get("levelId") ?? "");
   const questionId = String(formData.get("questionId") ?? "");
   const direction = String(formData.get("direction") ?? "");

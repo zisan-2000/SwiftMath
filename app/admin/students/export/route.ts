@@ -1,6 +1,6 @@
-import { requireRole } from "@/lib/session";
+import { requirePermission } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { Role } from "@/lib/generated/prisma/enums";
+import { PERMISSIONS } from "@/lib/permissions";
 import {
   buildInstituteStudentReport,
   instituteStudentReportFilename,
@@ -9,7 +9,7 @@ import {
 
 /** ADMIN → download institute-wide student progress as CSV. */
 export async function GET() {
-  const admin = await requireRole(Role.ADMIN);
+  const admin = await requirePermission(PERMISSIONS.STUDENT_EXPORT);
 
   const [institute, rows] = await Promise.all([
     prisma.institute.findUnique({
