@@ -302,7 +302,18 @@ reset, and tune institute Admin capabilities from
 `requirePermission(...)`, including student practice/exam actions and the
 question-import template route. `requireRole(...)` remains only for coarse page
 context loaders and metadata reads. A boundary test scans server actions and
-route handlers so future RBAC regressions fail in CI.
+route handlers so future RBAC regressions fail in CI. The boundary test also
+asserts that institute-wide admin mutations sharing a capability with a lower
+role use `requireAdminPermission(...)` (role backstop), closing the
+shared-permission escalation gap.
+
+**Phase E (hardening) note:** guardrail behaviour is now covered by negative
+tests in `server/user-permissions.test.ts` — role ceiling (missing manage
+permission), cross-tenant/missing target, self-lockout, non-assignable
+permission, and privilege ceiling all fail closed, plus write/no-op/clear paths
+and the super-admin-over-admin tunability flow. Resolver tests in
+`lib/permissions.test.ts` assert the ADMIN wildcard is revocable while the
+SUPER_ADMIN wildcard is fixed.
 
 ---
 
@@ -326,11 +337,15 @@ route handlers so future RBAC regressions fail in CI.
 - **Pure unit tests** for the matrix + resolver: role defaults, ALLOW/DENY
   precedence, wildcard non-revocability, privilege-ceiling checks.
 - **Guardrail tests:** escalation attempts, cross-tenant targets, last-admin,
-  self-lockout — all must fail closed.
+  self-lockout — all must fail closed. *(Implemented in
+  `server/user-permissions.test.ts` for role ceiling, cross-tenant target,
+  self-lockout, non-assignable permission, and privilege ceiling.)*
+- **Boundary test:** `lib/rbac-boundary.test.ts` keeps actions/routes off coarse
+  role guards and blocks shared-permission admin escalation.
 - **Action tests:** each `requirePermission` call site denies without the
   permission and allows with it.
 - Follows the existing Vitest setup used for `nav-badges`, `notification-poll`,
-  etc.
+  etc. `server/*` guardrail tests stub `server-only`, Prisma, and side effects.
 
 ---
 

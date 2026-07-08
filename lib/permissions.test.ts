@@ -66,6 +66,20 @@ describe("effective permission resolver", () => {
 
     expect(permissions.has(PERMISSIONS.INSTITUTE_CREATE)).toBe(true);
   });
+
+  it("treats only the super admin wildcard as non-revocable", () => {
+    // A DENY on the same default is honoured for ADMIN (tunable by a super
+    // admin) but ignored for SUPER_ADMIN (platform wildcard is fixed).
+    const adminEffective = resolveEffectivePermissions(Role.ADMIN, [
+      { permission: PERMISSIONS.INSTITUTE_BRANDING, effect: "DENY" },
+    ]);
+    const superEffective = resolveEffectivePermissions(Role.SUPER_ADMIN, [
+      { permission: PERMISSIONS.ADMIN_CREATE, effect: "DENY" },
+    ]);
+
+    expect(adminEffective.has(PERMISSIONS.INSTITUTE_BRANDING)).toBe(false);
+    expect(superEffective.has(PERMISSIONS.ADMIN_CREATE)).toBe(true);
+  });
 });
 
 describe("role default permissions", () => {
