@@ -5,6 +5,7 @@ import {
   ALL_PERMISSIONS,
   PERMISSIONS,
   PERMISSION_METADATA,
+  STUDENT_SELF_SERVICE_PERMISSIONS,
   getRoleDefaultPermissions,
   isKnownPermission,
   permissionsByScope,
@@ -40,6 +41,20 @@ describe("effective permission resolver", () => {
     ]);
 
     expect(permissions.has(PERMISSIONS.EXAM_SCHEDULE)).toBe(false);
+  });
+
+  it("lets DENY win over ALLOW regardless of override order (G7)", () => {
+    const denyFirst = resolveEffectivePermissions(Role.TEACHER, [
+      { permission: PERMISSIONS.GROUP_MANAGE, effect: "DENY" },
+      { permission: PERMISSIONS.GROUP_MANAGE, effect: "ALLOW" },
+    ]);
+    const allowFirst = resolveEffectivePermissions(Role.TEACHER, [
+      { permission: PERMISSIONS.GROUP_MANAGE, effect: "ALLOW" },
+      { permission: PERMISSIONS.GROUP_MANAGE, effect: "DENY" },
+    ]);
+
+    expect(denyFirst.has(PERMISSIONS.GROUP_MANAGE)).toBe(false);
+    expect(allowFirst.has(PERMISSIONS.GROUP_MANAGE)).toBe(false);
   });
 
   it("ignores stale permission strings from the database", () => {
@@ -94,14 +109,28 @@ describe("role default permissions", () => {
     expect(permissions.has(PERMISSIONS.LEVEL_MANAGE)).toBe(false);
   });
 
-  it("gives institute admins every institute-scoped permission", () => {
+  it("gives institute admins institute-scoped permissions except student self-service", () => {
     const permissions = getRoleDefaultPermissions(Role.ADMIN);
 
     for (const permission of permissionsByScope("institute")) {
-      expect(permissions.has(permission)).toBe(true);
+      const expected = !(
+        STUDENT_SELF_SERVICE_PERMISSIONS as readonly string[]
+      ).includes(permission);
+      expect(permissions.has(permission)).toBe(expected);
     }
 
     expect(permissions.has(PERMISSIONS.INSTITUTE_CREATE)).toBe(false);
+  });
+
+  it("excludes student self-service permissions from admin defaults (G6)", () => {
+    const permissions = getRoleDefaultPermissions(Role.ADMIN);
+
+    expect(permissions.has(PERMISSIONS.STUDENT_PRACTICE_START)).toBe(false);
+    expect(permissions.has(PERMISSIONS.STUDENT_PRACTICE_SUBMIT)).toBe(false);
+    expect(permissions.has(PERMISSIONS.STUDENT_EXAM_START)).toBe(false);
+    // Management of students is still fully an admin default.
+    expect(permissions.has(PERMISSIONS.STUDENT_CREATE)).toBe(true);
+    expect(permissions.has(PERMISSIONS.STUDENT_PERMISSIONS_MANAGE)).toBe(true);
   });
 
   it("keeps teacher defaults scoped to classroom operations", () => {

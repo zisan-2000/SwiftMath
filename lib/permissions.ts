@@ -309,12 +309,30 @@ export function permissionsByScope(scope: PermissionScope): Permission[] {
   );
 }
 
+/**
+ * Self-service permissions a STUDENT exercises on their own account. These are
+ * institute-scoped but are *not* granted to ADMIN by default — an admin manages
+ * students, they do not practise or sit exams themselves (see G6).
+ */
+export const STUDENT_SELF_SERVICE_PERMISSIONS = [
+  PERMISSIONS.STUDENT_PRACTICE_START,
+  PERMISSIONS.STUDENT_PRACTICE_SUBMIT,
+  PERMISSIONS.STUDENT_EXAM_START,
+] as const;
+
 export function getRoleDefaultPermissions(role: Role): Set<Permission> {
   switch (role) {
     case Role.SUPER_ADMIN:
       return new Set(permissionsByScope("platform"));
-    case Role.ADMIN:
-      return new Set(permissionsByScope("institute"));
+    case Role.ADMIN: {
+      // Every institute-scoped permission except the student self-service ones.
+      const selfService = new Set<Permission>(STUDENT_SELF_SERVICE_PERMISSIONS);
+      return new Set(
+        permissionsByScope("institute").filter(
+          (permission) => !selfService.has(permission),
+        ),
+      );
+    }
     case Role.TEACHER:
       return new Set([
         PERMISSIONS.GROUP_MANAGE,
@@ -329,11 +347,7 @@ export function getRoleDefaultPermissions(role: Role): Set<Permission> {
         PERMISSIONS.ACTIVITY_VIEW,
       ]);
     case Role.STUDENT:
-      return new Set([
-        PERMISSIONS.STUDENT_PRACTICE_START,
-        PERMISSIONS.STUDENT_PRACTICE_SUBMIT,
-        PERMISSIONS.STUDENT_EXAM_START,
-      ]);
+      return new Set(STUDENT_SELF_SERVICE_PERMISSIONS);
     default:
       return new Set();
   }
@@ -365,12 +379,18 @@ export function resolveEffectivePermissions(
   const defaults = getRoleDefaultPermissions(role);
   const effective = new Set(defaults);
 
+  // Apply ALLOW grants first, then DENY, so **DENY always wins** regardless of
+  // the order entries arrive in — and even if a conflicting ALLOW+DENY pair for
+  // the same key ever coexists. (The `@@id([userId, permission])` DB constraint
+  // prevents such duplicates today; this keeps the precedence explicit rather
+  // than relying on that invariant.)
   for (const override of overrides) {
-    if (!isKnownPermission(override.permission)) continue;
-
-    if (override.effect === "ALLOW") {
+    if (override.effect === "ALLOW" && isKnownPermission(override.permission)) {
       effective.add(override.permission);
-    } else {
+    }
+  }
+  for (const override of overrides) {
+    if (override.effect === "DENY" && isKnownPermission(override.permission)) {
       effective.delete(override.permission);
     }
   }

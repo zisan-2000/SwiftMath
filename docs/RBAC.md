@@ -307,6 +307,13 @@ asserts that institute-wide admin mutations sharing a capability with a lower
 role use `requireAdminPermission(...)` (role backstop), closing the
 shared-permission escalation gap.
 
+**Phase E (cosmetic hardening) note:** ADMIN role defaults now exclude the
+student self-service permissions (`student:practice:*`, `student:exam:start`) —
+admins manage students, they do not practise (G6). The effective-permission
+resolver applies all ALLOW grants before all DENY grants so **DENY always wins**
+independent of input order, making the precedence explicit rather than relying
+on the DB unique constraint (G7).
+
 **Phase E (hardening) note:** guardrail behaviour is now covered by negative
 tests in `server/user-permissions.test.ts` — role ceiling (missing manage
 permission), cross-tenant/missing target, self-lockout, non-assignable
