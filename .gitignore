@@ -46,4 +46,8 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Serwist (legacy manual SW path; Turbopack serves /serwist/sw.js)
+public/sw.js
+public/sw.js.map
+
 /lib/generated/prisma

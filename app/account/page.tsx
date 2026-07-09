@@ -8,6 +8,7 @@ import { AccountPageShell } from "@/components/account/account-page-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { ChangePasswordForm } from "@/components/account/change-password-form";
 import { NotificationPreferencesPanel } from "@/components/account/notification-preferences-panel";
+import { PushNotificationPanel } from "@/components/account/push-notification-panel";
 import { NotificationSoundPanel } from "@/components/account/notification-sound-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -95,6 +96,20 @@ export default async function AccountPage() {
             <NotificationSoundPanel />
           </CardContent>
         </Card>
+
+        {roleHasNotificationInbox(user.role) ? (
+          <Card className="mt-4 max-w-2xl">
+            <CardHeader>
+              <CardTitle className="text-base">Push notifications</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Browser-level alerts for reminders and high-priority updates.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <PushNotificationPanel />
+            </CardContent>
+          </Card>
+        ) : null}
 
         {notificationPreferences.length > 0 ? (
           <Card className="mt-4 max-w-2xl">

@@ -145,6 +145,7 @@ model Institute {
   auditLogs        AuditLog[]
   notifications    Notification[]
   notificationPreferences NotificationPreference[]
+  pushSubscriptions PushSubscription[]
 
   @@map("institute")
 }
@@ -237,6 +238,9 @@ model User {
 
   /// Per-type in-app delivery toggles (N7). Absent row = enabled.
   notificationPreferences NotificationPreference[]
+
+  /// Browser push subscriptions for this user across devices.
+  pushSubscriptions PushSubscription[]
 
   /// Explicit permission overrides targeting this user.
   permissionOverrides UserPermission[] @relation("UserPermissionTarget")
@@ -807,4 +811,32 @@ model NotificationPreference {
   @@id([userId, type])
   @@index([instituteId])
   @@map("notification_preference")
+}
+
+/// Per-browser Web Push endpoint. Muting notification preferences suppresses
+/// both in-app rows and push delivery because push is triggered from the same
+/// trusted notification write path.
+model PushSubscription {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  endpoint String @unique
+  p256dh   String
+  auth     String
+
+  userAgent String?
+
+  disabledAt DateTime?
+  lastFailedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([instituteId])
+  @@map("push_subscription")
 }

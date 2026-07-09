@@ -47,6 +47,7 @@ import {
   loadDisabledNotificationPreferencesForUsers,
 } from "@/server/notification-preferences";
 import { getLevelBankStats } from "@/server/question-bank";
+import { sendPushToUser } from "@/server/web-push";
 
 export type { NotificationListItem };
 
@@ -84,6 +85,19 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
+async function sendPushForNotification(input: CreateNotificationInput): Promise<void> {
+  try {
+    await sendPushToUser(input.userId, {
+      title: input.title,
+      body: input.body,
+      href: input.href,
+      tag: input.type,
+    });
+  } catch (error) {
+    console.error("[notifications] failed to send push notification", error);
+  }
+}
+
 async function shouldDeliverNotification(
   userId: string,
   type: NotificationType,
@@ -118,6 +132,7 @@ async function createNotification(
         actorUserId: input.actorUserId,
       },
     });
+    await sendPushForNotification(input);
   } catch (error) {
     if (input.dedupeKey && isUniqueViolation(error)) {
       return;
@@ -175,6 +190,7 @@ async function upsertNotification(
         createdAt: new Date(),
       },
     });
+    await sendPushForNotification(input);
   } catch (error) {
     console.error("[notifications] failed to upsert notification", error);
   }

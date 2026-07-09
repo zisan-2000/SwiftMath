@@ -37,6 +37,9 @@ cp .env.example .env
 | `BETTER_AUTH_URL` | Yes | Public origin of the app **with no trailing slash**. Must match the URL users open in the browser. |
 | `BLOB_READ_WRITE_TOKEN` | Prod (logo upload) | [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) token for institute logo uploads. Omit locally to store under `public/uploads/` instead. |
 | `CRON_SECRET` | Prod (exam alerts) | Bearer token for `GET /api/cron/notifications`. Vercel Cron sends `Authorization: Bearer …`. Generate with `openssl rand -base64 32`. |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Prod (PWA push) | Public VAPID key for browser push subscriptions. Generate with `npx web-push generate-vapid-keys`. |
+| `VAPID_PRIVATE_KEY` | Prod (PWA push) | Private VAPID key used server-side to send push notifications. Keep secret. |
+| `VAPID_SUBJECT` | Optional | Web Push contact subject, e.g. `mailto:support@yourdomain.com`. |
 | `NODE_ENV` | Set by host | `production` on Vercel/Railway automatically. Do not set manually in `.env` for local dev. |
 
 ### Local development
@@ -216,6 +219,9 @@ Run after every new environment (staging or production).
 ### Production hygiene
 
 - [ ] `BETTER_AUTH_URL` matches the browser URL exactly
+- [ ] PWA manifest loads at `/manifest.webmanifest`
+- [ ] `/serwist/sw.js` returns JavaScript with `Cache-Control: no-cache, no-store, must-revalidate`
+- [ ] Push toggle shows enabled after `NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` are configured
 - [ ] Demo passwords changed or seed not used on production
 - [ ] `npm run build` passes in CI or locally before deploy
 
