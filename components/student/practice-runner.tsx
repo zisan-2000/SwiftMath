@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { submitSessionAction } from "@/app/student/practice/actions";
+import { markFirstPracticeCompleted } from "@/lib/pwa";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -77,6 +78,7 @@ export function PracticeRunner({
     await submitSessionAction(sessionId, payload, {
       tabBlurCount: tabBlurCountRef.current,
     });
+    markFirstPracticeCompleted();
     // The server flipped the session to COMPLETED/EXPIRED; re-render to results.
     router.refresh();
   }, [answers, questions, router, sessionId]);

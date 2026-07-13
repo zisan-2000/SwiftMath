@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 
+import { Role } from "@/lib/generated/prisma/enums";
+import { APP_NAME } from "@/lib/constants";
 import { roleHasNotificationInbox } from "@/lib/notifications";
 import { roleHomePath, roleLabel } from "@/lib/roles";
 import { listNotificationPreferencesForUser } from "@/server/notification-preferences";
@@ -8,6 +10,7 @@ import { AccountPageShell } from "@/components/account/account-page-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { ChangePasswordForm } from "@/components/account/change-password-form";
 import { NotificationPreferencesPanel } from "@/components/account/notification-preferences-panel";
+import { GetAppPanel } from "@/components/account/get-app-panel";
 import { PushNotificationPanel } from "@/components/account/push-notification-panel";
 import { NotificationSoundPanel } from "@/components/account/notification-sound-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -79,6 +82,19 @@ export default async function AccountPage() {
           </CardContent>
         </Card>
       </section>
+
+      {user.role === Role.STUDENT ? (
+        <section className="mt-8">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Mobile app
+          </h2>
+          <Card className="max-w-2xl">
+            <CardContent className="p-5">
+              <GetAppPanel appName={institute?.name ?? APP_NAME} />
+            </CardContent>
+          </Card>
+        </section>
+      ) : null}
 
       <section className="mt-8">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">

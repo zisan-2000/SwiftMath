@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { BellRing, BellOff } from "lucide-react";
 import { toast } from "sonner";
 
 import {
   SERVICE_WORKER_PATH,
+  isIosPushInstallRequired,
+  isStandaloneDisplay,
   urlBase64ToUint8Array,
 } from "@/lib/pwa";
 import { Button } from "@/components/ui/button";
@@ -16,6 +19,7 @@ type PushState =
   | "unsupported"
   | "not-configured"
   | "blocked"
+  | "needs-install"
   | "off"
   | "on"
   | "working";
@@ -41,6 +45,11 @@ export function PushNotificationPanel() {
         !("Notification" in window)
       ) {
         setState("unsupported");
+        return;
+      }
+
+      if (isIosPushInstallRequired(window.navigator.userAgent) && !isStandaloneDisplay()) {
+        setState("needs-install");
         return;
       }
 
@@ -138,7 +147,10 @@ export function PushNotificationPanel() {
   const isBusy = state === "checking" || state === "working";
   const enabled = state === "on";
   const unavailable =
-    state === "unsupported" || state === "not-configured" || state === "blocked";
+    state === "unsupported" ||
+    state === "not-configured" ||
+    state === "blocked" ||
+    state === "needs-install";
 
   return (
     <div className="flex items-start justify-between gap-4">
@@ -147,6 +159,21 @@ export function PushNotificationPanel() {
         <p className="mt-1 text-sm text-muted-foreground">
           Receive exam reminders and important alerts even when the app is not open.
         </p>
+        {state === "needs-install" ? (
+          <div className="mt-2 space-y-2 text-sm">
+            <p className="text-foreground">
+              iPhone-এ push notification চালু করতে আগে app টি home screen-এ যোগ
+              করুন।
+            </p>
+            <p className="text-muted-foreground">
+              On iOS, install the app to your home screen first, then return here
+              to enable push.
+            </p>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/student/help/install">How to install</Link>
+            </Button>
+          </div>
+        ) : null}
         {state === "blocked" ? (
           <p className="mt-2 text-sm text-destructive">
             Browser notification permission is blocked for this site.

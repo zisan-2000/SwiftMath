@@ -10,6 +10,7 @@ import {
   Layers,
   ScrollText,
   Settings,
+  Smartphone,
   Trophy,
   Users,
   type LucideIcon,
@@ -58,6 +59,7 @@ export const NAV_ITEMS: Record<Role, NavItem[]> = {
     { href: "/student/practice", label: "Practice", icon: Brain },
     { href: "/student/notifications", label: "Notifications", icon: Bell },
     { href: "/student/ranking", label: "Ranking", icon: Trophy },
+    { href: "/student/help/install", label: "Get app", icon: Smartphone },
   ],
 };
 
