@@ -10,6 +10,7 @@ import { loadAdminPageContext } from "@/server/admin-page";
 import { AdminPageShell } from "@/components/admin/admin-page-shell";
 import { InstituteSettingsForm } from "@/components/admin/institute-settings-form";
 import { CurriculumVersionPanel } from "@/components/admin/curriculum-version-panel";
+import { ShareInstallPanelLoader } from "@/components/pwa/share-install-panel-loader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const metadata: Metadata = {
@@ -76,6 +77,10 @@ export default async function AdminSettingsPage() {
           />
         </CardContent>
       </Card>
+
+      <div className="mt-8">
+        <ShareInstallPanelLoader appName={institute.name} />
+      </div>
     </AdminPageShell>
   );
 }

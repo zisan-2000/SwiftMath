@@ -50,6 +50,10 @@ notifications are modelled, rolled out, and tested.
 | Install prompt UX | ✅ Student sheet + iOS steps + snooze + help page |
 | Install analytics | ✅ `/api/pwa/analytics` funnel events (Sprint 2) |
 | Install → push funnel | ✅ Standalone push follow-up sheet (Sprint 2) |
+| Teacher/admin share | ✅ Settings + teacher students QR/link (Sprint 3) |
+| Ops runbook | ✅ `docs/PWA_RUNBOOK.md` (Sprint 3) |
+| Bengali handout | ✅ `docs/PWA_STUDENT_INSTALL_HANDOUT.md` + `/help/student-install` |
+| Lighthouse CI | ✅ `npm run lighthouse:pwa` on `/login` (Sprint 3) |
 | Offline fallback page | ✅ `app/~offline/page.tsx` |
 | Web Push | ✅ VAPID-backed subscribe/unsubscribe APIs + account toggle |
 | White-label in UI | ✅ Institute `name`, `logoUrl`, `primaryColor` in DB + theme CSS vars |
@@ -291,7 +295,7 @@ Aligned with `AGENTS.md` — build only the current phase; stop after each task.
 | **C** | Install prompt + iOS hint (student layout), update toast, `lib/pwa.ts` + tests | ✅ | ❌ | Student |
 | **D** | Web Push subscribe/unsubscribe API, VAPID, cron send for exam reminders, opt-in UI | ✅ | ✅ | Student (+ Teacher optional) |
 | **E** | Dynamic manifest (institute name / theme); logo→icon pipeline on upload | ✅ | maybe | White-label |
-| **F** | Lighthouse CI gate, cache-bust tests, install analytics, runbook | ✅ | ❌ | Ops |
+| **F** | Lighthouse CI gate, cache-bust tests, install analytics, runbook | ✅ Sprint 3 | ❌ | Ops |
 
 ### Phase A — Installable shell (no service worker)
 

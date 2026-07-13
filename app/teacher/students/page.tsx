@@ -6,6 +6,7 @@ import { listTeacherGroups, listTeacherStudents } from "@/server/teacher";
 import { loadTeacherPageContext } from "@/server/teacher-page";
 import { TeacherPageShell } from "@/components/teacher/teacher-page-shell";
 import { TeacherStudentsTable } from "@/components/teacher/teacher-students-table";
+import { ShareInstallPanelLoader } from "@/components/pwa/share-install-panel-loader";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 
@@ -37,6 +38,10 @@ export default async function TeacherStudentsPage() {
         ) : undefined
       }
     >
+      <div className="mb-8">
+        <ShareInstallPanelLoader appName={institute?.name} />
+      </div>
+
       {groups.length === 0 ? (
         <EmptyState
           icon={Boxes}
