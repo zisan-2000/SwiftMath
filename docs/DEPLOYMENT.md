@@ -280,7 +280,14 @@ Never use `prisma migrate reset` against staging or production — it wipes all 
 ## 10. Scheduled exam notifications (cron)
 
 Time-based in-app alerts (exam open, closing soon, closed summary) are delivered by
-`GET /api/cron/notifications` every **5 minutes** on Vercel (`vercel.json`).
+`GET /api/cron/notifications` every **5 minutes** via a platform cron.
+
+### 10.0 Vercel Hobby note
+
+`vercel.json` only keeps the daily notification-retention cron because Vercel
+Hobby plans do not allow schedules that run more than once per day. If you need
+production exam reminders on Hobby, trigger the notifications endpoint from an
+external scheduler such as GitHub Actions or cron-job.org.
 
 ### 10.1 Set `CRON_SECRET`
 
@@ -315,10 +322,10 @@ Success response:
 { "ok": true, "stats": { "examOpenAttempts": 0, "examClosingSoonAttempts": 0, "examClosedSummaryAttempts": 0 } }
 ```
 
-### 10.3 Non-Vercel hosts
+### 10.3 External schedulers / non-Vercel hosts
 
 Schedule the same URL every 5 minutes with your platform cron (Railway, GitHub
-Actions, etc.) and the `Authorization` header above.
+Actions, cron-job.org, etc.) and the `Authorization` header above.
 
 Student `/student` and teacher `/teacher` page loads still run a **safety-net**
 sync (dedupe prevents duplicate notifications if cron already ran).
