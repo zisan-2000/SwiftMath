@@ -4,11 +4,18 @@ import { useEffect, useState } from "react";
 import { RefreshCw, X } from "lucide-react";
 import { toast } from "sonner";
 
+import { trackPwaEvent } from "@/lib/pwa-analytics";
+import { subscribeInstallPromptVisibility } from "@/lib/pwa-ui-coordination";
 import { shouldRegisterServiceWorker } from "@/lib/pwa";
 import { Button } from "@/components/ui/button";
 
 export function PwaRuntime() {
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
+  const [installPromptOpen, setInstallPromptOpen] = useState(false);
+
+  useEffect(() => {
+    return subscribeInstallPromptVisibility(setInstallPromptOpen);
+  }, []);
 
   useEffect(() => {
     if (!shouldRegisterServiceWorker()) {
@@ -53,16 +60,22 @@ export function PwaRuntime() {
 
   function applyUpdate() {
     waitingWorker?.postMessage({ type: "SKIP_WAITING" });
+    trackPwaEvent("pwa_update_accept");
     toast.info("Refreshing app");
     window.location.reload();
   }
 
-  if (!waitingWorker) {
+  function dismissUpdate() {
+    trackPwaEvent("pwa_update_dismiss");
+    setWaitingWorker(null);
+  }
+
+  if (!waitingWorker || installPromptOpen) {
     return null;
   }
 
   return (
-    <div className="fixed bottom-4 left-4 right-4 z-50 mx-auto flex max-w-md items-center justify-between gap-3 rounded-md border bg-card p-3 text-sm shadow-lg">
+    <div className="fixed bottom-4 left-4 right-4 z-40 mx-auto flex max-w-md items-center justify-between gap-3 rounded-md border bg-card p-3 text-sm shadow-lg motion-reduce:transition-none">
       <div className="min-w-0">
         <p className="font-medium text-card-foreground">Update available</p>
         <p className="text-muted-foreground">Refresh to use the latest app.</p>
@@ -75,7 +88,7 @@ export function PwaRuntime() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => setWaitingWorker(null)}
+          onClick={dismissUpdate}
           aria-label="Dismiss update notice"
         >
           <X className="h-4 w-4" />

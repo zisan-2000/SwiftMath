@@ -30,6 +30,8 @@ export interface PwaInstallState {
   visitCount: number;
   installedAt: number | null;
   firstPracticeAt: number | null;
+  /** When the post-install push follow-up sheet was snoozed/dismissed. */
+  pushFollowupDismissedAt: number | null;
 }
 
 export function createDefaultInstallState(): PwaInstallState {
@@ -40,6 +42,7 @@ export function createDefaultInstallState(): PwaInstallState {
     visitCount: 0,
     installedAt: null,
     firstPracticeAt: null,
+    pushFollowupDismissedAt: null,
   };
 }
 
@@ -203,6 +206,9 @@ export function recordInstallPromptShown(): PwaInstallState {
   return next;
 }
 
+/** Post-install push follow-up snooze (3 days). */
+export const PWA_PUSH_FOLLOWUP_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000;
+
 export function markInstallCompleted(): PwaInstallState {
   const state = readInstallState();
   const next = {
@@ -238,6 +244,43 @@ export function shouldAutoShowInstallPrompt(
     state.visitCount >= PWA_INSTALL_MIN_VISITS || state.firstPracticeAt !== null;
 
   return engaged;
+}
+
+export function shouldShowPushFollowup(state: PwaInstallState): boolean {
+  if (!isStandaloneDisplay()) {
+    return false;
+  }
+
+  if (state.pushFollowupDismissedAt) {
+    const snoozedRecently =
+      Date.now() - state.pushFollowupDismissedAt < PWA_PUSH_FOLLOWUP_SNOOZE_MS;
+    if (snoozedRecently) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export function dismissPushFollowup(): PwaInstallState {
+  const state = readInstallState();
+  const next = {
+    ...state,
+    pushFollowupDismissedAt: Date.now(),
+  };
+  writeInstallState(next);
+  return next;
+}
+
+export function markPushFollowupCompleted(): PwaInstallState {
+  const state = readInstallState();
+  const next = {
+    ...state,
+    pushFollowupDismissedAt: Date.now(),
+    installedAt: state.installedAt ?? Date.now(),
+  };
+  writeInstallState(next);
+  return next;
 }
 
 /** iOS Web Push only works from an installed home-screen app. */

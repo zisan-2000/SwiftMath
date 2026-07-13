@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
+import { trackPwaEvent } from "@/lib/pwa-analytics";
+import {
+  notifyInstallPromptClose,
+  notifyInstallPromptOpen,
+} from "@/lib/pwa-ui-coordination";
 import {
   detectInstallPlatform,
   isStandaloneDisplay,
@@ -66,6 +71,16 @@ export function StudentInstallPrompt({ appName }: StudentInstallPromptProps) {
   }, [forceOpen]);
 
   useEffect(() => {
+    if (open) {
+      notifyInstallPromptOpen();
+      return () => notifyInstallPromptClose();
+    }
+
+    notifyInstallPromptClose();
+    return undefined;
+  }, [open]);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
@@ -85,6 +100,7 @@ export function StudentInstallPrompt({ appName }: StudentInstallPromptProps) {
 
     function handleInstalled() {
       markInstallCompleted();
+      trackPwaEvent("pwa_appinstalled", { platform });
       setPromptEvent(null);
       setOpen(false);
     }
@@ -96,7 +112,7 @@ export function StudentInstallPrompt({ appName }: StudentInstallPromptProps) {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
       window.removeEventListener("appinstalled", handleInstalled);
     };
-  }, []);
+  }, [platform]);
 
   useEffect(() => {
     if (isStandaloneDisplay()) {
@@ -117,33 +133,44 @@ export function StudentInstallPrompt({ appName }: StudentInstallPromptProps) {
       }
 
       recordInstallPromptShown();
+      trackPwaEvent("pwa_prompt_shown", {
+        platform,
+        forced: forceOpen,
+      });
       setOpen(true);
     }, forceOpen ? 0 : 1500);
 
     return () => window.clearTimeout(timer);
-  }, [eligiblePlatform, evaluatePrompt, forceOpen]);
+  }, [eligiblePlatform, evaluatePrompt, forceOpen, platform]);
 
   async function install() {
     if (!promptEvent) {
       return;
     }
 
+    trackPwaEvent("pwa_install_clicked", { platform });
+
     await promptEvent.prompt();
     const choice = await promptEvent.userChoice;
     if (choice.outcome === "accepted") {
       markInstallCompleted();
+      trackPwaEvent("pwa_install_accepted", { platform });
       setOpen(false);
+    } else {
+      trackPwaEvent("pwa_install_declined", { platform });
     }
     setPromptEvent(null);
   }
 
   function handleNotNow() {
     snoozeInstallPrompt();
+    trackPwaEvent("pwa_prompt_snoozed", { platform });
     setOpen(false);
   }
 
   function handleDontShowAgain() {
     permanentlyDismissInstallPrompt();
+    trackPwaEvent("pwa_prompt_dismissed_permanent", { platform });
     setOpen(false);
   }
 
@@ -155,23 +182,25 @@ export function StudentInstallPrompt({ appName }: StudentInstallPromptProps) {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetContent
         side="bottom"
-        className="max-h-[90vh] overflow-y-auto rounded-t-2xl px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-6 sm:px-6"
+        className="z-[60] max-h-[90vh] overflow-y-auto rounded-t-2xl px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-6 motion-reduce:transition-none sm:px-6"
         aria-describedby="student-install-description"
       >
-        <SheetHeader className="sr-only">
-          <SheetTitle>Install {appName}</SheetTitle>
+        <SheetHeader className="text-left">
+          <SheetTitle className="text-lg">ফোনে {appName} রাখুন</SheetTitle>
           <SheetDescription id="student-install-description">
             Add the app to your home screen for faster practice and exam reminders.
           </SheetDescription>
         </SheetHeader>
 
-        <InstallGuideContent
-          appName={appName}
-          platform={platform}
-          variant="sheet"
-          canNativeInstall={Boolean(promptEvent)}
-          onInstall={install}
-        />
+        <div className="mt-4">
+          <InstallGuideContent
+            appName={appName}
+            platform={platform}
+            variant="sheet"
+            canNativeInstall={Boolean(promptEvent)}
+            onInstall={install}
+          />
+        </div>
 
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button variant="outline" onClick={handleNotNow}>

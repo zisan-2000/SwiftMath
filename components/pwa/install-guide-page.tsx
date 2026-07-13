@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { trackPwaEvent } from "@/lib/pwa-analytics";
 import { detectInstallPlatform } from "@/lib/pwa";
 import { InstallGuideContent } from "@/components/pwa/install-guide-content";
 
@@ -18,6 +19,9 @@ export function InstallGuidePage({ appName }: InstallGuidePageProps) {
     /* eslint-disable react-hooks/set-state-in-effect -- client-only platform detection after mount */
     setPlatform(detectInstallPlatform(window.navigator.userAgent));
     /* eslint-enable react-hooks/set-state-in-effect */
+    trackPwaEvent("pwa_help_opened", {
+      platform: detectInstallPlatform(window.navigator.userAgent),
+    });
   }, []);
 
   return (

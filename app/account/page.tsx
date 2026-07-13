@@ -114,7 +114,7 @@ export default async function AccountPage() {
         </Card>
 
         {roleHasNotificationInbox(user.role) ? (
-          <Card className="mt-4 max-w-2xl">
+          <Card id="browser-push" className="mt-4 max-w-2xl scroll-mt-24">
             <CardHeader>
               <CardTitle className="text-base">Push notifications</CardTitle>
               <p className="text-sm text-muted-foreground">

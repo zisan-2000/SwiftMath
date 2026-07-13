@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
+import { Role } from "@/lib/generated/prisma/enums";
+import { isStandaloneDisplay } from "@/lib/pwa";
 import { cn } from "@/lib/utils";
-import type { Role } from "@/lib/generated/prisma/enums";
 import { NAV_ITEMS, getActiveHref } from "@/components/nav/nav-config";
 import { useNotificationSync } from "@/components/nav/notification-sync-provider";
 import type { NavBadgeMap } from "@/lib/nav-badges";
@@ -42,6 +44,13 @@ export function SidebarNav({
   const pathname = usePathname();
   const items = NAV_ITEMS[role];
   const activeHref = getActiveHref(items, pathname);
+  const [showGetAppHint, setShowGetAppHint] = useState(false);
+
+  useEffect(() => {
+  /* eslint-disable react-hooks/set-state-in-effect -- client-only standalone detection */
+    setShowGetAppHint(role === Role.STUDENT && !isStandaloneDisplay());
+  /* eslint-enable react-hooks/set-state-in-effect */
+  }, [role]);
 
   return (
     <nav aria-label="Primary navigation" className="flex flex-col gap-1">
@@ -50,6 +59,8 @@ export function SidebarNav({
         const Icon = item.icon;
         const badge = badges[item.href];
         const isExamDot = badge === "!";
+        const isGetAppHint =
+          showGetAppHint && item.href === "/student/help/install";
 
         return (
           <Link
@@ -79,6 +90,12 @@ export function SidebarNav({
                   aria-hidden="true"
                 />
               )}
+              {isGetAppHint && !isExamDot && (
+                <span
+                  className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-primary ring-2 ring-card"
+                  aria-hidden="true"
+                />
+              )}
             </span>
             <span className="min-w-0 flex-1 truncate">{item.label}</span>
             {badge != null && badge !== "!" && (
@@ -87,6 +104,7 @@ export function SidebarNav({
               </span>
             )}
             {isExamDot && <span className="sr-only">Exam available</span>}
+            {isGetAppHint && <span className="sr-only">Install app on your phone</span>}
           </Link>
         );
       })}

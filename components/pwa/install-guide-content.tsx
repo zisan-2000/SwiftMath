@@ -106,22 +106,18 @@ export function InstallGuideContent({
 
   return (
     <div className={isPage ? "space-y-6" : "space-y-4"}>
-      <div>
-        <p className="text-sm font-medium text-primary">Recommended for students</p>
-        <h2
-          className={
-            isPage
-              ? "mt-1 text-2xl font-bold tracking-tight text-foreground"
-              : "mt-1 text-lg font-semibold text-foreground"
-          }
-        >
-          ফোনে {appName} রাখুন
-        </h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Add {appName} to your phone like an app — faster practice, fewer missed
-          exams.
-        </p>
-      </div>
+      {isPage ? (
+        <div>
+          <p className="text-sm font-medium text-primary">Recommended for students</p>
+          <h2 className="mt-1 text-2xl font-bold tracking-tight text-foreground">
+            ফোনে {appName} রাখুন
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Add {appName} to your phone like an app — faster practice, fewer missed
+            exams.
+          </p>
+        </div>
+      ) : null}
 
       <InstallBenefits />
 

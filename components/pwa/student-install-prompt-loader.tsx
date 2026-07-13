@@ -5,6 +5,7 @@ import { APP_NAME } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/session";
 import { StudentInstallPrompt } from "@/components/pwa/student-install-prompt";
+import { InstallPushFollowup } from "@/components/pwa/install-push-followup";
 
 /** Loads institute branding for the student install sheet. */
 export async function StudentInstallPromptLoader() {
@@ -21,6 +22,7 @@ export async function StudentInstallPromptLoader() {
   return (
     <Suspense fallback={null}>
       <StudentInstallPrompt appName={institute?.name ?? APP_NAME} />
+      <InstallPushFollowup />
     </Suspense>
   );
 }

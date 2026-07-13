@@ -47,7 +47,9 @@ notifications are modelled, rolled out, and tested.
 | Service worker | ✅ Serwist via `app/sw.ts` → `/serwist/sw.js` (`app/serwist/[path]/route.ts`) |
 | App icons (192/512 maskable) | ✅ `public/icons/` PNG set |
 | `theme-color` / Apple meta | ✅ Root layout metadata + viewport |
-| Install prompt UX | ✅ Student layout prompt + iOS hint |
+| Install prompt UX | ✅ Student sheet + iOS steps + snooze + help page |
+| Install analytics | ✅ `/api/pwa/analytics` funnel events (Sprint 2) |
+| Install → push funnel | ✅ Standalone push follow-up sheet (Sprint 2) |
 | Offline fallback page | ✅ `app/~offline/page.tsx` |
 | Web Push | ✅ VAPID-backed subscribe/unsubscribe APIs + account toggle |
 | White-label in UI | ✅ Institute `name`, `logoUrl`, `primaryColor` in DB + theme CSS vars |
