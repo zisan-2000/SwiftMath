@@ -83,6 +83,8 @@ export function NotificationSyncProvider({
   const recentIdsRef = useRef(new Set(parsedInitial.recent.map((item) => item.id)));
   const pulseTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Sync when AppShell passes a fresh server snapshot after navigation.
+  /* eslint-disable react-hooks/set-state-in-effect -- prop-to-state sync for SSR initial */
   useEffect(() => {
     const parsed = parseSummary(initial);
     setUnreadCount(parsed.unreadCount);
@@ -91,6 +93,7 @@ export function NotificationSyncProvider({
     unreadRef.current = parsed.unreadCount;
     recentIdsRef.current = new Set(parsed.recent.map((item) => item.id));
   }, [initial]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const applySummary = useCallback(
     (summary: NotificationSummaryPayload) => {

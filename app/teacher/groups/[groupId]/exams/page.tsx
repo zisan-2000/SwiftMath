@@ -35,6 +35,9 @@ export default async function GroupExamsPage({
     paperQuestionCount: exam._count.paperQuestions,
   }));
 
+  // eslint-disable-next-line react-hooks/purity -- request-time exam window status
+  const nowMs = Date.now();
+
   return (
     <TeacherGroupShell
       user={teacher}
@@ -54,6 +57,7 @@ export default async function GroupExamsPage({
         <CardContent className="p-0">
           <TeacherScheduledExams
             exams={exams}
+            nowMs={nowMs}
             layout="list"
             groupId={groupId}
             emptyDescription="Schedule an exam window so students see it on their dashboard."

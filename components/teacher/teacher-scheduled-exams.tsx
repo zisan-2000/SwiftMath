@@ -24,6 +24,8 @@ import {
 
 interface TeacherScheduledExamsProps {
   exams: ScheduledExamListItem[];
+  /** Wall-clock ms for exam window status (pass from server render). */
+  nowMs: number;
   /** Table for cross-group roster; list for a single group tab. */
   layout?: "table" | "list";
   showGroup?: boolean;
@@ -43,14 +45,13 @@ function resolveCancelGroupId(
 /** Unified scheduled-exam list (group tab + cross-group exams page). */
 export function TeacherScheduledExams({
   exams,
+  nowMs,
   layout = "table",
   showGroup = false,
   groupId,
   emptyTitle = "No exams scheduled",
   emptyDescription = "Schedule an exam from a group’s Exams tab.",
 }: TeacherScheduledExamsProps) {
-  const nowMs = Date.now();
-
   if (exams.length === 0) {
     return (
       <EmptyState

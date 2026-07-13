@@ -34,6 +34,8 @@ export default async function GroupOverviewPage({
     listTeacherAuditLogs(teacher, { groupId, limit: 10 }),
   ]);
 
+  // Request-time exam window counts (server render).
+  // eslint-disable-next-line react-hooks/purity -- wall clock is intentional per request
   const nowMs = Date.now();
   const openExams = scheduledExams.filter(
     (exam) => getExamWindowStatus(nowMs, exam.opensAt, exam.closesAt) === "open",

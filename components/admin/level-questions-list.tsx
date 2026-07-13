@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import {
@@ -46,10 +46,6 @@ export function LevelQuestionsList({
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    setItems(questions);
-  }, [questions]);
 
   if (questions.length === 0) {
     return (

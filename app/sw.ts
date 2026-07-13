@@ -3,7 +3,7 @@
 
 import { defaultCache } from "@serwist/turbopack/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { NetworkOnly, Serwist } from "serwist";
+import { Serwist } from "serwist";
 
 import { secureRuntimeCaching } from "../lib/pwa-runtime-caching";
 

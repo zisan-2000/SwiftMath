@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -6,10 +7,10 @@ import { Button } from "@/components/ui/button";
 export function ExportStudentsButton() {
   return (
     <Button asChild variant="outline">
-      <a href="/admin/students/export">
+      <Link href="/admin/students/export">
         <Download className="h-4 w-4" />
         Export CSV
-      </a>
+      </Link>
     </Button>
   );
 }

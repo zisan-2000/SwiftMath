@@ -9,7 +9,7 @@ export default function OfflinePage() {
     <main className="mx-auto flex min-h-screen w-full max-w-xl items-center px-4 py-10">
       <Card>
         <CardHeader>
-          <CardTitle>You're offline</CardTitle>
+          <CardTitle>You&apos;re offline</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">

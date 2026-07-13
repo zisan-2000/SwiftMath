@@ -98,6 +98,9 @@ export default async function LevelQuestionsPage({
         </CardHeader>
         <CardContent className="p-0">
           <LevelQuestionsList
+            key={questions
+              .map((q) => `${q.id}:${q.orderIndex}:${q.status}:${q.isActive}`)
+              .join("|")}
             levelId={level.id}
             activeVersionNumber={activeVersion.versionNumber}
             questions={questions.map((q) => ({

@@ -32,6 +32,9 @@ export default async function TeacherExamsPage() {
     paperQuestionCount: exam._count.paperQuestions,
   }));
 
+  // eslint-disable-next-line react-hooks/purity -- request-time exam window status
+  const nowMs = Date.now();
+
   return (
     <TeacherPageShell
       user={teacher}
@@ -60,7 +63,7 @@ export default async function TeacherExamsPage() {
           }
         />
       ) : (
-        <TeacherScheduledExams exams={mapped} layout="table" showGroup />
+        <TeacherScheduledExams exams={mapped} nowMs={nowMs} layout="table" showGroup />
       )}
     </TeacherPageShell>
   );

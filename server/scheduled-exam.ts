@@ -572,8 +572,7 @@ export async function startExamSession(
   const startedAt = now;
   const expiresAt = new Date(startedAt.getTime() + timeLimitSeconds * 1000);
 
-  let questions: SessionQuestionDraft[];
-  questions = await prisma.$transaction(async (tx) =>
+  const questions: SessionQuestionDraft[] = await prisma.$transaction(async (tx) =>
     ensureScheduledExamPaper(tx, {
       scheduledExamId: exam.id,
       instituteId: student.instituteId,
