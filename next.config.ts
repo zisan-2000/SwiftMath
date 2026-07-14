@@ -21,6 +21,7 @@ const nextConfig: NextConfig = {
     "@prisma/client",
     "@prisma/adapter-pg",
     "pg",
+    "sharp",
   ],
   async headers() {
     return [
@@ -45,6 +46,16 @@ const nextConfig: NextConfig = {
           {
             key: "Content-Security-Policy",
             value: "default-src 'self'; script-src 'self'",
+          },
+        ],
+      },
+      {
+        // Session-scoped dynamic manifest — never CDN-cache across users.
+        source: "/manifest.webmanifest",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "private, no-cache, no-store, must-revalidate",
           },
         ],
       },

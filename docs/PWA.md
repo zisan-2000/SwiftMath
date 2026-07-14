@@ -43,7 +43,8 @@ notifications are modelled, rolled out, and tested.
 
 | Concern | Today |
 | ------- | ----- |
-| Web App Manifest | ✅ `app/manifest.ts` served at `/manifest.webmanifest` |
+| Web App Manifest | ✅ Dynamic session-scoped (`app/manifest.ts` → institute name / color / icons) |
+| Institute PWA icons | ✅ `/api/pwa/institute-icon/[id]/[size]` (sharp resize from logo) |
 | Service worker | ✅ Serwist via `app/sw.ts` → `/serwist/sw.js` (`app/serwist/[path]/route.ts`) |
 | App icons (192/512 maskable) | ✅ `public/icons/` PNG set |
 | `theme-color` / Apple meta | ✅ Root layout metadata + viewport |
@@ -294,7 +295,7 @@ Aligned with `AGENTS.md` — build only the current phase; stop after each task.
 | **B** | Service worker, static cache, offline fallback page, `~offline` route | ✅ | ❌ | All |
 | **C** | Install prompt + iOS hint (student layout), update toast, `lib/pwa.ts` + tests | ✅ | ❌ | Student |
 | **D** | Web Push subscribe/unsubscribe API, VAPID, cron send for exam reminders, opt-in UI | ✅ | ✅ | Student (+ Teacher optional) |
-| **E** | Dynamic manifest (institute name / theme); logo→icon pipeline on upload | ✅ | maybe | White-label |
+| **E** | Dynamic manifest (institute name / theme); logo→icon pipeline | ✅ Phase E | ❌ | White-label |
 | **F** | Lighthouse CI gate, cache-bust tests, install analytics, runbook | ✅ Sprint 3 | ❌ | Ops |
 
 ### Phase A — Installable shell (no service worker)
@@ -367,11 +368,19 @@ confirm practice page shows “connection required” not cached questions.
 
 ### Phase E — Dynamic white-label manifest
 
-**Trigger:** second live institute or paying client requests own install branding.
+**Status:** Implemented.
 
-- `app/manifest.webmanifest/route.ts` (dynamic) or rewrite
-- `server/institute-pwa-icons.ts` — generate PNG sizes on logo upload
-- Fallback to platform icons when `logoUrl` missing
+- `app/manifest.ts` — async; session → institute name / tagline / theme / start_url
+- `lib/institute-manifest.ts` — pure `buildWebAppManifest` (+ tests)
+- `server/institute-manifest.ts` — load brand for signed-in institute members
+- `server/institute-pwa-icons.ts` + `app/api/pwa/institute-icon/[instituteId]/[size]`
+  — on-demand square PNG icons (192 / 512 / 180) from `logoUrl` via sharp
+- Fallback to platform icons when `logoUrl` is missing
+- `Cache-Control: private, no-store` on `/manifest.webmanifest`
+
+**Caveats:** Install branding is snapshotted at install time; switching institutes
+later does not rename the home-screen icon. Re-install (or clear site data) to
+refresh branding.
 
 ### Phase F — Hardening & ops
 

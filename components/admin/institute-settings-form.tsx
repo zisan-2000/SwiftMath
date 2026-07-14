@@ -102,6 +102,10 @@ export function InstituteSettingsForm({
           type="file"
           accept="image/png,image/jpeg,image/webp,image/gif"
         />
+        <p className="text-xs text-muted-foreground">
+          Prefer a square PNG (at least 512×512). When students install the app,
+          your institute name and logo appear on their home screen.
+        </p>
       </div>
 
       <div className="flex flex-col gap-1.5">

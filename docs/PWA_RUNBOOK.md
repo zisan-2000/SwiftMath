@@ -11,7 +11,8 @@ After deploy, verify:
 
 | Check | URL / action | Expected |
 | ----- | ------------ | -------- |
-| Manifest | `/manifest.webmanifest` | JSON with `name`, `icons`, `display: standalone` |
+| Manifest | `/manifest.webmanifest` | JSON with `name`, `icons`, `display: standalone`. Signed-in institute members see **their** name/color/logo; anonymous users see platform defaults. |
+| Institute icon | `/api/pwa/institute-icon/<instituteId>/192` | PNG when that institute has a logo |
 | Service worker | `/serwist/sw.js` | JavaScript, `Cache-Control: no-cache` |
 | Login loads | `/login` | Form renders, no server error |
 | Student install guide | `/student/help/install` | Bengali/English steps |
