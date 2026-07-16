@@ -149,7 +149,10 @@ Hobby Vercel plan: only **daily** crons in `vercel.json`.
 
 ---
 
-## 10. Lighthouse / CI
+## 10. PWA installability / CI
+
+Lighthouse 12+ removed the dedicated `pwa` category, so CI runs a direct smoke
+check instead: manifest fields, 192+512 icons, service worker, and `/login`.
 
 Local:
 
@@ -157,10 +160,10 @@ Local:
 npm run build
 npm run start
 # separate terminal:
-npm run lighthouse:pwa
+npm run check:pwa
 ```
 
-CI runs the same check on `/login` and fails if PWA score &lt; 90.
+CI runs `npm run check:pwa` after starting the production server on `/login`.
 
 ---
 

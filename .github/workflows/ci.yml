@@ -46,7 +46,7 @@ jobs:
       - name: Build
         run: npm run build
 
-  lighthouse-pwa:
+  pwa-check:
     runs-on: ubuntu-latest
 
     env:
@@ -79,5 +79,5 @@ jobs:
       - name: Wait for server
         run: npx --yes wait-on@8 http-get://127.0.0.1:3000/login -t 120000
 
-      - name: Lighthouse PWA audit
-        run: npm run lighthouse:pwa
+      - name: PWA installability check
+        run: npm run check:pwa

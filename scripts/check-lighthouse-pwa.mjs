@@ -1,18 +1,15 @@
-import { readFileSync } from "node:fs";
+/**
+ * @deprecated Lighthouse 12+ removed the "pwa" category. Use check-pwa-installable.mjs.
+ */
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 
-const MIN_PWA_SCORE = 90;
-const reportPath = process.argv[2] ?? "lighthouse-pwa.json";
+const scriptDir = path.dirname(fileURLToPath(import.meta.url));
+const result = spawnSync(
+  process.execPath,
+  [path.join(scriptDir, "check-pwa-installable.mjs")],
+  { stdio: "inherit" },
+);
 
-const raw = readFileSync(reportPath, "utf8");
-const report = JSON.parse(raw) as {
-  categories?: { pwa?: { score?: number } };
-};
-
-const score = (report.categories?.pwa?.score ?? 0) * 100;
-
-if (score < MIN_PWA_SCORE) {
-  console.error(`Lighthouse PWA score ${score.toFixed(0)} is below ${MIN_PWA_SCORE}`);
-  process.exit(1);
-}
-
-console.log(`Lighthouse PWA score OK: ${score.toFixed(0)}`);
+process.exit(result.status ?? 1);

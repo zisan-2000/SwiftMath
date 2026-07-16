@@ -54,7 +54,7 @@ notifications are modelled, rolled out, and tested.
 | Teacher/admin share | ✅ Settings + teacher students QR/link (Sprint 3) |
 | Ops runbook | ✅ `docs/PWA_RUNBOOK.md` (Sprint 3) |
 | Bengali handout | ✅ `docs/PWA_STUDENT_INSTALL_HANDOUT.md` + `/help/student-install` |
-| Lighthouse CI | ✅ `npm run lighthouse:pwa` on `/login` (Sprint 3) |
+| PWA installability CI | ✅ `npm run check:pwa` on `/login` (Sprint 3; Lighthouse `pwa` category removed in v12+) |
 | Offline fallback page | ✅ `app/~offline/page.tsx` |
 | Web Push | ✅ VAPID-backed subscribe/unsubscribe APIs + account toggle |
 | White-label in UI | ✅ Institute `name`, `logoUrl`, `primaryColor` in DB + theme CSS vars |
@@ -296,7 +296,7 @@ Aligned with `AGENTS.md` — build only the current phase; stop after each task.
 | **C** | Install prompt + iOS hint (student layout), update toast, `lib/pwa.ts` + tests | ✅ | ❌ | Student |
 | **D** | Web Push subscribe/unsubscribe API, VAPID, cron send for exam reminders, opt-in UI | ✅ | ✅ | Student (+ Teacher optional) |
 | **E** | Dynamic manifest (institute name / theme); logo→icon pipeline | ✅ Phase E | ❌ | White-label |
-| **F** | Lighthouse CI gate, cache-bust tests, install analytics, runbook | ✅ Sprint 3 | ❌ | Ops |
+| **F** | PWA installability CI gate, cache-bust tests, install analytics, runbook | ✅ Sprint 3 | ❌ | Ops |
 
 ### Phase A — Installable shell (no service worker)
 
@@ -310,7 +310,7 @@ Aligned with `AGENTS.md` — build only the current phase; stop after each task.
 **Acceptance:**
 
 - Chrome DevTools → Application → Manifest shows no errors
-- Lighthouse PWA → “Installable” passes (icons + manifest + HTTPS)
+- `npm run check:pwa` passes (manifest + icons + service worker)
 - Android “Install app” available on `/login` or student home
 
 **How to test:** `npm run build && npm start`, open on phone or emulator, check
@@ -384,7 +384,7 @@ refresh branding.
 
 ### Phase F — Hardening & ops
 
-- Lighthouse CI: PWA score ≥ 90 on `/login` and `/student`
+- PWA installability CI: `npm run check:pwa` on `/login` (manifest, SW, entry page)
 - `lib/pwa-cache-policy.test.ts` — document/cache route list stays in sync
 - `docs/PWA_RUNBOOK.md` — VAPID rotation, SW debug, “users stuck on old version”
 - Vercel analytics event: `pwa_install`, `pwa_update_accept`
@@ -457,7 +457,7 @@ No new dependencies for Phase A (manifest + icons only).
 | **Cache policy** | Static list of `network-only` patterns; CI fails if SW config drifts |
 | **Manifest** | Snapshot or schema validation of `app/manifest.ts` output |
 | **Manual matrix** | Chrome Android install, Safari iOS Add to Home Screen, Desktop Edge |
-| **Lighthouse** | CI artefact on `/login` + `/student` — installable + SW registered |
+| **PWA smoke check** | CI `npm run check:pwa` on `/login` — manifest, SW, install prerequisites |
 | **Deploy smoke** | After release: old SW updates, toast appears, no auth loop |
 
 **Offline practice negative test (manual):** start practice → go offline → confirm
@@ -470,7 +470,7 @@ submit is blocked with clear copy; no cached question payload in Application →
 | Metric | Target (3 months post Phase C) |
 | ------ | ------------------------------ |
 | Install rate (students) | Track; no hard gate initially |
-| Lighthouse PWA | ≥ 90 on student routes |
+| PWA installability CI | Passes on `/login` in GitHub Actions |
 | Repeat-visit LCP | Measurable improvement vs pre-SW baseline |
 | SW update complaints | Near zero (toast + user-controlled refresh) |
 | Push opt-in (Phase D) | Track; aim > 20% of active students if exam reminders ship |
@@ -498,4 +498,4 @@ submit is blocked with clear copy; no cached question payload in Application →
 Push (D) and dynamic branding (E) wait until real user demand or second institute.
 
 **First implementation task:** Phase A — create `app/manifest.ts`, generate
-`public/icons/`, add `theme-color` to root layout, verify Lighthouse Installable.
+`public/icons/`, add `theme-color` to root layout, verify with `npm run check:pwa`.
