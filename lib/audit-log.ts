@@ -44,6 +44,10 @@ export function formatAuditActionLabel(action: AuditAction): string {
       return "Permission granted";
     case AuditAction.PERMISSION_REVOKED:
       return "Permission revoked";
+    case AuditAction.CLASS_PERFORMANCE_RECORDED:
+      return "Class performance recorded";
+    case AuditAction.CLASS_PERFORMANCE_UPDATED:
+      return "Class performance updated";
     default:
       return action;
   }
@@ -62,6 +66,8 @@ export const AUDIT_ACTION_FILTER_OPTIONS: AuditAction[] = [
   AuditAction.CURRICULUM_VERSION_BUMPED,
   AuditAction.PERMISSION_GRANTED,
   AuditAction.PERMISSION_REVOKED,
+  AuditAction.CLASS_PERFORMANCE_RECORDED,
+  AuditAction.CLASS_PERFORMANCE_UPDATED,
   AuditAction.LEVEL_BANK_ONLY_ENABLED,
   AuditAction.LEVEL_BANK_ONLY_DISABLED,
   AuditAction.QUESTION_CREATED,
@@ -83,6 +89,8 @@ export function parseAuditActionFilter(
 export const TEACHER_AUDIT_ACTIONS: AuditAction[] = [
   AuditAction.GROUP_QUESTION_ENABLED,
   AuditAction.GROUP_QUESTION_DISABLED,
+  AuditAction.CLASS_PERFORMANCE_RECORDED,
+  AuditAction.CLASS_PERFORMANCE_UPDATED,
 ];
 
 /** Build a teacher activity log URL, optionally filtered to one group. */

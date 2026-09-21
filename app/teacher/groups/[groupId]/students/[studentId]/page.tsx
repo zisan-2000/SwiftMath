@@ -2,9 +2,11 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { getStudentProgress, listTeacherGroups } from "@/server/teacher";
+import { getStudentClassPerformanceForTeacher } from "@/server/class-performance";
 import { loadTeacherGroupPageContext } from "@/server/teacher-page";
 import { TeacherGroupShell } from "@/components/teacher/teacher-group-shell";
 import { StudentProgressPanel } from "@/components/student-progress-panel";
+import { ClassPerformanceHistory } from "@/components/class-performance-history";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -25,9 +27,10 @@ export default async function StudentProgressPage({
   const { groupId, studentId } = await params;
   const { teacher, institute, group } = await loadTeacherGroupPageContext(groupId);
 
-  const [progress, groups] = await Promise.all([
+  const [progress, groups, classPerformance] = await Promise.all([
     getStudentProgress(teacher, groupId, studentId),
     listTeacherGroups(teacher.id),
+    getStudentClassPerformanceForTeacher(teacher, groupId, studentId),
   ]);
 
   if (!progress) {
@@ -49,6 +52,10 @@ export default async function StudentProgressPage({
       backLabel="Back to students"
     >
       <StudentProgressPanel progress={progress} />
+
+      {classPerformance ? (
+        <ClassPerformanceHistory history={classPerformance} />
+      ) : null}
 
       {otherGroups.length > 0 && (
         <Card className="mt-8">

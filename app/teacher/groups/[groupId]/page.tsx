@@ -59,6 +59,18 @@ export default async function GroupOverviewPage({
       icon: ClipboardCheck,
     },
     {
+      href: `/teacher/groups/${groupId}/performance`,
+      label: "Class performance",
+      description: "Record date-wise marks and view the separate ranking",
+      icon: BarChart3,
+    },
+    {
+      href: `/teacher/ranking?view=group:${groupId}`,
+      label: "Exam/practice ranking",
+      description: "Automatic scores, speed, and accuracy only",
+      icon: GraduationCap,
+    },
+    {
       href: `/teacher/groups/${groupId}/analytics`,
       label: "Analytics",
       description: "Pass rate, speed, and progress charts",

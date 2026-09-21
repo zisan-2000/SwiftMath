@@ -48,8 +48,8 @@ export default async function TeacherActivityPage({
   }
 
   const subtitle = groupId && scopedGroup
-    ? `Question override changes you made in ${scopedGroup.name}.`
-    : "Your question enable/disable changes across all groups.";
+    ? `Question and class-performance changes you made in ${scopedGroup.name}.`
+    : "Your question and class-performance changes across all groups.";
 
   return (
     <TeacherPageShell
@@ -63,8 +63,8 @@ export default async function TeacherActivityPage({
       </BackLink>
 
       <p className="mt-6 text-sm text-muted-foreground">
-        Read-only history of your group question overrides. Admin institute
-        changes and other teachers&apos; actions are not shown here.
+        Read-only history of your group question overrides and class-performance
+        records. Admin institute changes and other teachers&apos; actions are not shown here.
       </p>
 
       {groupId && scopedGroup && (
@@ -84,8 +84,8 @@ export default async function TeacherActivityPage({
             items={activity.items}
             emptyDescription={
               groupId
-                ? "You have not changed any question overrides for this group yet."
-                : "You have not changed any question overrides yet."
+                ? "You have not changed questions or class performance for this group yet."
+                : "You have no recorded group changes yet."
             }
             pagination={{
               groupId,
@@ -100,7 +100,7 @@ export default async function TeacherActivityPage({
 
       <p className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
         <ScrollText className="size-3.5 shrink-0" aria-hidden />
-        Only your own group question enable/disable actions are listed.
+        Only your own supported group actions are listed.
       </p>
     </TeacherPageShell>
   );

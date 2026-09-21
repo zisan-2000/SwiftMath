@@ -34,4 +34,13 @@ describe("getActiveTeacherGroupTab", () => {
       getActiveTeacherGroupTab(`/teacher/groups/${groupId}/exams`, groupId),
     ).toBe("exams");
   });
+
+  it("keeps the class performance tab active on its ranking page", () => {
+    expect(
+      getActiveTeacherGroupTab(
+        `/teacher/groups/${groupId}/performance/ranking`,
+        groupId,
+      ),
+    ).toBe("performance");
+  });
 });

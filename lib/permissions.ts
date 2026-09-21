@@ -20,6 +20,7 @@ export const PERMISSIONS = {
   GROUP_MANAGE: "group:manage",
   GROUP_ASSIGN_TEACHER: "group:assign_teacher",
   GROUP_QUESTION_OVERRIDE: "group:question:override",
+  CLASS_PERFORMANCE_MANAGE: "class_performance:manage",
 
   LEVEL_MANAGE: "level:manage",
   QUESTION_MANAGE: "question:manage",
@@ -218,6 +219,13 @@ export const PERMISSION_METADATA = {
     scope: "institute",
     assignableTo: [Role.TEACHER],
   },
+  [PERMISSIONS.CLASS_PERFORMANCE_MANAGE]: {
+    label: "Manage class performance",
+    description: "Record and update date-wise class performance marks.",
+    domain: "Groups",
+    scope: "institute",
+    assignableTo: [Role.TEACHER],
+  },
   [PERMISSIONS.INSTITUTE_SETTINGS]: {
     label: "Institute settings",
     description: "Update operational institute settings.",
@@ -337,6 +345,7 @@ export function getRoleDefaultPermissions(role: Role): Set<Permission> {
       return new Set([
         PERMISSIONS.GROUP_MANAGE,
         PERMISSIONS.GROUP_QUESTION_OVERRIDE,
+        PERMISSIONS.CLASS_PERFORMANCE_MANAGE,
         PERMISSIONS.STUDENT_CREATE,
         PERMISSIONS.STUDENT_ASSIGN_GROUP,
         PERMISSIONS.STUDENT_ASSIGN_LEVEL,

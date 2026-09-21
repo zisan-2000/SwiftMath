@@ -99,6 +99,14 @@ enum AuditAction {
   LEVEL_BANK_ONLY_DISABLED
   PERMISSION_GRANTED
   PERMISSION_REVOKED
+  CLASS_PERFORMANCE_RECORDED
+  CLASS_PERFORMANCE_UPDATED
+}
+
+/// Attendance state recorded with a teacher-entered class performance mark.
+enum ClassPerformanceStatus {
+  PRESENT
+  ABSENT
 }
 
 /// Explicit per-user permission override. Missing row means role default.
@@ -113,20 +121,20 @@ enum PermissionEffect {
 
 /// An institute is the top-level tenant. SEFT is the only active one in Phase 1.
 model Institute {
-  id        String   @id @default(cuid())
+  id           String  @id @default(cuid())
   /// URL-safe identifier, e.g. "seft". Unique across the platform.
-  slug      String   @unique
-  name      String
+  slug         String  @unique
+  name         String
   /// Optional white-label branding (Phase 2.3). Shown in the authenticated UI
   /// for this tenant. Null falls back to the platform defaults.
   /// Short marketing line under the institute name.
-  tagline   String?
+  tagline      String?
   /// Absolute URL to the institute's logo image.
-  logoUrl   String?
+  logoUrl      String?
   /// Optional brand accent as `#RRGGBB`. Drives `--primary` in the authenticated UI.
   primaryColor String?
   /// Lets an institute be disabled without deleting its data.
-  isActive  Boolean  @default(true)
+  isActive     Boolean @default(true)
 
   /// Active question-bank generation used for new practice and exams.
   activeCurriculumVersionId String?
@@ -135,17 +143,19 @@ model Institute {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users            User[]
-  groups           Group[]
-  levels           Level[]
-  practiceSessions PracticeSession[]
-  scheduledExams   ScheduledExam[]
-  levelQuestions   LevelQuestion[]
-  curriculumVersions CurriculumVersion[]
-  auditLogs        AuditLog[]
-  notifications    Notification[]
+  users                   User[]
+  groups                  Group[]
+  levels                  Level[]
+  practiceSessions        PracticeSession[]
+  scheduledExams          ScheduledExam[]
+  levelQuestions          LevelQuestion[]
+  curriculumVersions      CurriculumVersion[]
+  auditLogs               AuditLog[]
+  notifications           Notification[]
   notificationPreferences NotificationPreference[]
-  pushSubscriptions PushSubscription[]
+  pushSubscriptions       PushSubscription[]
+  classPerformances       ClassPerformance[]
+  classPerformanceEntries ClassPerformanceEntry[]
 
   @@map("institute")
 }
@@ -166,10 +176,10 @@ model CurriculumVersion {
   publishedAt DateTime @default(now())
   createdAt   DateTime @default(now())
 
-  institutesActiveFor Institute[] @relation("ActiveCurriculumVersion")
-  levelQuestions        LevelQuestion[]
-  practiceSessions      PracticeSession[]
-  scheduledExams        ScheduledExam[]
+  institutesActiveFor Institute[]       @relation("ActiveCurriculumVersion")
+  levelQuestions      LevelQuestion[]
+  practiceSessions    PracticeSession[]
+  scheduledExams      ScheduledExam[]
 
   @@unique([instituteId, versionNumber])
   @@index([instituteId])
@@ -248,6 +258,12 @@ model User {
   /// Explicit permission overrides granted or revoked by this user.
   grantedPermissionOverrides UserPermission[] @relation("UserPermissionGranter")
 
+  /// Class performance sheets created by this teacher.
+  classPerformancesCreated ClassPerformance[] @relation("ClassPerformanceCreator")
+
+  /// Teacher-entered class performance history for this student.
+  classPerformanceEntries ClassPerformanceEntry[] @relation("ClassPerformanceStudent")
+
   // --- better-auth relations ---
   sessions Session[]
   accounts Account[]
@@ -260,7 +276,7 @@ model User {
 /// Per-user permission overrides for RBAC Phase 2.
 model UserPermission {
   userId String
-  user   User @relation("UserPermissionTarget", fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation("UserPermissionTarget", fields: [userId], references: [id], onDelete: Cascade)
 
   /// Permission string from lib/permissions.ts. Stored as text so the catalog
   /// can evolve without requiring an enum migration for every app permission.
@@ -270,7 +286,7 @@ model UserPermission {
   effect PermissionEffect
 
   grantedById String
-  grantedBy   User @relation("UserPermissionGranter", fields: [grantedById], references: [id], onDelete: Cascade)
+  grantedBy   User   @relation("UserPermissionGranter", fields: [grantedById], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -357,6 +373,8 @@ model Group {
 
   questionRules GroupQuestionRule[]
 
+  classPerformances ClassPerformance[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -371,10 +389,10 @@ model GroupLevelRule {
   id String @id @default(cuid())
 
   groupId String
-  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   levelId String
-  level   Level @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  level   Level  @relation(fields: [levelId], references: [id], onDelete: Cascade)
 
   timeLimitSeconds Int
 
@@ -405,22 +423,22 @@ model Level {
   // --- Server-enforced scoring / timing (trusted) ---
 
   /// How many questions a practice session contains.
-  questionCount Int
+  questionCount    Int
   /// Total time the server allows for the whole session, in seconds.
   timeLimitSeconds Int
   /// Minimum accuracy (percentage, 0–100) required to pass and level up.
-  passAccuracy Int
+  passAccuracy     Int
 
   // --- Question generation parameters (Phase 1: arithmetic) ---
 
   /// Which operation this level drills.
-  operation OperationType
+  operation        OperationType
   /// How many numbers appear in one question (e.g. 3 → a + b + c).
   termsPerQuestion Int
   /// Inclusive lower bound for each generated number.
-  minNumber Int
+  minNumber        Int
   /// Inclusive upper bound for each generated number.
-  maxNumber Int
+  maxNumber        Int
 
   /// When true, a student must pass the previous level (by orderIndex) before
   /// practising or being assigned here. Level 1 ignores this. Admins can turn
@@ -471,7 +489,7 @@ model LevelQuestion {
   institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
 
   levelId String
-  level   Level @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  level   Level  @relation(fields: [levelId], references: [id], onDelete: Cascade)
 
   /// Display prompt, e.g. "12 + 7 + 3".
   prompt String
@@ -500,8 +518,8 @@ model LevelQuestion {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  groupRules         GroupQuestionRule[]
-  practiceQuestions  PracticeQuestion[]
+  groupRules             GroupQuestionRule[]
+  practiceQuestions      PracticeQuestion[]
   scheduledExamQuestions ScheduledExamQuestion[]
 
   @@index([instituteId])
@@ -518,7 +536,7 @@ model GroupQuestionRule {
   id String @id @default(cuid())
 
   groupId String
-  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   questionId String
   question   LevelQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
@@ -535,6 +553,67 @@ model GroupQuestionRule {
 }
 
 // ---------------------------------------------------------------------------
+// Teacher-entered class performance
+// ---------------------------------------------------------------------------
+
+/// One date-wise class performance sheet for a group. This is deliberately
+/// separate from automatic practice/exam scoring and never affects level-up.
+model ClassPerformance {
+  id String @id @default(cuid())
+
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  groupId String
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  /// Calendar date of the class. PostgreSQL stores only the date portion.
+  classDate DateTime @db.Date
+
+  /// Maximum possible mark for this class, e.g. 10 or 100.
+  maximumMark Decimal @db.Decimal(8, 2)
+
+  createdById String
+  createdBy   User   @relation("ClassPerformanceCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  entries ClassPerformanceEntry[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([groupId, classDate])
+  @@index([instituteId, classDate])
+  @@index([groupId, classDate])
+  @@map("class_performance")
+}
+
+/// One student's mark and attendance state on a class performance sheet.
+model ClassPerformanceEntry {
+  id String @id @default(cuid())
+
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  classPerformanceId String
+  classPerformance   ClassPerformance @relation(fields: [classPerformanceId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation("ClassPerformanceStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  /// Decimal marks are supported (e.g. 8.5 out of 10).
+  mark   Decimal                @db.Decimal(8, 2)
+  status ClassPerformanceStatus @default(PRESENT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([classPerformanceId, studentId])
+  @@index([instituteId])
+  @@index([studentId])
+  @@map("class_performance_entry")
+}
+
+// ---------------------------------------------------------------------------
 // Scheduled exams
 //
 // A teacher schedules a timed exam window for a group at a specific level.
@@ -548,10 +627,10 @@ model ScheduledExam {
   institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
 
   groupId String
-  group   Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  group   Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
 
   levelId String
-  level   Level @relation(fields: [levelId], references: [id])
+  level   Level  @relation(fields: [levelId], references: [id])
 
   /// Optional label shown on the student dashboard (e.g. "Weekly test").
   title String?
@@ -561,7 +640,7 @@ model ScheduledExam {
   closesAt DateTime
 
   createdById String
-  createdBy   User @relation("ScheduledExamCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  createdBy   User   @relation("ScheduledExamCreator", fields: [createdById], references: [id], onDelete: Cascade)
 
   /// Question bank generation frozen when the fixed paper was built.
   curriculumVersionId String?
@@ -621,7 +700,7 @@ model PracticeSession {
   student   User   @relation("StudentSessions", fields: [studentId], references: [id], onDelete: Cascade)
 
   levelId String
-  level   Level   @relation(fields: [levelId], references: [id])
+  level   Level  @relation(fields: [levelId], references: [id])
 
   status SessionStatus @default(IN_PROGRESS)
 
@@ -687,7 +766,7 @@ model PracticeQuestion {
   /// What the student submitted (null if left blank / not reached).
   studentAnswer Int?
   /// Graded server-side on submit.
-  isCorrect Boolean?
+  isCorrect     Boolean?
 
   /// When picked from the institute bank, links back for analytics/audit.
   sourceQuestionId String?
@@ -711,7 +790,7 @@ model AuditLog {
   institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
 
   actorUserId String
-  actor       User @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: Cascade)
+  actor       User   @relation("AuditLogActor", fields: [actorUserId], references: [id], onDelete: Cascade)
   actorRole   Role
 
   action AuditAction
@@ -765,7 +844,7 @@ model Notification {
   institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
 
   userId String
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   type NotificationType
 
@@ -781,7 +860,7 @@ model Notification {
 
   /// User credited as the actor — e.g. teacher who scheduled an exam (N5).
   actorUserId String?
-  actor         User?   @relation("NotificationActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actor       User?   @relation("NotificationActor", fields: [actorUserId], references: [id], onDelete: SetNull)
 
   readAt    DateTime?
   createdAt DateTime  @default(now())
@@ -796,7 +875,7 @@ model Notification {
 /// Per-user opt-out for a notification type (N7). No row means delivery enabled.
 model NotificationPreference {
   userId String
-  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   instituteId String
   institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
@@ -831,10 +910,10 @@ model PushSubscription {
 
   userAgent String?
 
-  disabledAt DateTime?
+  disabledAt   DateTime?
   lastFailedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([userId])
   @@index([instituteId])

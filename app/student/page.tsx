@@ -18,6 +18,7 @@ import { getStudentPracticeAnalytics } from "@/server/analytics";
 import { getStudentInProgressSession } from "@/server/practice";
 import { getStudentInstituteRank } from "@/server/ranking";
 import { getStudentGamificationSummary } from "@/server/student-gamification";
+import { getOwnClassPerformanceHistory } from "@/server/class-performance";
 import { getStudentPendingScheduledExam } from "@/server/scheduled-exam";
 import { syncStudentScheduledExamNotifications } from "@/server/notifications";
 import { loadStudentPageContext } from "@/server/student-page";
@@ -27,6 +28,7 @@ import { StatCard } from "@/components/stat-card";
 import { PracticeActivityChart } from "@/components/practice-activity-chart";
 import { StudentHomeHero } from "@/components/student/student-home-hero";
 import { StudentBadgesPanel } from "@/components/student/student-badges-panel";
+import { ClassPerformanceHistory } from "@/components/class-performance-history";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormMessage } from "@/components/ui/form-message";
@@ -70,21 +72,30 @@ export default async function StudentDashboardPage({
 
   await syncStudentScheduledExamNotifications(user.id, user.instituteId);
 
-  const [profile, practice, pendingSession, pendingExam, instituteRank, gamification] =
+  const [
+    profile,
+    practice,
+    pendingSession,
+    pendingExam,
+    instituteRank,
+    gamification,
+    classPerformance,
+  ] =
     await Promise.all([
-    prisma.user.findUnique({
-      where: { id: user.id },
-      select: {
-        group: { select: { name: true } },
-        currentLevel: { select: { name: true } },
-      },
-    }),
-    getStudentPracticeAnalytics(user.id),
-    getStudentInProgressSession(user.id),
-    getStudentPendingScheduledExam(user.id),
-    getStudentInstituteRank(user.id, user.instituteId),
-    getStudentGamificationSummary(user.id),
-  ]);
+      prisma.user.findUnique({
+        where: { id: user.id },
+        select: {
+          group: { select: { name: true } },
+          currentLevel: { select: { name: true } },
+        },
+      }),
+      getStudentPracticeAnalytics(user.id),
+      getStudentInProgressSession(user.id),
+      getStudentPendingScheduledExam(user.id),
+      getStudentInstituteRank(user.id, user.instituteId),
+      getStudentGamificationSummary(user.id),
+      getOwnClassPerformanceHistory(user.id, user.instituteId),
+    ]);
 
   const showPracticeInProgress =
     pendingSession != null && pendingSession.mode !== PracticeMode.EXAM;
@@ -259,6 +270,11 @@ export default async function StudentDashboardPage({
         data={practice.daily}
         empty={practice.totalSessions === 0}
         description="Your finished attempts over the last 7 days"
+      />
+
+      <ClassPerformanceHistory
+        history={classPerformance}
+        title="Your class performance"
       />
 
       <StudentBadgesPanel badges={gamification.badges} />

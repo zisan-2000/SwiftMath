@@ -128,6 +128,8 @@ export async function listInstituteAuditLogs(
 const TEACHER_GROUP_AUDIT_ACTIONS = [
   AuditAction.GROUP_QUESTION_ENABLED,
   AuditAction.GROUP_QUESTION_DISABLED,
+  AuditAction.CLASS_PERFORMANCE_RECORDED,
+  AuditAction.CLASS_PERFORMANCE_UPDATED,
 ] as const;
 
 function mapAuditRows(
@@ -181,7 +183,8 @@ async function assertTeacherOwnsGroup(
 }
 
 /**
- * Read-only audit log for a teacher — only their own group question overrides.
+ * Read-only audit log for a teacher — their group question overrides and
+ * class-performance changes.
  * Optionally scoped to one group via metadata.groupId.
  */
 export async function listTeacherAuditLogs(

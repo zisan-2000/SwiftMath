@@ -3,10 +3,12 @@ import type { Metadata } from "next";
 import { requireRole } from "@/lib/session";
 import { Role } from "@/lib/generated/prisma/enums";
 import { loadAdminStudentPageContext } from "@/server/admin-page";
+import { getStudentClassPerformanceForAdmin } from "@/server/class-performance";
 import { AdminPageShell } from "@/components/admin/admin-page-shell";
 import { BackLink } from "@/components/nav/back-link";
 import { PermissionControlsPanel } from "@/components/permission-controls-panel";
 import { StudentProgressPanel } from "@/components/student-progress-panel";
+import { ClassPerformanceHistory } from "@/components/class-performance-history";
 import { Badge } from "@/components/ui/badge";
 import { setStudentPermissionAction } from "./actions";
 
@@ -36,6 +38,10 @@ export default async function AdminStudentProgressPage({
   const { studentId } = await params;
   const { admin, institute, progress, studentPermissions } =
     await loadAdminStudentPageContext(studentId);
+  const classPerformance = await getStudentClassPerformanceForAdmin(
+    admin,
+    studentId,
+  );
 
   const { student, group, isActive } = progress;
   const groupLabel = group?.name ?? "Unassigned";
@@ -58,6 +64,10 @@ export default async function AdminStudentProgressPage({
       <div className="mt-6">
         <StudentProgressPanel progress={progress} />
       </div>
+
+      {classPerformance ? (
+        <ClassPerformanceHistory history={classPerformance} />
+      ) : null}
 
       <PermissionControlsPanel
         title="Student permissions"

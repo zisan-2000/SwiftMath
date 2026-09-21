@@ -140,6 +140,9 @@ describe("role default permissions", () => {
     expect(roleHasPermission(Role.TEACHER, PERMISSIONS.EXAM_SCHEDULE)).toBe(
       true,
     );
+    expect(
+      roleHasPermission(Role.TEACHER, PERMISSIONS.CLASS_PERFORMANCE_MANAGE),
+    ).toBe(true);
     expect(roleHasPermission(Role.TEACHER, PERMISSIONS.LEVEL_MANAGE)).toBe(
       false,
     );

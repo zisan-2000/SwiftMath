@@ -30,6 +30,9 @@ describe("formatAuditActionLabel", () => {
     expect(formatAuditActionLabel(AuditAction.CURRICULUM_VERSION_BUMPED)).toBe(
       "Curriculum bump",
     );
+    expect(
+      formatAuditActionLabel(AuditAction.CLASS_PERFORMANCE_RECORDED),
+    ).toBe("Class performance recorded");
   });
 });
 
