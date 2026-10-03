@@ -4,14 +4,17 @@ import "server-only";
 
 import { prisma } from "@/lib/prisma";
 import {
+  CLASS_PERFORMANCE_NOT_ENTERED,
   buildClassPerformanceRanking,
   classDateKey,
   classPerformancePeriodStart,
   formatClassDate,
+  mergeClassPerformanceRoster,
   parseClassDate,
   percentage,
   todayInDhaka,
   type ClassPerformancePeriod,
+  type ClassPerformanceDraftStatus,
 } from "@/lib/class-performance";
 import {
   AuditAction,
@@ -27,7 +30,7 @@ export class ClassPerformanceError extends Error {}
 export interface ClassPerformanceEntryInput {
   studentId: string;
   mark: string;
-  status: ClassPerformanceStatus;
+  status: ClassPerformanceDraftStatus;
 }
 
 export interface SaveClassPerformanceInput {
@@ -145,29 +148,28 @@ export async function getGroupClassPerformanceWorkspace(
     }),
   ]);
 
-  const roster = selected
-    ? selected.entries.map((entry) => ({
-        id: entry.studentId,
-        name: entry.student.name,
-      }))
-    : group.students;
-  const existingEntries = new Map(
-    selected?.entries.map((entry) => [entry.studentId, entry]) ?? [],
-  );
+  const students = selected
+    ? mergeClassPerformanceRoster(
+        group.students,
+        selected.entries.map((entry) => ({
+          id: entry.studentId,
+          name: entry.student.name,
+          mark: decimalText(entry.mark),
+          status: entry.status,
+        })),
+      )
+    : group.students.map((student) => ({
+        ...student,
+        mark: "0",
+        status: ClassPerformanceStatus.PRESENT,
+        canBeNotEntered: false,
+      }));
 
   return {
     selectedDate,
     isExisting: selected != null,
     maximumMark: selected ? decimalText(selected.maximumMark) : "10",
-    students: roster.map((student) => {
-      const entry = existingEntries.get(student.id);
-      return {
-        id: student.id,
-        name: student.name,
-        mark: entry ? decimalText(entry.mark) : "0",
-        status: entry?.status ?? ClassPerformanceStatus.PRESENT,
-      };
-    }),
+    students,
     history: historyRows.map(summarizeSheet),
   };
 }
@@ -216,6 +218,7 @@ export async function saveClassPerformance(
         select: {
           studentId: true,
           mark: true,
+          status: true,
           student: { select: { name: true } },
         },
       },
@@ -233,10 +236,15 @@ export async function saveClassPerformance(
   }
 
   const authoritativeRoster = existing
-    ? existing.entries.map((entry) => ({
-        id: entry.studentId,
-        name: entry.student.name,
-      }))
+    ? mergeClassPerformanceRoster(
+        group.students,
+        existing.entries.map((entry) => ({
+          id: entry.studentId,
+          name: entry.student.name,
+          mark: decimalText(entry.mark),
+          status: entry.status,
+        })),
+      )
     : group.students;
   const expectedIds = new Set(authoritativeRoster.map((student) => student.id));
   const receivedIds = new Set(input.entries.map((entry) => entry.studentId));
@@ -253,7 +261,18 @@ export async function saveClassPerformance(
   const studentNames = new Map(
     authoritativeRoster.map((student) => [student.id, student.name]),
   );
-  const entries = input.entries.map((entry) => {
+  const savedStudentIds = new Set(
+    existing?.entries.map((entry) => entry.studentId) ?? [],
+  );
+  const entries = input.entries.flatMap((entry) => {
+    if (entry.status === CLASS_PERFORMANCE_NOT_ENTERED) {
+      if (!existing || savedStudentIds.has(entry.studentId)) {
+        throw new ClassPerformanceError(
+          "Only a newly added student can remain Not entered on an existing class record.",
+        );
+      }
+      return [];
+    }
     if (
       entry.status !== ClassPerformanceStatus.PRESENT &&
       entry.status !== ClassPerformanceStatus.ABSENT
@@ -270,7 +289,7 @@ export async function saveClassPerformance(
         `${name}'s mark must be between 0 and ${maximumMark}.`,
       );
     }
-    return { studentId: entry.studentId, mark, status: entry.status };
+    return [{ studentId: entry.studentId, mark, status: entry.status }];
   });
 
   const savedSheetId = await prisma.$transaction(async (tx) => {

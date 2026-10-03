@@ -2,6 +2,31 @@
 
 export type ClassPerformancePeriod = "all" | "30" | "60" | "180";
 
+export const CLASS_PERFORMANCE_NOT_ENTERED = "NOT_ENTERED" as const;
+
+export type ClassPerformanceDraftStatus =
+  | "PRESENT"
+  | "ABSENT"
+  | typeof CLASS_PERFORMANCE_NOT_ENTERED;
+
+interface ClassPerformanceRosterStudent {
+  id: string;
+  name: string;
+}
+
+interface SavedClassPerformanceRosterEntry
+  extends ClassPerformanceRosterStudent {
+  mark: string;
+  status: "PRESENT" | "ABSENT";
+}
+
+export interface ClassPerformanceRosterRow
+  extends ClassPerformanceRosterStudent {
+  mark: string;
+  status: ClassPerformanceDraftStatus;
+  canBeNotEntered: boolean;
+}
+
 export interface ClassPerformanceRankingStudent {
   id: string;
   name: string;
@@ -90,6 +115,39 @@ export function percentage(mark: number, maximumMark: number): number {
   return Math.round((mark / maximumMark) * 10_000) / 100;
 }
 
+/**
+ * Merge an existing date's immutable roster history with the group's current
+ * roster. Current students without a saved entry remain unrecorded until the
+ * teacher explicitly marks them present or absent.
+ */
+export function mergeClassPerformanceRoster(
+  currentStudents: ClassPerformanceRosterStudent[],
+  savedEntries: SavedClassPerformanceRosterEntry[],
+): ClassPerformanceRosterRow[] {
+  const rows = new Map<string, ClassPerformanceRosterRow>();
+
+  for (const entry of savedEntries) {
+    rows.set(entry.id, { ...entry, canBeNotEntered: false });
+  }
+
+  for (const student of currentStudents) {
+    const saved = rows.get(student.id);
+    rows.set(
+      student.id,
+      saved
+        ? { ...saved, name: student.name }
+        : {
+            ...student,
+            mark: "",
+            status: CLASS_PERFORMANCE_NOT_ENTERED,
+            canBeNotEntered: true,
+          },
+    );
+  }
+
+  return [...rows.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
 /** Weighted class-performance ranking. Absent entries remain in the denominator. */
 export function buildClassPerformanceRanking(
   students: ClassPerformanceRankingStudent[],
@@ -142,4 +200,3 @@ export function buildClassPerformanceRanking(
 
   return rows.map((row, index) => ({ rank: index + 1, ...row }));
 }
-

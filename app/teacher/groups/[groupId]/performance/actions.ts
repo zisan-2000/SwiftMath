@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { ClassPerformanceStatus } from "@/lib/generated/prisma/enums";
+import { CLASS_PERFORMANCE_NOT_ENTERED } from "@/lib/class-performance";
 import { PERMISSIONS } from "@/lib/permissions";
 import { requirePermission } from "@/lib/session";
 import {
@@ -26,14 +27,20 @@ export async function saveClassPerformanceAction(
   const maximumMark = String(formData.get("maximumMark") ?? "");
   const studentIds = formData.getAll("studentId").map(String);
 
-  const entries = studentIds.map((studentId) => ({
-    studentId,
-    mark: String(formData.get(`mark:${studentId}`) ?? ""),
-    status:
-      formData.get(`status:${studentId}`) === ClassPerformanceStatus.ABSENT
+  const entries = studentIds.map((studentId) => {
+    const rawStatus = formData.get(`status:${studentId}`);
+    const status =
+      rawStatus === ClassPerformanceStatus.ABSENT
         ? ClassPerformanceStatus.ABSENT
-        : ClassPerformanceStatus.PRESENT,
-  }));
+        : rawStatus === CLASS_PERFORMANCE_NOT_ENTERED
+          ? CLASS_PERFORMANCE_NOT_ENTERED
+          : ClassPerformanceStatus.PRESENT;
+    return {
+      studentId,
+      mark: String(formData.get(`mark:${studentId}`) ?? ""),
+      status,
+    };
+  });
 
   try {
     const result = await saveClassPerformance(teacher, {
@@ -63,4 +70,3 @@ export async function saveClassPerformanceAction(
     throw error;
   }
 }
-

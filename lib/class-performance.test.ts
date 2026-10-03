@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CLASS_PERFORMANCE_NOT_ENTERED,
   buildClassPerformanceRanking,
   classPerformancePeriodStart,
+  mergeClassPerformanceRoster,
   parseClassDate,
   percentage,
   todayInDhaka,
@@ -26,6 +28,36 @@ describe("class performance helpers", () => {
   it("calculates decimal percentages", () => {
     expect(percentage(8.5, 10)).toBe(85);
     expect(percentage(2, 3)).toBe(66.67);
+  });
+
+  it("merges newly added students into an existing class record", () => {
+    const rows = mergeClassPerformanceRoster(
+      [
+        { id: "rafi", name: "Rafi" },
+        { id: "nabil", name: "Nabil" },
+      ],
+      [
+        { id: "rafi", name: "Rafi Old", mark: "9", status: "PRESENT" },
+        { id: "former", name: "Former Student", mark: "7", status: "PRESENT" },
+      ],
+    );
+
+    expect(rows).toHaveLength(3);
+    expect(rows.find((row) => row.id === "rafi")).toMatchObject({
+      name: "Rafi",
+      mark: "9",
+      status: "PRESENT",
+      canBeNotEntered: false,
+    });
+    expect(rows.find((row) => row.id === "nabil")).toMatchObject({
+      mark: "",
+      status: CLASS_PERFORMANCE_NOT_ENTERED,
+      canBeNotEntered: true,
+    });
+    expect(rows.find((row) => row.id === "former")).toMatchObject({
+      mark: "7",
+      canBeNotEntered: false,
+    });
   });
 
   it("builds a weighted ranking and counts absence as zero", () => {
@@ -65,6 +97,20 @@ describe("class performance helpers", () => {
       absentCount: 1,
     });
     expect(rows[0]?.rank).toBe(1);
+  });
+
+  it("excludes students without an entered result from their ranking denominator", () => {
+    const [row] = buildClassPerformanceRanking(
+      [{ id: "new-student", name: "New Student" }],
+      [{ maximumMark: 10, entries: [] }],
+    );
+
+    expect(row).toMatchObject({
+      classCount: 0,
+      totalMark: 0,
+      totalMaximumMark: 0,
+      percentage: 0,
+    });
   });
 
   it("starts a 30-day window inclusively", () => {

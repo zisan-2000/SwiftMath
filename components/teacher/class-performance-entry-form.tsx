@@ -7,6 +7,10 @@ import { toast } from "sonner";
 
 import { ClassPerformanceStatus } from "@/lib/generated/prisma/enums";
 import {
+  CLASS_PERFORMANCE_NOT_ENTERED,
+  type ClassPerformanceDraftStatus,
+} from "@/lib/class-performance";
+import {
   saveClassPerformanceAction,
   type SaveClassPerformanceState,
 } from "@/app/teacher/groups/[groupId]/performance/actions";
@@ -20,7 +24,8 @@ interface StudentDraft {
   id: string;
   name: string;
   mark: string;
-  status: ClassPerformanceStatus;
+  status: ClassPerformanceDraftStatus;
+  canBeNotEntered: boolean;
 }
 
 const INITIAL_ACTION_STATE: SaveClassPerformanceState = {};
@@ -89,7 +94,7 @@ export function ClassPerformanceEntryForm({
         </CardTitle>
         <p className="text-sm text-muted-foreground">
           One date creates one permanent group record. Absent students are saved
-          with zero marks.
+          with zero marks. Not entered students are excluded from ranking.
         </p>
       </CardHeader>
       <CardContent className="pt-6">
@@ -163,6 +168,9 @@ export function ClassPerformanceEntryForm({
                     {students.map((student) => {
                       const absent =
                         student.status === ClassPerformanceStatus.ABSENT;
+                      const notEntered =
+                        student.status === CLASS_PERFORMANCE_NOT_ENTERED;
+                      const markDisabled = absent || notEntered;
                       return (
                         <tr
                           key={student.id}
@@ -182,19 +190,19 @@ export function ClassPerformanceEntryForm({
                               max={maximumMark || undefined}
                               step="0.01"
                               value={absent ? "0" : student.mark}
-                              disabled={absent}
+                              disabled={markDisabled}
                               onChange={(event) =>
                                 updateStudent(student.id, {
                                   mark: event.target.value,
                                 })
                               }
-                              required={!absent}
+                              required={!markDisabled}
                             />
-                            {absent ? (
+                            {markDisabled ? (
                               <input
                                 type="hidden"
                                 name={`mark:${student.id}`}
-                                value="0"
+                                value={absent ? "0" : ""}
                               />
                             ) : null}
                           </td>
@@ -209,12 +217,17 @@ export function ClassPerformanceEntryForm({
                               value={student.status}
                               onChange={(event) => {
                                 const status = event.target
-                                  .value as ClassPerformanceStatus;
+                                  .value as ClassPerformanceDraftStatus;
                                 updateStudent(student.id, {
                                   status,
                                   ...(status === ClassPerformanceStatus.ABSENT
                                     ? { mark: "0" }
-                                    : {}),
+                                    : status === CLASS_PERFORMANCE_NOT_ENTERED
+                                      ? { mark: "" }
+                                      : student.mark
+                                        ? {}
+                                        : { mark: "0" }
+                                  ),
                                 });
                               }}
                             >
@@ -224,6 +237,11 @@ export function ClassPerformanceEntryForm({
                               <option value={ClassPerformanceStatus.ABSENT}>
                                 Absent
                               </option>
+                              {student.canBeNotEntered ? (
+                                <option value={CLASS_PERFORMANCE_NOT_ENTERED}>
+                                  Not entered
+                                </option>
+                              ) : null}
                             </select>
                           </td>
                         </tr>
@@ -268,4 +286,3 @@ export function ClassPerformanceEntryForm({
     </Card>
   );
 }
-
