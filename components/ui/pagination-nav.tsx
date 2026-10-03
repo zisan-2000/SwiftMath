@@ -14,12 +14,23 @@ interface PaginationNavProps {
   pageSize: number;
   total: number;
   totalPages: number;
+  query?: Record<string, string | undefined>;
   className?: string;
 }
 
-/** Build a path preserving only the page query param. */
-function pageHref(basePath: string, page: number): string {
-  return page <= 1 ? basePath : `${basePath}?page=${page}`;
+/** Build a pagination path while preserving the list's active filters. */
+function pageHref(
+  basePath: string,
+  page: number,
+  query: Record<string, string | undefined>,
+): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value) params.set(key, value);
+  }
+  if (page > 1) params.set("page", String(page));
+  const search = params.toString();
+  return search ? `${basePath}?${search}` : basePath;
 }
 
 /**
@@ -32,6 +43,7 @@ export function PaginationNav({
   pageSize,
   total,
   totalPages,
+  query = {},
   className,
 }: PaginationNavProps) {
   if (totalPages <= 1) return null;
@@ -55,7 +67,7 @@ export function PaginationNav({
       <div className="flex items-center gap-2">
         <Button variant="outline" size="sm" disabled={!hasPrev} asChild={hasPrev}>
           {hasPrev ? (
-            <Link href={pageHref(basePath, page - 1)} className="gap-1">
+            <Link href={pageHref(basePath, page - 1, query)} className="gap-1">
               <ChevronLeft className="h-4 w-4" />
               Previous
             </Link>
@@ -71,7 +83,7 @@ export function PaginationNav({
         </span>
         <Button variant="outline" size="sm" disabled={!hasNext} asChild={hasNext}>
           {hasNext ? (
-            <Link href={pageHref(basePath, page + 1)} className="gap-1">
+            <Link href={pageHref(basePath, page + 1, query)} className="gap-1">
               Next
               <ChevronRight className="h-4 w-4" />
             </Link>

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Trophy } from "lucide-react";
 
 import {
@@ -9,6 +8,7 @@ import {
 import { getGroupClassPerformanceRanking } from "@/server/class-performance";
 import { loadTeacherGroupPageContext } from "@/server/teacher-page";
 import { TeacherGroupShell } from "@/components/teacher/teacher-group-shell";
+import { ClassPerformanceRankingTable } from "@/components/teacher/class-performance-ranking-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -85,54 +85,13 @@ export default async function ClassPerformanceRankingPage({
               className="border-0"
             />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40 text-left text-muted-foreground">
-                    <th className="px-5 py-3 font-medium">Rank</th>
-                    <th className="px-5 py-3 font-medium">Student</th>
-                    <th className="px-5 py-3 font-medium">Performance</th>
-                    <th className="px-5 py-3 font-medium">Marks</th>
-                    <th className="px-5 py-3 font-medium">Classes</th>
-                    <th className="px-5 py-3 font-medium">Present</th>
-                    <th className="px-5 py-3 font-medium">Absent</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ranking.rows.map((row) => (
-                    <tr
-                      key={row.studentId}
-                      className="border-b border-border last:border-0"
-                    >
-                      <td className="px-5 py-3 font-semibold tabular-nums">
-                        #{row.rank}
-                      </td>
-                      <td className="px-5 py-3">
-                        <Link
-                          href={`/teacher/groups/${groupId}/students/${row.studentId}`}
-                          className="font-medium text-foreground hover:text-primary hover:underline"
-                        >
-                          {row.name}
-                        </Link>
-                      </td>
-                      <td className="px-5 py-3 font-semibold tabular-nums text-primary">
-                        {row.percentage}%
-                      </td>
-                      <td className="px-5 py-3 tabular-nums">
-                        {row.totalMark}/{row.totalMaximumMark}
-                      </td>
-                      <td className="px-5 py-3 tabular-nums">{row.classCount}</td>
-                      <td className="px-5 py-3 tabular-nums">{row.presentCount}</td>
-                      <td className="px-5 py-3 tabular-nums">{row.absentCount}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ClassPerformanceRankingTable
+              groupId={groupId}
+              rows={ranking.rows}
+            />
           )}
         </CardContent>
       </Card>
     </TeacherGroupShell>
   );
 }
-

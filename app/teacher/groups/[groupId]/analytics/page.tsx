@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
   Brain,
@@ -16,7 +15,7 @@ import { loadTeacherGroupPageContext } from "@/server/teacher-page";
 import { TeacherGroupShell } from "@/components/teacher/teacher-group-shell";
 import { PracticeActivityChart } from "@/components/practice-activity-chart";
 import { StatCard } from "@/components/stat-card";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { StudentAnalyticsTable } from "@/components/teacher/student-analytics-table";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export async function generateMetadata({
@@ -114,63 +113,10 @@ export default async function GroupAnalyticsPage({
           description="Add students to see per-student analytics here."
         />
       ) : (
-        <Card>
-          <CardHeader className="border-b border-border">
-            <CardTitle className="text-base">Last 7 days</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-muted/40 text-left text-muted-foreground">
-                    <th className="px-5 py-2.5 font-medium">Student</th>
-                    <th className="px-5 py-2.5 font-medium">Sessions</th>
-                    <th className="px-5 py-2.5 font-medium">Completion</th>
-                    <th className="px-5 py-2.5 font-medium">Avg accuracy</th>
-                    <th className="px-5 py-2.5 font-medium">Fastest pass</th>
-                    <th className="px-5 py-2.5 font-medium">Avg pass time</th>
-                    <th className="px-5 py-2.5 font-medium">Retries</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {analytics.studentSummaries.map((row) => (
-                    <tr
-                      key={row.studentId}
-                      className="border-b border-border last:border-0"
-                    >
-                      <td className="px-5 py-3 align-middle">
-                        <Link
-                          href={`/teacher/groups/${groupId}/students/${row.studentId}`}
-                          className="font-medium text-foreground transition-colors hover:text-primary hover:underline"
-                        >
-                          {row.name}
-                        </Link>
-                      </td>
-                      <td className="px-5 py-3 align-middle tabular-nums">
-                        {row.sessions}
-                      </td>
-                      <td className="px-5 py-3 align-middle tabular-nums">
-                        {row.passRate}%
-                      </td>
-                      <td className="px-5 py-3 align-middle tabular-nums">
-                        {row.avgAccuracy}%
-                      </td>
-                      <td className="px-5 py-3 align-middle tabular-nums">
-                        {formatSpeedDuration(row.fastestPassMs)}
-                      </td>
-                      <td className="px-5 py-3 align-middle tabular-nums">
-                        {formatSpeedDuration(row.avgPassMs)}
-                      </td>
-                      <td className="px-5 py-3 align-middle tabular-nums">
-                        {row.retries}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
+        <StudentAnalyticsTable
+          groupId={groupId}
+          rows={analytics.studentSummaries}
+        />
       )}
     </TeacherGroupShell>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Copy, Save, UserX } from "lucide-react";
 import { toast } from "sonner";
@@ -19,6 +19,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormMessage } from "@/components/ui/form-message";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  StudentSearch,
+  useStudentSearch,
+} from "@/components/ui/student-search";
 
 interface StudentDraft {
   id: string;
@@ -53,6 +57,11 @@ export function ClassPerformanceEntryForm({
   const [maximumMark, setMaximumMark] = useState(initialMaximumMark);
   const [students, setStudents] = useState(initialStudents);
   const [sameMark, setSameMark] = useState("");
+  const { query, setQuery, filteredStudents } = useStudentSearch(students);
+  const visibleStudentIds = useMemo(
+    () => new Set(filteredStudents.map((student) => student.id)),
+    [filteredStudents],
+  );
 
   useEffect(() => {
     if (!state.message) return;
@@ -131,6 +140,14 @@ export function ClassPerformanceEntryForm({
 
           {students.length > 0 ? (
             <>
+              <StudentSearch
+                id="class-performance-student-search"
+                query={query}
+                onQueryChange={setQuery}
+                resultCount={filteredStudents.length}
+                totalCount={students.length}
+              />
+
               <div className="flex flex-col gap-3 rounded-lg border border-border bg-muted/30 p-4 sm:flex-row sm:items-end">
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <Label htmlFor="class-performance-same-mark">
@@ -171,6 +188,29 @@ export function ClassPerformanceEntryForm({
                       const notEntered =
                         student.status === CLASS_PERFORMANCE_NOT_ENTERED;
                       const markDisabled = absent || notEntered;
+                      if (!visibleStudentIds.has(student.id)) {
+                        return (
+                          <tr key={student.id} hidden>
+                            <td>
+                              <input
+                                type="hidden"
+                                name="studentId"
+                                value={student.id}
+                              />
+                              <input
+                                type="hidden"
+                                name={`mark:${student.id}`}
+                                value={absent ? "0" : student.mark}
+                              />
+                              <input
+                                type="hidden"
+                                name={`status:${student.id}`}
+                                value={student.status}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      }
                       return (
                         <tr
                           key={student.id}
@@ -247,6 +287,16 @@ export function ClassPerformanceEntryForm({
                         </tr>
                       );
                     })}
+                    {filteredStudents.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={4}
+                          className="px-4 py-8 text-center text-muted-foreground"
+                        >
+                          No students match “{query.trim()}”.
+                        </td>
+                      </tr>
+                    ) : null}
                   </tbody>
                 </table>
               </div>

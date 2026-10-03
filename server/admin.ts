@@ -424,6 +424,7 @@ export async function deleteAdminGroup(
 export async function listInstituteStudents(
   instituteId: string,
   page: number = 1,
+  search: string = "",
   pageSize: number = DEFAULT_PAGE_SIZE,
 ): Promise<PaginatedList<{
   id: string;
@@ -437,7 +438,14 @@ export async function listInstituteStudents(
     page,
     pageSize,
   );
-  const where = { instituteId, role: Role.STUDENT };
+  const query = search.trim().slice(0, 100);
+  const where = {
+    instituteId,
+    role: Role.STUDENT,
+    ...(query
+      ? { name: { contains: query, mode: "insensitive" as const } }
+      : {}),
+  };
 
   const [items, total] = await Promise.all([
     prisma.user.findMany({

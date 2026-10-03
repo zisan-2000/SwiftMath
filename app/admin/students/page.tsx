@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PaginationNav } from "@/components/ui/pagination-nav";
+import { StudentSearchParam } from "@/components/ui/student-search-param";
 import { resetUserPasswordAction } from "../actions";
 
 export const metadata: Metadata = {
@@ -31,14 +32,15 @@ const LIST_PATH = "/admin/students";
 export default async function AdminStudentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; q?: string }>;
 }) {
   const { admin, institute } = await loadAdminPageContext();
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, q } = await searchParams;
   const page = parsePageParam(pageParam);
+  const studentQuery = q?.trim().slice(0, 100) ?? "";
 
   const [roster, groups, levels] = await Promise.all([
-    listInstituteStudents(admin.instituteId, page),
+    listInstituteStudents(admin.instituteId, page, studentQuery),
     listInstituteGroups(admin.instituteId),
     listLevels(admin.instituteId),
   ]);
@@ -55,7 +57,11 @@ export default async function AdminStudentsPage({
   }));
 
   if (page > roster.totalPages && roster.total > 0) {
-    redirect(`${LIST_PATH}?page=${roster.totalPages}`);
+    const params = new URLSearchParams();
+    if (studentQuery) params.set("q", studentQuery);
+    if (roster.totalPages > 1) params.set("page", String(roster.totalPages));
+    const queryString = params.toString();
+    redirect(queryString ? `${LIST_PATH}?${queryString}` : LIST_PATH);
   }
 
   const { items: students } = roster;
@@ -78,17 +84,25 @@ export default async function AdminStudentsPage({
       <Card>
         <CardHeader className="border-b border-border">
           <CardTitle className="text-base">
-            All students ({roster.total})
+            {studentQuery ? "Search results" : "All students"} ({roster.total})
           </CardTitle>
+          <StudentSearchParam
+            key={studentQuery}
+            id="admin-students-search"
+            basePath={LIST_PATH}
+            initialQuery={studentQuery}
+          />
         </CardHeader>
         <CardContent className="p-0">
           {students.length === 0 ? (
             <div className="p-6">
               <EmptyState
                 icon={GraduationCap}
-                title="No students yet"
+                title={studentQuery ? "No matching students" : "No students yet"}
                 description={
-                  groups.length === 0
+                  studentQuery
+                    ? `No student name contains “${studentQuery}”.`
+                    : groups.length === 0
                     ? "A teacher must create a group before you can add students."
                     : "Use “Add student” to create the first student account."
                 }
@@ -149,6 +163,7 @@ export default async function AdminStudentsPage({
                 pageSize={roster.pageSize}
                 total={roster.total}
                 totalPages={roster.totalPages}
+                query={{ q: studentQuery || undefined }}
               />
             </>
           )}
