@@ -109,6 +109,7 @@ export function getTeacherGroup(teacher: TeacherContext, groupId: string) {
           email: true,
           currentLevelId: true,
           currentLevel: { select: { name: true } },
+          academicLevel: { select: { name: true } },
         },
       },
     },

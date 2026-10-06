@@ -35,8 +35,8 @@ cp .env.example .env
 | `DATABASE_URL` | Yes | PostgreSQL connection string. Managed hosts usually need `?sslmode=require` at the end. |
 | `BETTER_AUTH_SECRET` | Yes | Random secret for signing sessions. **Must be unique per environment.** Generate with `openssl rand -base64 32`. |
 | `BETTER_AUTH_URL` | Yes | Public origin of the app **with no trailing slash**. Must match the URL users open in the browser. |
-| `BLOB_READ_WRITE_TOKEN` | Prod (logo upload) | [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) token for institute logo uploads. Omit locally to store under `public/uploads/` instead. |
-| `CRON_SECRET` | Prod (exam alerts) | Bearer token for `GET /api/cron/notifications`. Vercel Cron sends `Authorization: Bearer …`. Generate with `openssl rand -base64 32`. |
+| `BLOB_READ_WRITE_TOKEN` | Prod (image uploads) | [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) token. Logos are public; homework photos are private and served only through an authorized app route. Omit locally to use `public/uploads/` for logos and `.data/` for private homework photos. |
+| `CRON_SECRET` | Prod (scheduled jobs) | Bearer token for every `GET /api/cron/*` route. Vercel Cron sends `Authorization: Bearer …`. Generate with `openssl rand -base64 32`. |
 | `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Prod (PWA push) | Public VAPID key for browser push subscriptions. Generate with `npx web-push generate-vapid-keys`. |
 | `VAPID_PRIVATE_KEY` | Prod (PWA push) | Private VAPID key used server-side to send push notifications. Keep secret. |
 | `VAPID_SUBJECT` | Optional | Web Push contact subject, e.g. `mailto:support@yourdomain.com`. |
@@ -284,8 +284,8 @@ Time-based in-app alerts (exam open, closing soon, closed summary) are delivered
 
 ### 10.0 Vercel Hobby note
 
-`vercel.json` only keeps the daily notification-retention cron because Vercel
-Hobby plans do not allow schedules that run more than once per day. If you need
+`vercel.json` uses the two daily slots available on Vercel Hobby for notification
+retention and the homework occurrence horizon. If you need
 production exam reminders on Hobby, trigger the notifications endpoint from an
 external scheduler such as GitHub Actions or cron-job.org.
 
@@ -329,6 +329,20 @@ Actions, cron-job.org, etc.) and the `Authorization` header above.
 
 Student `/student` and teacher `/teacher` page loads still run a **safety-net**
 sync (dedupe prevents duplicate notifications if cron already ran).
+
+### 10.4 Homework maintenance
+
+`GET /api/cron/homework` runs daily at **00:05 UTC**. It keeps the next eight
+weeks of recurring occurrences generated and freezes the eligible roster for
+opened occurrences. Homework teacher/student pages run the same idempotent
+safety-net, so a missed cron does not block normal use.
+
+```bash
+curl http://localhost:3000/api/cron/homework
+
+curl -H "Authorization: Bearer YOUR_CRON_SECRET" \
+  https://app.yourdomain.com/api/cron/homework
+```
 
 ---
 
@@ -378,7 +392,8 @@ Success response:
 ## 12. Security checklist (production)
 
 - [ ] Strong unique `BETTER_AUTH_SECRET` per environment
-- [ ] Strong unique `CRON_SECRET` per environment (exam + retention crons)
+- [ ] Strong unique `CRON_SECRET` per environment (exam, homework, and retention jobs)
+- [ ] Vercel Blob is configured and homework uploads use private access
 - [ ] No demo seed on public production (or passwords rotated immediately)
 - [ ] Database not publicly accessible without credentials
 - [ ] `.env` never committed (only `.env.example`)

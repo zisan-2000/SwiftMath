@@ -5,10 +5,10 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_VERCEL_ENV: process.env.VERCEL_ENV ?? "development",
   },
-  // Allow institute logo uploads in server actions (max 1 MB + form overhead).
+  // Homework photos are validated to 8 MB each before private storage.
   experimental: {
     serverActions: {
-      bodySizeLimit: "2mb",
+      bodySizeLimit: "10mb",
     },
   },
   // Keep server-only packages out of the bundler and require them at runtime in

@@ -40,12 +40,13 @@ async function ensureUser(params: {
   instituteId: string;
   groupId?: string | null;
   currentLevelId?: string | null;
+  academicLevelId?: string | null;
 }) {
-  const { email, name, role, instituteId, groupId, currentLevelId } = params;
+  const { email, name, role, instituteId, groupId, currentLevelId, academicLevelId } = params;
 
   const user = await prisma.user.upsert({
     where: { email },
-    update: { name, role, instituteId, groupId, currentLevelId },
+    update: { name, role, instituteId, groupId, currentLevelId, academicLevelId },
     create: {
       email,
       name,
@@ -53,6 +54,7 @@ async function ensureUser(params: {
       instituteId,
       groupId,
       currentLevelId,
+      academicLevelId,
       emailVerified: true,
     },
   });
@@ -81,6 +83,12 @@ async function main() {
     where: { slug: "seft" },
     update: { name: "SEFT Institute" },
     create: { slug: "seft", name: "SEFT Institute" },
+  });
+
+  const academicLevel = await prisma.academicLevel.upsert({
+    where: { instituteId_orderIndex: { instituteId: seft.id, orderIndex: 1 } },
+    update: { name: "Academic Level 1", isActive: true },
+    create: { instituteId: seft.id, name: "Academic Level 1", orderIndex: 1 },
   });
 
   // --- Levels (starter ADD/SUB/MIXED/MUL/DIV progression, shared with new institutes) ---
@@ -200,6 +208,7 @@ async function main() {
       instituteId: seft.id,
       groupId: group.id,
       currentLevelId: s.level.id,
+      academicLevelId: academicLevel.id,
     });
   }
 

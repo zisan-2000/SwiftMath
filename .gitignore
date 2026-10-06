@@ -42,6 +42,9 @@ yarn-error.log*
 /public/uploads/*
 !/public/uploads/.gitkeep
 
+# private homework-photo fallback used only in local development
+/.data/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

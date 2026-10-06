@@ -4,6 +4,7 @@ export type TeacherGroupTab =
   | "overview"
   | "students"
   | "performance"
+  | "homework"
   | "exams"
   | "analytics"
   | "questions"
@@ -26,6 +27,11 @@ export const TEACHER_GROUP_NAV: TeacherGroupNavItem[] = [
     id: "performance",
     label: "Class Performance",
     href: (id) => `/teacher/groups/${id}/performance`,
+  },
+  {
+    id: "homework",
+    label: "Homework",
+    href: (id) => `/teacher/groups/${id}/homework`,
   },
   { id: "exams", label: "Exams", href: (id) => `/teacher/groups/${id}/exams` },
   {

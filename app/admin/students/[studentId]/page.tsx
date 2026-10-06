@@ -10,7 +10,11 @@ import { PermissionControlsPanel } from "@/components/permission-controls-panel"
 import { StudentProgressPanel } from "@/components/student-progress-panel";
 import { ClassPerformanceHistory } from "@/components/class-performance-history";
 import { Badge } from "@/components/ui/badge";
-import { setStudentPermissionAction } from "./actions";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { getAdminStudentAcademicLevel, listAcademicLevels } from "@/server/academic-levels";
+import { assignAdminAcademicLevelAction, setStudentPermissionAction } from "./actions";
 
 export async function generateMetadata({
   params,
@@ -38,10 +42,11 @@ export default async function AdminStudentProgressPage({
   const { studentId } = await params;
   const { admin, institute, progress, studentPermissions } =
     await loadAdminStudentPageContext(studentId);
-  const classPerformance = await getStudentClassPerformanceForAdmin(
-    admin,
-    studentId,
-  );
+  const [classPerformance, academicLevels, academicAssignment] = await Promise.all([
+    getStudentClassPerformanceForAdmin(admin, studentId),
+    listAcademicLevels(admin.instituteId),
+    getAdminStudentAcademicLevel({ id: admin.id, instituteId: admin.instituteId, role: admin.role }, studentId),
+  ]);
 
   const { student, group, isActive } = progress;
   const groupLabel = group?.name ?? "Unassigned";
@@ -64,6 +69,16 @@ export default async function AdminStudentProgressPage({
       <div className="mt-6">
         <StudentProgressPanel progress={progress} />
       </div>
+
+      <Card className="mt-8">
+        <CardHeader><CardTitle className="text-base">Academic Level</CardTitle><p className="text-sm text-muted-foreground">Main teacher-controlled level; independent from Practice/Exam progression.</p></CardHeader>
+        <CardContent>
+          <form action={assignAdminAcademicLevelAction.bind(null, student.id)} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="flex-1 space-y-2"><Label htmlFor="academicLevelId">Academic Level</Label><select id="academicLevelId" name="academicLevelId" defaultValue={academicAssignment?.academicLevelId ?? ""} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">— Unassigned —</option>{academicLevels.map((level) => <option key={level.id} value={level.id}>{level.orderIndex}. {level.name}</option>)}</select></div>
+            <Button type="submit" variant="outline">Save Academic Level</Button>
+          </form>
+        </CardContent>
+      </Card>
 
       {classPerformance ? (
         <ClassPerformanceHistory history={classPerformance} />

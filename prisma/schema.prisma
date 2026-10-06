@@ -101,6 +101,12 @@ enum AuditAction {
   PERMISSION_REVOKED
   CLASS_PERFORMANCE_RECORDED
   CLASS_PERFORMANCE_UPDATED
+  ACADEMIC_LEVEL_CREATED
+  ACADEMIC_LEVEL_UPDATED
+  STUDENT_ACADEMIC_LEVEL_CHANGED
+  HOMEWORK_SCHEDULE_CREATED
+  HOMEWORK_SCHEDULE_UPDATED
+  HOMEWORK_SUBMISSION_REVIEWED
 }
 
 /// Attendance state recorded with a teacher-entered class performance mark.
@@ -113,6 +119,30 @@ enum ClassPerformanceStatus {
 enum PermissionEffect {
   ALLOW
   DENY
+}
+
+enum HomeworkScheduleMode {
+  WEEKLY_RECURRING
+  MANUAL_SPECIFIC
+}
+
+enum HomeworkTargetType {
+  GROUP
+  STUDENT
+}
+
+enum HomeworkScheduleStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum HomeworkSubmissionStatus {
+  IN_PROGRESS
+  SUBMITTED
+  APPROVED
+  REJECTED
+  RESUBMISSION_REQUESTED
 }
 
 // ---------------------------------------------------------------------------
@@ -156,6 +186,10 @@ model Institute {
   pushSubscriptions       PushSubscription[]
   classPerformances       ClassPerformance[]
   classPerformanceEntries ClassPerformanceEntry[]
+  academicLevels          AcademicLevel[]
+  homeworkSchedules       HomeworkSchedule[]
+  homeworkOccurrences     HomeworkOccurrence[]
+  homeworkExpectations    HomeworkExpectation[]
 
   @@map("institute")
 }
@@ -231,6 +265,11 @@ model User {
   currentLevelId String?
   currentLevel   Level?  @relation("StudentCurrentLevel", fields: [currentLevelId], references: [id], onDelete: SetNull)
 
+  /// Teacher-controlled offline/main academic level. This is independent from
+  /// the automatic practice/exam progression stored in currentLevelId.
+  academicLevelId String?
+  academicLevel   AcademicLevel? @relation("StudentAcademicLevel", fields: [academicLevelId], references: [id], onDelete: SetNull)
+
   /// Timed practice attempts made by this STUDENT.
   practiceSessions PracticeSession[] @relation("StudentSessions")
 
@@ -264,12 +303,18 @@ model User {
   /// Teacher-entered class performance history for this student.
   classPerformanceEntries ClassPerformanceEntry[] @relation("ClassPerformanceStudent")
 
+  homeworkSchedulesCreated  HomeworkSchedule[]    @relation("HomeworkScheduleCreator")
+  homeworkSchedulesTargeted HomeworkSchedule[]    @relation("HomeworkScheduleStudentTarget")
+  homeworkExpectations      HomeworkExpectation[] @relation("HomeworkExpectationStudent")
+  homeworkReviews           HomeworkSubmission[]  @relation("HomeworkSubmissionReviewer")
+
   // --- better-auth relations ---
   sessions Session[]
   accounts Account[]
 
   @@index([instituteId])
   @@index([groupId])
+  @@index([academicLevelId])
   @@map("user")
 }
 
@@ -375,12 +420,36 @@ model Group {
 
   classPerformances ClassPerformance[]
 
+  homeworkSchedules HomeworkSchedule[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([instituteId])
   @@index([teacherId])
   @@map("group")
+}
+
+/// Teacher-controlled main/offline level. It intentionally has no relation to
+/// the existing practice Level model: the two progressions are independent.
+model AcademicLevel {
+  id String @id @default(cuid())
+
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  name       String
+  orderIndex Int
+  isActive   Boolean @default(true)
+
+  students User[] @relation("StudentAcademicLevel")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([instituteId, orderIndex])
+  @@index([instituteId, isActive])
+  @@map("academic_level")
 }
 
 /// Per-group timed-practice override for a curriculum level.
@@ -611,6 +680,179 @@ model ClassPerformanceEntry {
   @@index([instituteId])
   @@index([studentId])
   @@map("class_performance_entry")
+}
+
+// ---------------------------------------------------------------------------
+// Homework — teacher schedule, date-wise occurrence, roster snapshot, attempt
+// ---------------------------------------------------------------------------
+
+/// A reusable weekly rule or one specific homework deadline. A target is
+/// exactly one group or one student (enforced by a database check constraint).
+model HomeworkSchedule {
+  id String @id @default(cuid())
+
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User   @relation("HomeworkScheduleCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  mode       HomeworkScheduleMode
+  targetType HomeworkTargetType
+
+  groupId String?
+  group   Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  studentId String?
+  student   User?   @relation("HomeworkScheduleStudentTarget", fields: [studentId], references: [id], onDelete: Cascade)
+
+  title String
+
+  /// Weekly schedules generate dates from startDate through optional endDate.
+  startDate DateTime
+  endDate   DateTime?
+
+  /// Used only by MANUAL_SPECIFIC schedules.
+  manualOpensAt DateTime?
+  manualDueAt   DateTime?
+
+  maxScore           Decimal                @db.Decimal(8, 2)
+  timeLimitMinutes   Int
+  showTimer          Boolean                @default(true)
+  allowSamePageAgain Boolean                @default(false)
+  status             HomeworkScheduleStatus @default(ACTIVE)
+
+  slots       HomeworkScheduleSlot[]
+  occurrences HomeworkOccurrence[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([instituteId, status])
+  @@index([groupId])
+  @@index([studentId])
+  @@index([createdById])
+  @@map("homework_schedule")
+}
+
+/// One weekday/time pair for a WEEKLY_RECURRING schedule. dayOfWeek uses
+/// JavaScript numbering (0=Sunday ... 6=Saturday); minutes are Bangladesh-local.
+model HomeworkScheduleSlot {
+  id String @id @default(cuid())
+
+  scheduleId String
+  schedule   HomeworkSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  dayOfWeek  Int
+  openMinute Int
+  dueMinute  Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([scheduleId, dayOfWeek])
+  @@index([scheduleId])
+  @@map("homework_schedule_slot")
+}
+
+/// A concrete, date-wise homework window generated from a schedule. Score and
+/// timer settings are snapshots so later schedule edits never rewrite history.
+model HomeworkOccurrence {
+  id String @id @default(cuid())
+
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  scheduleId String
+  schedule   HomeworkSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  opensAt DateTime
+  dueAt   DateTime
+
+  maxScoreSnapshot           Decimal @db.Decimal(8, 2)
+  timeLimitMinutesSnapshot   Int
+  showTimerSnapshot          Boolean
+  allowSamePageAgainSnapshot Boolean
+
+  /// Filled once when the occurrence opens. This freezes the eligible roster.
+  expectationsMaterializedAt DateTime?
+  cancelledAt                DateTime?
+
+  expectations HomeworkExpectation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([scheduleId, opensAt])
+  @@index([instituteId, opensAt])
+  @@index([scheduleId, dueAt])
+  @@map("homework_occurrence")
+}
+
+/// Immutable eligibility snapshot: who owed one occurrence and which Academic
+/// Level the teacher had assigned when that occurrence opened.
+model HomeworkExpectation {
+  id String @id @default(cuid())
+
+  instituteId String
+  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  occurrenceId String
+  occurrence   HomeworkOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+
+  studentId String
+  student   User   @relation("HomeworkExpectationStudent", fields: [studentId], references: [id], onDelete: Cascade)
+
+  academicLevelIdSnapshot   String?
+  academicLevelNameSnapshot String?
+
+  submissions HomeworkSubmission[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([occurrenceId, studentId])
+  @@index([instituteId, studentId])
+  @@index([studentId, createdAt])
+  @@map("homework_expectation")
+}
+
+/// One upload attempt. Resubmission appends another attempt; reviewed history
+/// is never overwritten. Photo keys are private object references, not URLs.
+model HomeworkSubmission {
+  id String @id @default(cuid())
+
+  expectationId String
+  expectation   HomeworkExpectation @relation(fields: [expectationId], references: [id], onDelete: Cascade)
+
+  attemptNumber Int
+  pageNumber    String
+
+  firstPhotoKey String
+  finalPhotoKey String?
+
+  startedAt         DateTime  @default(now())
+  submittedAt       DateTime?
+  completionSeconds Int?
+  isLate            Boolean?
+  lateBySeconds     Int?
+  isOverTimeLimit   Boolean?
+  overtimeSeconds   Int?
+
+  status HomeworkSubmissionStatus @default(IN_PROGRESS)
+
+  score          Decimal?  @db.Decimal(8, 2)
+  teacherComment String?
+  reviewedById   String?
+  reviewedBy     User?     @relation("HomeworkSubmissionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([expectationId, attemptNumber])
+  @@index([expectationId, status])
+  @@index([reviewedById])
+  @@map("homework_submission")
 }
 
 // ---------------------------------------------------------------------------

@@ -10,6 +10,7 @@ import {
   Target,
   TrendingUp,
   Trophy,
+  BookMarked,
 } from "lucide-react";
 
 import { prisma } from "@/lib/prisma";
@@ -87,6 +88,7 @@ export default async function StudentDashboardPage({
         select: {
           group: { select: { name: true } },
           currentLevel: { select: { name: true } },
+          academicLevel: { select: { name: true } },
         },
       }),
       getStudentPracticeAnalytics(user.id),
@@ -211,11 +213,17 @@ export default async function StudentDashboardPage({
         </Card>
       )}
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
         <StatCard
-          label="Current level"
+          label="Academic Level"
+          value={profile?.academicLevel?.name ?? "Not assigned"}
+          hint="Read-only; set by your teacher"
+          icon={BookMarked}
+        />
+        <StatCard
+          label="Practice level"
           value={profile?.currentLevel?.name ?? "Not assigned"}
-          hint="Set by your teacher"
+          hint="Practice/Exam progression"
           icon={Layers}
         />
         <StatCard label="Group" value={profile?.group?.name ?? "—"} icon={Boxes} />

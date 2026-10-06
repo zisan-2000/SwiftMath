@@ -4,7 +4,7 @@
 সম্পর্কে জানেন না। Screen-এ যে English button/menu দেখা যাবে, সেটি এখানে
 `code style`-এ লেখা হয়েছে।
 
-> Document version: 4 August 2026
+> Document version: 6 October 2026
 >
 > Test type: Client User Acceptance Testing (UAT)
 >
@@ -1161,3 +1161,96 @@ Client name: ______________________________
 Signature: _________________________________
 
 Date: _____________________________________
+
+---
+
+## 15. Academic Level + Homework route-wise UAT
+
+### HW-01 — Academic Level তৈরি
+
+- Role: Institute Admin
+- Route: `/admin/academic-levels`
+- করুন: `Academic Level 1` এবং `Academic Level 2` আলাদা order দিয়ে তৈরি করুন।
+- Pass: দুটো level list-এ আসে; একই order আবার দিলে friendly error আসে।
+
+### HW-02 — Student-এর Academic Level assign
+
+- Role: Teacher
+- Route: `/teacher/groups/{groupId}/students/{studentId}`
+- করুন: `Academic Level 1` assign করুন।
+- Pass: profile ও group student list-এ Academic Level দেখা যায়; Practice level বদলায় না।
+- এরপর Role: Student, Route: `/student`
+- Pass: Academic Level read-only দেখা যায়; Student-এর change control নেই।
+
+### HW-03 — Weekly group schedule
+
+- Role: Teacher
+- Route: `/teacher/groups/{groupId}/homework`
+- করুন: Entire group, `Weekly recurring`, দুই weekday, open/due time, score 10,
+  timer 15 minute দিয়ে save করুন।
+- Pass: schedule active হয় এবং next 8 weeks-এর date-wise occurrence দেখা যায়।
+
+### HW-04 — Manual individual schedule
+
+- Role: Teacher
+- Route: `/teacher/groups/{groupId}/homework`
+- করুন: একজন Student target করে `Manual / specific`, open ও due date/time দিন।
+- Pass: শুধু একটি occurrence তৈরি হয় এবং target Student-ই homework পায়।
+
+### HW-05 — Open-time roster snapshot
+
+- একটি occurrence open হওয়ার আগে group-এ নতুন Student যোগ করুন; তারপর Homework page
+  refresh করুন।
+- Pass: নতুন Student expectation list-এ আসে।
+- occurrence open ও roster freeze হওয়ার পরে আরেকজন Student যোগ করুন।
+- Pass: নতুন Student ভবিষ্যৎ occurrence-এ আসবে, পুরোনো occurrence history-তে নয়।
+
+### HW-06 — First photo এবং server timer
+
+- Role: Student
+- Route: `/student/homework`
+- করুন: Page number লিখে first photo upload করুন।
+- Pass: status `IN_PROGRESS`; page ও Academic Level locked snapshot হিসেবে থাকে;
+  refresh করলেও running attempt হারায় না।
+
+### HW-07 — Final photo, time ও late
+
+- একই attempt-এ final photo upload করুন।
+- Pass: status `SUBMITTED`; completion time server timestamps থেকে আসে।
+- Due পার হওয়ার পরে আরেকটি homework submit করুন।
+- Pass: submit block হয় না; `Late` দেখা যায় এবং automatic score deduction হয় না।
+
+### HW-08 — Teacher review ও private photo access
+
+- Role: Teacher
+- Route: `/teacher/groups/{groupId}/homework/{occurrenceId}`
+- করুন: first/final photo খুলুন, decimal score `8.5`, comment দিয়ে Approve করুন।
+- Pass: score maximum-এর বেশি নেয় না; Student history-তে score/comment আসে।
+- অন্য institute/অন্য teacher account দিয়ে photo URL খুলুন।
+- Pass: photo দেখা যায় না।
+
+### HW-09 — Resubmission history
+
+- Teacher `Request resubmission` দিন; Student নতুন page/first/final photo দিয়ে submit করুন।
+- Pass: Attempt 1 overwrite হয় না; Attempt 2 তৈরি হয় এবং দুটো history-তে থাকে।
+- শুধু `Reject` দিলে নতুন attempt শুরু করা যায় না।
+
+### HW-10 — Duplicate approved page
+
+- `Allow same page again` OFF রেখে একই Academic Level-এর আগে-approved Page আবার শুরু করুন।
+- Pass: system block করে। Setting ON করা individual schedule-এ একই Page গ্রহণ করে।
+
+### HW-11 — Missing/Incomplete এবং filters
+
+- Due পার হওয়া occurrence-এ একজন কিছু না করুক, আরেকজন শুধু first photo দিক।
+- Pass: Teacher list-এ যথাক্রমে `MISSING` ও `INCOMPLETE` দেখা যায়।
+- Student history-তে Date, Academic Level, Page, Status, On-time/Late filter ব্যবহার করুন।
+- Teacher occurrence-এ Student, Academic Level, Status, Timing filter ব্যবহার করুন।
+- Pass: matching rows থাকে এবং `Clear` সব filter reset করে।
+
+### HW-12 — Schedule pause এবং maintenance
+
+- Teacher schedule Pause করুন।
+- Pass: paused অবস্থায় নতুন open occurrence-এর roster materialize হয় না।
+- Route/API (ops): `GET /api/cron/homework` with `Authorization: Bearer CRON_SECRET`.
+- Pass: `{ "ok": true }` response ও generation/materialization stats আসে।

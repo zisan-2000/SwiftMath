@@ -6,6 +6,7 @@ import {
   GraduationCap,
   Settings,
   Users,
+  BookMarked,
 } from "lucide-react";
 
 import { getExamWindowStatus } from "@/lib/exam-window";
@@ -63,6 +64,12 @@ export default async function GroupOverviewPage({
       label: "Class performance",
       description: "Record date-wise marks and view the separate ranking",
       icon: BarChart3,
+    },
+    {
+      href: `/teacher/groups/${groupId}/homework`,
+      label: "Homework",
+      description: "Schedule photo homework and review submissions",
+      icon: BookMarked,
     },
     {
       href: `/teacher/ranking?view=group:${groupId}`,

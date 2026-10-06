@@ -6,6 +6,8 @@ import { redirect } from "next/navigation";
 import { PERMISSIONS } from "@/lib/permissions";
 import { requirePermission } from "@/lib/session";
 import { moveStudentToGroup } from "@/server/teacher";
+import { Role } from "@/lib/generated/prisma/enums";
+import { AcademicLevelError, assignStudentAcademicLevel } from "@/server/academic-levels";
 
 /**
  * Move a student into another of the teacher's groups, then open the student in
@@ -34,4 +36,24 @@ export async function moveStudentAction(formData: FormData) {
   revalidatePath(`/teacher/groups/${currentGroupId}`);
   revalidatePath(`/teacher/groups/${targetGroupId}`);
   redirect(`/teacher/groups/${targetGroupId}/students/${studentId}`);
+}
+
+export async function assignAcademicLevelAction(formData: FormData) {
+  const teacher = await requirePermission(PERMISSIONS.STUDENT_ASSIGN_ACADEMIC_LEVEL);
+  const groupId = String(formData.get("groupId") ?? "");
+  const studentId = String(formData.get("studentId") ?? "");
+  const levelId = String(formData.get("academicLevelId") ?? "") || null;
+  try {
+    await assignStudentAcademicLevel(
+      { id: teacher.id, instituteId: teacher.instituteId, role: Role.TEACHER },
+      studentId,
+      levelId,
+    );
+  } catch (error) {
+    const message = error instanceof AcademicLevelError ? error.message : "Could not update Academic Level.";
+    redirect(`/teacher/groups/${groupId}/students/${studentId}?error=${encodeURIComponent(message)}`);
+  }
+  revalidatePath(`/teacher/groups/${groupId}/students/${studentId}`);
+  revalidatePath(`/teacher/groups/${groupId}/students`);
+  redirect(`/teacher/groups/${groupId}/students/${studentId}?success=${encodeURIComponent("Academic Level updated.")}`);
 }

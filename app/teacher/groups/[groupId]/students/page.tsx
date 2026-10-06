@@ -25,7 +25,7 @@ export default async function GroupStudentsPage({
       institute={institute}
       groupId={groupId}
       groupName={group.name}
-      subtitle="Students in this group — assign levels and open progress."
+      subtitle="Students in this group — view Academic and Practice levels, then open progress."
       actions={<AddStudentDialog groupId={group.id} />}
     >
       {levels.length === 0 && (

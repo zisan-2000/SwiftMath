@@ -19,6 +19,7 @@ interface GroupStudent {
   email: string;
   currentLevelId: string | null;
   currentLevel: { name: string } | null;
+  academicLevel: { name: string } | null;
 }
 
 interface LevelOption {
@@ -85,9 +86,12 @@ export function GroupStudentsList({
                 </p>
                 {student.currentLevel ? (
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Level: {student.currentLevel.name}
+                    Practice level: {student.currentLevel.name}
                   </p>
                 ) : null}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Academic Level: {student.academicLevel?.name ?? "Unassigned"}
+                </p>
               </div>
 
               <div className="flex flex-col items-stretch gap-2 sm:items-end">

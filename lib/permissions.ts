@@ -11,18 +11,22 @@ export const PERMISSIONS = {
   STUDENT_RESET_PASSWORD: "student:reset_password",
   STUDENT_ASSIGN_GROUP: "student:assign_group",
   STUDENT_ASSIGN_LEVEL: "student:assign_level",
+  STUDENT_ASSIGN_ACADEMIC_LEVEL: "student:assign_academic_level",
   STUDENT_EXPORT: "student:export",
   STUDENT_PERMISSIONS_MANAGE: "student:permissions:manage",
   STUDENT_PRACTICE_START: "student:practice:start",
   STUDENT_PRACTICE_SUBMIT: "student:practice:submit",
   STUDENT_EXAM_START: "student:exam:start",
+  STUDENT_HOMEWORK_SUBMIT: "student:homework:submit",
 
   GROUP_MANAGE: "group:manage",
   GROUP_ASSIGN_TEACHER: "group:assign_teacher",
   GROUP_QUESTION_OVERRIDE: "group:question:override",
   CLASS_PERFORMANCE_MANAGE: "class_performance:manage",
+  HOMEWORK_MANAGE: "homework:manage",
 
   LEVEL_MANAGE: "level:manage",
+  ACADEMIC_LEVEL_MANAGE: "academic_level:manage",
   QUESTION_MANAGE: "question:manage",
   QUESTION_PUBLISH: "question:publish",
   CURRICULUM_PUBLISH: "curriculum:publish",
@@ -121,6 +125,13 @@ export const PERMISSION_METADATA = {
     scope: "institute",
     assignableTo: [Role.ADMIN, Role.TEACHER],
   },
+  [PERMISSIONS.STUDENT_ASSIGN_ACADEMIC_LEVEL]: {
+    label: "Assign academic levels",
+    description: "Set a student's teacher-controlled academic level.",
+    domain: "Students",
+    scope: "institute",
+    assignableTo: [Role.ADMIN, Role.TEACHER],
+  },
   [PERMISSIONS.STUDENT_EXPORT]: {
     label: "Export students",
     description: "Download institute student progress reports.",
@@ -152,6 +163,13 @@ export const PERMISSION_METADATA = {
   [PERMISSIONS.STUDENT_EXAM_START]: {
     label: "Start exams",
     description: "Start scheduled exam attempts during an open exam window.",
+    domain: "Student access",
+    scope: "institute",
+    assignableTo: [Role.STUDENT],
+  },
+  [PERMISSIONS.STUDENT_HOMEWORK_SUBMIT]: {
+    label: "Submit homework",
+    description: "Upload and submit assigned homework attempts.",
     domain: "Student access",
     scope: "institute",
     assignableTo: [Role.STUDENT],
@@ -225,6 +243,20 @@ export const PERMISSION_METADATA = {
     domain: "Groups",
     scope: "institute",
     assignableTo: [Role.TEACHER],
+  },
+  [PERMISSIONS.HOMEWORK_MANAGE]: {
+    label: "Manage homework",
+    description: "Schedule, monitor, and review homework for owned students.",
+    domain: "Groups",
+    scope: "institute",
+    assignableTo: [Role.TEACHER],
+  },
+  [PERMISSIONS.ACADEMIC_LEVEL_MANAGE]: {
+    label: "Manage academic levels",
+    description: "Create and maintain teacher-controlled academic levels.",
+    domain: "Curriculum",
+    scope: "institute",
+    assignableTo: [Role.ADMIN],
   },
   [PERMISSIONS.INSTITUTE_SETTINGS]: {
     label: "Institute settings",
@@ -326,6 +358,7 @@ export const STUDENT_SELF_SERVICE_PERMISSIONS = [
   PERMISSIONS.STUDENT_PRACTICE_START,
   PERMISSIONS.STUDENT_PRACTICE_SUBMIT,
   PERMISSIONS.STUDENT_EXAM_START,
+  PERMISSIONS.STUDENT_HOMEWORK_SUBMIT,
 ] as const;
 
 export function getRoleDefaultPermissions(role: Role): Set<Permission> {
@@ -346,9 +379,11 @@ export function getRoleDefaultPermissions(role: Role): Set<Permission> {
         PERMISSIONS.GROUP_MANAGE,
         PERMISSIONS.GROUP_QUESTION_OVERRIDE,
         PERMISSIONS.CLASS_PERFORMANCE_MANAGE,
+        PERMISSIONS.HOMEWORK_MANAGE,
         PERMISSIONS.STUDENT_CREATE,
         PERMISSIONS.STUDENT_ASSIGN_GROUP,
         PERMISSIONS.STUDENT_ASSIGN_LEVEL,
+        PERMISSIONS.STUDENT_ASSIGN_ACADEMIC_LEVEL,
         PERMISSIONS.STUDENT_RESET_PASSWORD,
         PERMISSIONS.EXAM_SCHEDULE,
         PERMISSIONS.EXAM_CANCEL,
