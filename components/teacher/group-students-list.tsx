@@ -17,6 +17,7 @@ interface GroupStudent {
   id: string;
   name: string;
   email: string;
+  contactNumber: string | null;
   currentLevelId: string | null;
   currentLevel: { name: string } | null;
   academicLevel: { name: string } | null;
@@ -84,6 +85,11 @@ export function GroupStudentsList({
                 <p className="truncate text-sm text-muted-foreground">
                   {student.email}
                 </p>
+                {student.contactNumber ? (
+                  <p className="truncate text-sm text-muted-foreground">
+                    {student.contactNumber}
+                  </p>
+                ) : null}
                 {student.currentLevel ? (
                   <p className="mt-1 text-xs text-muted-foreground">
                     Practice level: {student.currentLevel.name}

@@ -41,7 +41,7 @@ export function AddStudentForm({
     <form ref={formRef} action={formAction} className="flex flex-col gap-3">
       <input type="hidden" name="groupId" value={groupId} />
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="student-name">Full name</Label>
           <Input
@@ -60,6 +60,17 @@ export function AddStudentForm({
             placeholder="jane@institute.test"
             autoComplete="off"
             required
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="student-contact-number">Contact number (optional)</Label>
+          <Input
+            id="student-contact-number"
+            name="contactNumber"
+            type="tel"
+            inputMode="tel"
+            placeholder="01712345678"
+            autoComplete="tel"
           />
         </div>
         <div className="flex flex-col gap-1.5">

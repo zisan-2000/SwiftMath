@@ -13,6 +13,8 @@ import { Label } from "@/components/ui/label";
 import { moveStudentAction } from "./actions";
 import { assignAcademicLevelAction } from "./actions";
 import { getTeacherStudentAcademicLevel, listAcademicLevels } from "@/server/academic-levels";
+import { StudentContactForm } from "@/components/student-contact-form";
+import { updateStudentContactAction } from "./actions";
 
 export const metadata: Metadata = {
   title: "Student progress",
@@ -59,6 +61,18 @@ export default async function StudentProgressPage({
       backLabel="Back to students"
     >
       <StudentProgressPanel progress={progress} />
+
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle className="text-base">Contact information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <StudentContactForm
+            action={updateStudentContactAction.bind(null, studentId, groupId)}
+            contactNumber={student.contactNumber ?? null}
+          />
+        </CardContent>
+      </Card>
 
       <Card className="mt-8">
         <CardHeader>

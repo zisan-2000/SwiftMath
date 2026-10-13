@@ -27,6 +27,7 @@ import {
 interface StudentDraft {
   id: string;
   name: string;
+  contactNumber?: string | null;
   mark: string;
   status: ClassPerformanceDraftStatus;
   canBeNotEntered: boolean;
@@ -219,6 +220,11 @@ export function ClassPerformanceEntryForm({
                           <td className="px-4 py-3 font-medium text-foreground">
                             <input type="hidden" name="studentId" value={student.id} />
                             {student.name}
+                            {student.contactNumber ? (
+                              <span className="block text-xs font-normal text-muted-foreground">
+                                {student.contactNumber}
+                              </span>
+                            ) : null}
                           </td>
                           <td className="w-40 px-4 py-3">
                             <Input

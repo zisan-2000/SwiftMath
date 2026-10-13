@@ -8,6 +8,9 @@ import { requirePermission } from "@/lib/session";
 import { moveStudentToGroup } from "@/server/teacher";
 import { Role } from "@/lib/generated/prisma/enums";
 import { AcademicLevelError, assignStudentAcademicLevel } from "@/server/academic-levels";
+import { parseContactNumber } from "@/lib/contact-number";
+import { updateTeacherStudentContactNumber } from "@/server/teacher";
+import type { StudentContactState } from "@/components/student-contact-form";
 
 /**
  * Move a student into another of the teacher's groups, then open the student in
@@ -56,4 +59,32 @@ export async function assignAcademicLevelAction(formData: FormData) {
   revalidatePath(`/teacher/groups/${groupId}/students/${studentId}`);
   revalidatePath(`/teacher/groups/${groupId}/students`);
   redirect(`/teacher/groups/${groupId}/students/${studentId}?success=${encodeURIComponent("Academic Level updated.")}`);
+}
+
+export async function updateStudentContactAction(
+  studentId: string,
+  groupId: string,
+  _previousState: StudentContactState,
+  formData: FormData,
+): Promise<StudentContactState> {
+  const teacher = await requirePermission(PERMISSIONS.STUDENT_CREATE);
+  const parsed = parseContactNumber(
+    String(formData.get("contactNumber") ?? ""),
+  );
+  if (!parsed.ok) return { error: parsed.error };
+
+  const updated = await updateTeacherStudentContactNumber(
+    teacher,
+    studentId,
+    parsed.value,
+  );
+  if (!updated) return { error: "Student not found in your groups." };
+
+  revalidatePath(`/teacher/groups/${groupId}/students`);
+  revalidatePath(`/teacher/groups/${groupId}/students/${studentId}`);
+  revalidatePath(`/teacher/groups/${groupId}/performance`);
+  revalidatePath(`/teacher/groups/${groupId}/performance/ranking`);
+  revalidatePath(`/teacher/groups/${groupId}/analytics`);
+  revalidatePath("/teacher/students");
+  return { ok: true };
 }

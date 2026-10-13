@@ -20,6 +20,7 @@ import {
 import { parseScheduleExamForm } from "@/lib/scheduled-exam-form";
 import { setGroupQuestionEnabled } from "@/server/question-bank";
 import type { ResetPasswordState } from "@/components/reset-password-form";
+import { parseContactNumber } from "@/lib/contact-number";
 
 /** Result of the add-student form, surfaced via useActionState. */
 export interface AddStudentState {
@@ -54,15 +55,24 @@ export async function addStudentAction(
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+  const contactNumber = parseContactNumber(
+    String(formData.get("contactNumber") ?? ""),
+  );
 
   if (!name) return { error: "Name is required." };
   if (!email.includes("@")) return { error: "Enter a valid email address." };
   if (password.length < 8) {
     return { error: "Password must be at least 8 characters." };
   }
+  if (!contactNumber.ok) return { error: contactNumber.error };
 
   try {
-    await addStudentToGroup(teacher, groupId, { name, email, password });
+    await addStudentToGroup(teacher, groupId, {
+      name,
+      email,
+      password,
+      contactNumber: contactNumber.value,
+    });
   } catch (error) {
     if (isUniqueViolation(error)) {
       return { error: "That email is already in use." };

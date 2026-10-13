@@ -15,6 +15,7 @@ export interface GroupStudentSessionRow {
 export interface GroupStudentPracticeSummary {
   studentId: string;
   name: string;
+  contactNumber?: string | null;
   sessions: number;
   passed: number;
   passRate: number;
@@ -26,7 +27,7 @@ export interface GroupStudentPracticeSummary {
 
 /** Per-student practice stats for one group over a time window. */
 export function buildGroupStudentSummaries(
-  students: { id: string; name: string }[],
+  students: { id: string; name: string; contactNumber?: string | null }[],
   sessions: GroupStudentSessionRow[],
 ): GroupStudentPracticeSummary[] {
   const byStudent = new Map<string, GroupStudentSessionRow[]>();
@@ -46,6 +47,9 @@ export function buildGroupStudentSummaries(
     return {
       studentId: student.id,
       name: student.name,
+      ...(student.contactNumber !== undefined
+        ? { contactNumber: student.contactNumber }
+        : {}),
       sessions: total,
       passed,
       passRate: computePassRate(passed, total),

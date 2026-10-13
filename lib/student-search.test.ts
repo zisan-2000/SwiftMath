@@ -3,12 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   filterStudentsByName,
   matchesStudentName,
+  matchesStudentSearch,
   normalizeStudentSearch,
 } from "@/lib/student-search";
 
 const STUDENTS = [
-  { id: "1", name: "Sakib" },
-  { id: "2", name: "Rakib" },
+  { id: "1", name: "Sakib", contactNumber: "01712345678" },
+  { id: "2", name: "Rakib", contactNumber: "01812345678" },
   { id: "3", name: "Sarkar" },
   { id: "4", name: "Saklain" },
 ];
@@ -29,6 +30,15 @@ describe("student name search", () => {
   it("trims and normalizes the query", () => {
     expect(normalizeStudentSearch("  Sak  ")).toBe("sak");
     expect(matchesStudentName("Sakib", " KIB ")).toBe(true);
+  });
+
+  it("matches contact numbers while ignoring query separators", () => {
+    expect(filterStudentsByName(STUDENTS, "01712-345").map((row) => row.name)).toEqual([
+      "Sakib",
+    ]);
+    expect(
+      matchesStudentSearch({ name: "Sakib", contactNumber: null }, "017"),
+    ).toBe(false);
   });
 
   it("returns the original list for an empty query", () => {

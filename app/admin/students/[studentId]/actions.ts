@@ -7,6 +7,9 @@ import { PERMISSIONS } from "@/lib/permissions";
 import { requireAdminPermission, requirePermission } from "@/lib/session";
 import { setStudentPermissionOverride } from "@/server/user-permissions";
 import { assignStudentAcademicLevel } from "@/server/academic-levels";
+import { parseContactNumber } from "@/lib/contact-number";
+import { updateAdminStudentContactNumber } from "@/server/admin";
+import type { StudentContactState } from "@/components/student-contact-form";
 
 export interface SetStudentPermissionState {
   error?: string;
@@ -57,5 +60,29 @@ export async function setStudentPermissionAction(
 
   revalidatePath("/admin/activity");
   revalidatePath(`/admin/students/${studentId}`);
+  return { ok: true };
+}
+
+export async function updateAdminStudentContactAction(
+  studentId: string,
+  _previousState: StudentContactState,
+  formData: FormData,
+): Promise<StudentContactState> {
+  const admin = await requireAdminPermission(PERMISSIONS.STUDENT_CREATE);
+  const parsed = parseContactNumber(
+    String(formData.get("contactNumber") ?? ""),
+  );
+  if (!parsed.ok) return { error: parsed.error };
+
+  const updated = await updateAdminStudentContactNumber(
+    admin,
+    studentId,
+    parsed.value,
+  );
+  if (!updated) return { error: "Student not found in your institute." };
+
+  revalidatePath("/admin/students");
+  revalidatePath(`/admin/students/${studentId}`);
+  revalidatePath("/admin/groups");
   return { ok: true };
 }

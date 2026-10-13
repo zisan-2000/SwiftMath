@@ -21,6 +21,7 @@ import {
 import type { InstituteBrandingSettings } from "@/lib/institute-branding";
 import { ACTIVE_LEVEL_FILTER } from "@/lib/active-levels";
 import { loadStudentProgress } from "@/server/student-progress";
+import { contactNumberSearchToken } from "@/lib/contact-number";
 import {
   notifyStudentLevelAssigned,
   notifyTeacherStudentJoined,
@@ -308,6 +309,7 @@ export function getAdminGroup(admin: AdminContext, groupId: string) {
           id: true,
           name: true,
           email: true,
+          contactNumber: true,
           isActive: true,
           currentLevel: { select: { name: true } },
         },
@@ -430,6 +432,7 @@ export async function listInstituteStudents(
   id: string;
   name: string;
   email: string;
+  contactNumber: string | null;
   isActive: boolean;
   group: { name: string } | null;
   currentLevel: { name: string; orderIndex: number } | null;
@@ -439,11 +442,19 @@ export async function listInstituteStudents(
     pageSize,
   );
   const query = search.trim().slice(0, 100);
+  const numberQuery = contactNumberSearchToken(query);
   const where = {
     instituteId,
     role: Role.STUDENT,
     ...(query
-      ? { name: { contains: query, mode: "insensitive" as const } }
+      ? {
+          OR: [
+            { name: { contains: query, mode: "insensitive" as const } },
+            ...(numberQuery
+              ? [{ contactNumber: { contains: numberQuery } }]
+              : []),
+          ],
+        }
       : {}),
   };
 
@@ -457,6 +468,7 @@ export async function listInstituteStudents(
         id: true,
         name: true,
         email: true,
+        contactNumber: true,
         isActive: true,
         group: { select: { name: true } },
         currentLevel: { select: { name: true, orderIndex: true } },
@@ -486,6 +498,7 @@ export async function getAdminStudentProgress(
       id: true,
       name: true,
       email: true,
+      contactNumber: true,
       isActive: true,
       group: { select: { name: true } },
       currentLevel: { select: { id: true, name: true, orderIndex: true } },
@@ -509,7 +522,12 @@ export type CreateStudentResult =
 export async function createStudentInGroup(
   admin: AdminContext,
   groupId: string,
-  student: { name: string; email: string; password: string },
+  student: {
+    name: string;
+    email: string;
+    password: string;
+    contactNumber?: string | null;
+  },
   levelId?: string | null,
 ): Promise<CreateStudentResult> {
   const group = await prisma.group.findFirst({
@@ -538,6 +556,7 @@ export async function createStudentInGroup(
     role: Role.STUDENT,
     instituteId: admin.instituteId,
     groupId: group.id,
+    contactNumber: student.contactNumber,
   });
 
   await notifyTeacherStudentJoined({
@@ -577,6 +596,23 @@ export async function createStudentInGroup(
   }
 
   return { ok: true };
+}
+
+/** Update a student's optional contact number within the admin's institute. */
+export async function updateAdminStudentContactNumber(
+  admin: AdminContext,
+  studentId: string,
+  contactNumber: string | null,
+): Promise<boolean> {
+  const updated = await prisma.user.updateMany({
+    where: {
+      id: studentId,
+      instituteId: admin.instituteId,
+      role: Role.STUDENT,
+    },
+    data: { contactNumber },
+  });
+  return updated.count === 1;
 }
 
 // ---------------------------------------------------------------------------

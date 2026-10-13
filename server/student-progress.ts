@@ -21,6 +21,7 @@ export type StudentProgressSubject = {
   id: string;
   name: string;
   email: string;
+  contactNumber?: string | null;
   currentLevel: { id: string; name: string; orderIndex: number } | null;
 };
 

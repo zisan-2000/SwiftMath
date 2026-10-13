@@ -19,6 +19,8 @@ export interface CreateUserAccountParams {
   name: string;
   role: Role;
   instituteId: string;
+  /** Optional staff-managed number (students only in current UI flows). */
+  contactNumber?: string | null;
   /** Optional group placement (used when a teacher adds a student). */
   groupId?: string;
 }
@@ -34,7 +36,7 @@ export interface CreateUserAccountParams {
  * Throws if the email is already taken (unique constraint).
  */
 export async function createUserAccount(params: CreateUserAccountParams) {
-  const { email, password, name, role, instituteId, groupId } = params;
+  const { email, password, name, role, instituteId, groupId, contactNumber } = params;
 
   const normalizedEmail = email.trim().toLowerCase();
   const passwordHash = await hashPassword(password);
@@ -47,6 +49,7 @@ export async function createUserAccount(params: CreateUserAccountParams) {
         role,
         instituteId,
         groupId,
+        contactNumber: contactNumber ?? null,
         // Provisioned by trusted staff — Phase 1 has no email-verification flow.
         emailVerified: true,
       },

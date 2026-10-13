@@ -101,7 +101,7 @@ export default async function AdminStudentsPage({
                 title={studentQuery ? "No matching students" : "No students yet"}
                 description={
                   studentQuery
-                    ? `No student name contains “${studentQuery}”.`
+                    ? `No student name or contact number matches “${studentQuery}”.`
                     : groups.length === 0
                     ? "A teacher must create a group before you can add students."
                     : "Use “Add student” to create the first student account."
@@ -131,6 +131,11 @@ export default async function AdminStudentsPage({
                       <p className="truncate text-sm text-muted-foreground">
                         {student.email}
                       </p>
+                      {student.contactNumber ? (
+                        <p className="truncate text-sm text-muted-foreground">
+                          {student.contactNumber}
+                        </p>
+                      ) : null}
                       <p className="mt-1 text-sm text-muted-foreground">
                         {student.group?.name ?? "Unassigned"}
                         {" · "}

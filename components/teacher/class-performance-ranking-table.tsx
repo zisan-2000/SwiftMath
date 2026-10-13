@@ -57,6 +57,11 @@ export function ClassPerformanceRankingTable({
                   >
                     {row.name}
                   </Link>
+                  {row.contactNumber ? (
+                    <span className="block text-xs text-muted-foreground">
+                      {row.contactNumber}
+                    </span>
+                  ) : null}
                 </td>
                 <td className="px-5 py-3 font-semibold tabular-nums text-primary">
                   {row.percentage}%

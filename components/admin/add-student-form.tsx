@@ -97,6 +97,19 @@ export function AddStudentForm({
           />
         </div>
         <div className="flex flex-col gap-1.5">
+          <Label htmlFor="admin-student-contact-number">
+            Contact number (optional)
+          </Label>
+          <Input
+            id="admin-student-contact-number"
+            name="contactNumber"
+            type="tel"
+            inputMode="tel"
+            placeholder="01712345678"
+            autoComplete="tel"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
           <Label htmlFor="admin-student-password">Temporary password</Label>
           <PasswordInput
             id="admin-student-password"

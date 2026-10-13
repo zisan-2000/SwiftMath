@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function useStudentSearch<T extends { name: string }>(students: T[]) {
+export function useStudentSearch<
+  T extends { name: string; contactNumber?: string | null },
+>(students: T[]) {
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const filteredStudents = useMemo(
@@ -37,7 +39,7 @@ export function StudentSearch({
   return (
     <div className={`space-y-1.5 ${className}`}>
       <Label htmlFor={id} className="sr-only">
-        Search students by name
+        Search students by name or contact number
       </Label>
       <div className="relative max-w-sm">
         <Search
@@ -49,7 +51,7 @@ export function StudentSearch({
           type="search"
           value={query}
           onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Search student by name…"
+          placeholder="Search by name or contact number…"
           autoComplete="off"
           className="pl-9 pr-9"
         />

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdminPermission } from "@/lib/session";
 import { PERMISSIONS } from "@/lib/permissions";
 import { createStudentInGroup } from "@/server/admin";
+import { parseContactNumber } from "@/lib/contact-number";
 
 /** Result of the add-student form, surfaced via useActionState. */
 export interface AddStudentState {
@@ -33,6 +34,9 @@ export async function addStudentAction(
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
+  const contactNumber = parseContactNumber(
+    String(formData.get("contactNumber") ?? ""),
+  );
   const levelIdRaw = String(formData.get("levelId") ?? "");
   const levelId = levelIdRaw === "" ? null : levelIdRaw;
 
@@ -42,12 +46,13 @@ export async function addStudentAction(
   if (password.length < 8) {
     return { error: "Password must be at least 8 characters." };
   }
+  if (!contactNumber.ok) return { error: contactNumber.error };
 
   try {
     const result = await createStudentInGroup(
       admin,
       groupId,
-      { name, email, password },
+      { name, email, password, contactNumber: contactNumber.value },
       levelId,
     );
     if (!result.ok) {

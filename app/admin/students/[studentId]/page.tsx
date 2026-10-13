@@ -14,7 +14,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { getAdminStudentAcademicLevel, listAcademicLevels } from "@/server/academic-levels";
-import { assignAdminAcademicLevelAction, setStudentPermissionAction } from "./actions";
+import {
+  assignAdminAcademicLevelAction,
+  setStudentPermissionAction,
+  updateAdminStudentContactAction,
+} from "./actions";
+import { StudentContactForm } from "@/components/student-contact-form";
 
 export async function generateMetadata({
   params,
@@ -69,6 +74,18 @@ export default async function AdminStudentProgressPage({
       <div className="mt-6">
         <StudentProgressPanel progress={progress} />
       </div>
+
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle className="text-base">Contact information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <StudentContactForm
+            action={updateAdminStudentContactAction.bind(null, studentId)}
+            contactNumber={student.contactNumber ?? null}
+          />
+        </CardContent>
+      </Card>
 
       <Card className="mt-8">
         <CardHeader><CardTitle className="text-base">Academic Level</CardTitle><p className="text-sm text-muted-foreground">Main teacher-controlled level; independent from Practice/Exam progression.</p></CardHeader>

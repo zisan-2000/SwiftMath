@@ -58,6 +58,11 @@ export function StudentAnalyticsTable({
                     >
                       {row.name}
                     </Link>
+                    {row.contactNumber ? (
+                      <span className="block text-xs text-muted-foreground">
+                        {row.contactNumber}
+                      </span>
+                    ) : null}
                   </td>
                   <td className="px-5 py-3 align-middle tabular-nums">
                     {row.sessions}

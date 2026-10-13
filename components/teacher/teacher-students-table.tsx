@@ -22,6 +22,7 @@ export interface TeacherStudentRow {
   id: string;
   name: string;
   email: string;
+  contactNumber: string | null;
   currentLevel: { name: string } | null;
   group: { id: string; name: string };
 }
@@ -72,6 +73,11 @@ export function TeacherStudentsTable({ students }: { students: TeacherStudentRow
                   <p className="truncate text-sm text-muted-foreground">
                     {student.email}
                   </p>
+                  {student.contactNumber ? (
+                    <p className="truncate text-sm text-muted-foreground">
+                      {student.contactNumber}
+                    </p>
+                  ) : null}
                 </div>
               </TableCell>
               <TableCell>

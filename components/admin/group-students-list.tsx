@@ -15,6 +15,7 @@ interface AdminGroupStudent {
   id: string;
   name: string;
   email: string;
+  contactNumber: string | null;
   isActive: boolean;
   currentLevel: { name: string } | null;
 }
@@ -75,6 +76,11 @@ export function AdminGroupStudentsList({
                 <p className="truncate text-sm text-muted-foreground">
                   {student.email}
                 </p>
+                {student.contactNumber ? (
+                  <p className="truncate text-sm text-muted-foreground">
+                    {student.contactNumber}
+                  </p>
+                ) : null}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm text-muted-foreground">

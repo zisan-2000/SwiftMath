@@ -115,7 +115,7 @@ export async function getGroupClassPerformanceWorkspace(
       students: {
         where: { role: Role.STUDENT },
         orderBy: { name: "asc" },
-        select: { id: true, name: true },
+        select: { id: true, name: true, contactNumber: true },
       },
     },
   });
@@ -132,7 +132,7 @@ export async function getGroupClassPerformanceWorkspace(
             studentId: true,
             mark: true,
             status: true,
-            student: { select: { name: true } },
+            student: { select: { name: true, contactNumber: true } },
           },
         },
       },
@@ -154,6 +154,7 @@ export async function getGroupClassPerformanceWorkspace(
         selected.entries.map((entry) => ({
           id: entry.studentId,
           name: entry.student.name,
+          contactNumber: entry.student.contactNumber,
           mark: decimalText(entry.mark),
           status: entry.status,
         })),
@@ -200,7 +201,7 @@ export async function saveClassPerformance(
       name: true,
       students: {
         where: { role: Role.STUDENT },
-        select: { id: true, name: true },
+        select: { id: true, name: true, contactNumber: true },
       },
     },
   });
@@ -360,7 +361,7 @@ export async function getGroupClassPerformanceRanking(
       students: {
         where: { role: Role.STUDENT },
         orderBy: { name: "asc" },
-        select: { id: true, name: true },
+        select: { id: true, name: true, contactNumber: true },
       },
     },
   });

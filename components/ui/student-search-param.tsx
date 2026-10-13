@@ -42,7 +42,7 @@ export function StudentSearchParam({
   return (
     <div className="space-y-1.5">
       <Label htmlFor={id} className="sr-only">
-        Search students by name
+        Search students by name or contact number
       </Label>
       <div className="relative max-w-sm">
         <Search
@@ -54,7 +54,7 @@ export function StudentSearchParam({
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search student by name…"
+          placeholder="Search by name or contact number…"
           autoComplete="off"
           aria-busy={pending}
           className="pl-9 pr-9"

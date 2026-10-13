@@ -11,6 +11,7 @@ import type { AdminContext } from "@/server/admin";
 export type InstituteStudentReportRow = {
   name: string;
   email: string;
+  contactNumber: string;
   group: string;
   teacher: string;
   currentLevel: string;
@@ -29,6 +30,7 @@ export type InstituteStudentReportRow = {
 const REPORT_HEADERS = [
   "Student name",
   "Email",
+  "Contact number",
   "Group",
   "Teacher",
   "Current level",
@@ -55,6 +57,7 @@ export async function buildInstituteStudentReport(
       id: true,
       name: true,
       email: true,
+      contactNumber: true,
       isActive: true,
       group: {
         select: {
@@ -88,6 +91,7 @@ export async function buildInstituteStudentReport(
     return {
       name: student.name,
       email: student.email,
+      contactNumber: student.contactNumber ?? "",
       group: student.group?.name ?? "Unassigned",
       teacher: student.group?.teacher.name ?? "—",
       currentLevel: student.currentLevel
@@ -116,6 +120,7 @@ export function instituteStudentReportToCsv(
     rows.map((row) => [
       row.name,
       row.email,
+      row.contactNumber,
       row.group,
       row.teacher,
       row.currentLevel,

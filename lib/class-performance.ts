@@ -12,6 +12,7 @@ export type ClassPerformanceDraftStatus =
 interface ClassPerformanceRosterStudent {
   id: string;
   name: string;
+  contactNumber?: string | null;
 }
 
 interface SavedClassPerformanceRosterEntry
@@ -30,6 +31,7 @@ export interface ClassPerformanceRosterRow
 export interface ClassPerformanceRankingStudent {
   id: string;
   name: string;
+  contactNumber?: string | null;
 }
 
 export interface ClassPerformanceRankingSheet {
@@ -45,6 +47,7 @@ export interface ClassPerformanceRankingRow {
   rank: number;
   studentId: string;
   name: string;
+  contactNumber?: string | null;
   classCount: number;
   presentCount: number;
   absentCount: number;
@@ -185,6 +188,9 @@ export function buildClassPerformanceRanking(
     return {
       studentId: student.id,
       name: student.name,
+      ...(student.contactNumber !== undefined
+        ? { contactNumber: student.contactNumber }
+        : {}),
       ...aggregate,
       totalMark: Math.round(aggregate.totalMark * 100) / 100,
       totalMaximumMark: Math.round(aggregate.totalMaximumMark * 100) / 100,

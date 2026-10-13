@@ -54,6 +54,7 @@ export function listTeacherStudents(teacherId: string) {
       id: true,
       name: true,
       email: true,
+      contactNumber: true,
       currentLevel: { select: { name: true } },
       group: { select: { id: true, name: true } },
     },
@@ -107,6 +108,7 @@ export function getTeacherGroup(teacher: TeacherContext, groupId: string) {
           id: true,
           name: true,
           email: true,
+          contactNumber: true,
           currentLevelId: true,
           currentLevel: { select: { name: true } },
           academicLevel: { select: { name: true } },
@@ -258,7 +260,12 @@ export { parseGroupTimeLimitField };
 export async function addStudentToGroup(
   teacher: TeacherContext,
   groupId: string,
-  student: { name: string; email: string; password: string },
+  student: {
+    name: string;
+    email: string;
+    password: string;
+    contactNumber?: string | null;
+  },
 ) {
   const group = await prisma.group.findFirst({
     where: { id: groupId, teacherId: teacher.id },
@@ -275,6 +282,7 @@ export async function addStudentToGroup(
     role: Role.STUDENT,
     instituteId: teacher.instituteId,
     groupId: group.id,
+    contactNumber: student.contactNumber,
   });
 
   await notifyTeacherStudentJoined({
@@ -378,12 +386,31 @@ export async function getStudentProgress(
       id: true,
       name: true,
       email: true,
+      contactNumber: true,
       currentLevel: { select: { id: true, name: true, orderIndex: true } },
     },
   });
   if (!student) return null;
 
   return loadStudentProgress(student);
+}
+
+/** Update contact details for a student currently managed by this teacher. */
+export async function updateTeacherStudentContactNumber(
+  teacher: TeacherContext,
+  studentId: string,
+  contactNumber: string | null,
+): Promise<boolean> {
+  const updated = await prisma.user.updateMany({
+    where: {
+      id: studentId,
+      instituteId: teacher.instituteId,
+      role: Role.STUDENT,
+      group: { teacherId: teacher.id },
+    },
+    data: { contactNumber },
+  });
+  return updated.count === 1;
 }
 
 /**

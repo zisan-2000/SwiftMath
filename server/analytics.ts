@@ -302,7 +302,7 @@ export async function getGroupPracticeAnalytics(
       id: true,
       students: {
         orderBy: { name: "asc" },
-        select: { id: true, name: true },
+        select: { id: true, name: true, contactNumber: true },
       },
     },
   });
