@@ -14,6 +14,16 @@ export const APP_NAME = "SEFT Abacus";
 export const APP_TAGLINE =
   "Timed mental-math and abacus practice for institutes, teachers, and students.";
 
+/** Cache-busted platform icons. Increment when the committed artwork changes. */
+export const PLATFORM_ICON_URLS = {
+  favicon: "/favicon.ico?v=20261013",
+  icon192: "/icons/icon-192.png?v=20261013",
+  icon512: "/icons/icon-512.png?v=20261013",
+  maskable512: "/icons/icon-maskable-512.png?v=20261013",
+  appleTouch: "/icons/apple-touch-icon.png?v=20261013",
+  badge96: "/icons/badge-96.png?v=20261013",
+} as const;
+
 /**
  * Slug of the single institute that is active in Phase 1.
  *

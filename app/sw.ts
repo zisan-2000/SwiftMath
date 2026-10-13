@@ -5,6 +5,7 @@ import { defaultCache } from "@serwist/turbopack/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
 import { Serwist } from "serwist";
 
+import { PLATFORM_ICON_URLS } from "../lib/constants";
 import { secureRuntimeCaching } from "../lib/pwa-runtime-caching";
 
 declare global {
@@ -51,8 +52,8 @@ self.addEventListener("push", (event) => {
   const data = event.data ? event.data.json() : fallback;
   const options = {
     body: data.body || fallback.body,
-    icon: data.icon || "/icons/icon-192.png",
-    badge: data.badge || "/icons/badge-96.png",
+    icon: data.icon || PLATFORM_ICON_URLS.icon192,
+    badge: data.badge || PLATFORM_ICON_URLS.badge96,
     tag: data.tag || "swiftmath-notification",
     renotify: Boolean(data.renotify),
     vibrate: [120, 50, 120],

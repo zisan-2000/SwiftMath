@@ -3,7 +3,7 @@ import "server-only";
 import webPush from "web-push";
 
 import { prisma } from "@/lib/prisma";
-import { APP_NAME } from "@/lib/constants";
+import { APP_NAME, PLATFORM_ICON_URLS } from "@/lib/constants";
 
 interface PushPayload {
   title: string;
@@ -72,8 +72,8 @@ export async function sendPushToUser(
     title: payload.title || APP_NAME,
     body: payload.body,
     href: payload.href,
-    icon: "/icons/icon-192.png",
-    badge: "/icons/badge-96.png",
+    icon: PLATFORM_ICON_URLS.icon192,
+    badge: PLATFORM_ICON_URLS.badge96,
     tag: payload.tag,
     renotify: true,
   });

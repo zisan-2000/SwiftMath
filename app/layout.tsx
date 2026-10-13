@@ -7,7 +7,7 @@ import { PwaRuntime } from "@/components/pwa/pwa-runtime";
 import { PwaShell } from "@/components/pwa/pwa-shell";
 import { Toaster } from "@/components/ui/sonner";
 import { AppBackground } from "@/components/ui/app-background";
-import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
+import { APP_NAME, APP_TAGLINE, PLATFORM_ICON_URLS } from "@/lib/constants";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,10 +37,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: PLATFORM_ICON_URLS.icon192, sizes: "192x192", type: "image/png" },
+      { url: PLATFORM_ICON_URLS.icon512, sizes: "512x512", type: "image/png" },
     ],
-    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+    shortcut: [{ url: PLATFORM_ICON_URLS.favicon, type: "image/x-icon" }],
+    apple: [{ url: PLATFORM_ICON_URLS.appleTouch, sizes: "180x180" }],
   },
   openGraph: {
     title: APP_NAME,

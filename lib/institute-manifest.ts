@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
+import { APP_NAME, APP_TAGLINE, PLATFORM_ICON_URLS } from "@/lib/constants";
 import { DEFAULT_PRIMARY_COLOR, normalizeHexColor } from "@/lib/institute-theme";
 import { roleHomePath } from "@/lib/roles";
 import { Role } from "@/lib/generated/prisma/enums";
@@ -36,17 +36,17 @@ export interface BuildWebAppManifestInput {
 
 export const PLATFORM_MANIFEST_ICONS: MetadataRoute.Manifest["icons"] = [
   {
-    src: "/icons/icon-192.png",
+    src: PLATFORM_ICON_URLS.icon192,
     sizes: "192x192",
     type: "image/png",
   },
   {
-    src: "/icons/icon-512.png",
+    src: PLATFORM_ICON_URLS.icon512,
     sizes: "512x512",
     type: "image/png",
   },
   {
-    src: "/icons/icon-maskable-512.png",
+    src: PLATFORM_ICON_URLS.maskable512,
     sizes: "512x512",
     type: "image/png",
     purpose: "maskable",
