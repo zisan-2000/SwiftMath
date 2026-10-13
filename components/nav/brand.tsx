@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Sigma } from "lucide-react";
 
+import { PlatformLogo } from "@/components/brand/platform-logo";
 import { APP_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { roleHomePath } from "@/lib/roles";
@@ -25,8 +25,13 @@ function BrandMark({ logoUrl }: { logoUrl?: string | null }) {
     );
   }
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-      <Sigma className="h-5 w-5" />
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-white shadow-sm">
+      <PlatformLogo
+        variant="mark"
+        alt=""
+        className="h-8 w-8"
+        sizes="32px"
+      />
     </span>
   );
 }

@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Sigma, X } from "lucide-react";
+import { X } from "lucide-react";
 
+import { PlatformLogo } from "@/components/brand/platform-logo";
 import { APP_NAME } from "@/lib/constants";
 
 interface PracticeFocusShellProps {
@@ -54,8 +55,13 @@ export function PracticeFocusShell({
                 className="h-8 w-8 shrink-0 rounded-lg border border-border object-contain"
               />
             ) : (
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-                <Sigma className="h-4 w-4" />
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-white shadow-sm">
+                <PlatformLogo
+                  variant="mark"
+                  alt=""
+                  className="h-7 w-7"
+                  sizes="28px"
+                />
               </span>
             )}
             <span className="min-w-0">

@@ -5,12 +5,12 @@ import {
   Building2,
   GraduationCap,
   ShieldCheck,
-  Sigma,
   Trophy,
   Users,
 } from "lucide-react";
 
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
+import { PlatformLogo } from "@/components/brand/platform-logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -81,17 +81,17 @@ export default function Home() {
 
       {/* Hero */}
       <header className="relative flex flex-col items-center px-6 pb-16 pt-20 text-center sm:pt-28">
-        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-          <Sigma className="h-7 w-7" />
-        </span>
+        <PlatformLogo
+          alt=""
+          preload
+          className="h-auto w-full max-w-4xl dark:brightness-[3.2] dark:saturate-75"
+        />
 
-        <Badge variant="secondary" className="mt-6">
+        <h1 className="sr-only">{APP_NAME}</h1>
+
+        <Badge variant="secondary" className="mt-8">
           Multi-institute platform
         </Badge>
-
-        <h1 className="mt-6 max-w-2xl text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-          {APP_NAME}
-        </h1>
 
         <p className="mt-4 max-w-xl text-lg leading-8 text-muted-foreground">
           {APP_TAGLINE}

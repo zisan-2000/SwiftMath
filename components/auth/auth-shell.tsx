@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { Sigma } from "lucide-react";
 
+import { PlatformLogo } from "@/components/brand/platform-logo";
 import { Card, CardContent } from "@/components/ui/card";
 
 interface AuthShellProps {
@@ -43,9 +43,12 @@ export function AuthShell({
       )}
       <div className="relative w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20">
-            <Sigma className="h-6 w-6" />
-          </span>
+          <PlatformLogo
+            alt=""
+            preload
+            sizes="320px"
+            className="mb-5 h-auto w-full max-w-80 dark:brightness-[3.2] dark:saturate-75"
+          />
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             {title}
           </h1>
