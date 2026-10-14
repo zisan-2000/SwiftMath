@@ -23,6 +23,8 @@ import { GroupCompletionTable } from "@/components/teacher/group-completion-tabl
 import { TeacherGroupComparisonChart } from "@/components/teacher/teacher-group-comparison-chart";
 import { TeacherProgressChart } from "@/components/teacher/teacher-progress-chart";
 import { Button } from "@/components/ui/button";
+import { InstallAppButton } from "@/components/pwa/install-app-button";
+import { APP_NAME } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Teacher",
@@ -51,6 +53,9 @@ export default async function TeacherDashboardPage() {
       institute={institute}
       title="Teacher dashboard"
       subtitle="Your groups and students at a glance."
+      actions={
+        <InstallAppButton appName={institute?.name ?? APP_NAME} size="sm" />
+      }
     >
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Button asChild variant="outline" className="h-auto flex-col gap-1 py-4">

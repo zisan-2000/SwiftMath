@@ -9,9 +9,6 @@ import {
   notifyInstallPromptOpen,
 } from "@/lib/pwa-ui-coordination";
 import {
-  detectInstallPlatform,
-  isStandaloneDisplay,
-  markInstallCompleted,
   permanentlyDismissInstallPrompt,
   readInstallState,
   recordInstallPromptShown,
@@ -20,6 +17,7 @@ import {
   snoozeInstallPrompt,
 } from "@/lib/pwa";
 import { InstallGuideContent } from "@/components/pwa/install-guide-content";
+import { usePwaInstall } from "@/components/pwa/pwa-install-provider";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -28,12 +26,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-
-interface BeforeInstallPromptEvent extends Event {
-  readonly platforms: string[];
-  readonly userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
-  prompt(): Promise<void>;
-}
 
 interface StudentInstallPromptProps {
   appName: string;
@@ -44,12 +36,13 @@ export function StudentInstallPrompt({ appName }: StudentInstallPromptProps) {
   const forceOpen = searchParams.get("install") === "1";
 
   const [open, setOpen] = useState(false);
-  const [promptEvent, setPromptEvent] = useState<BeforeInstallPromptEvent | null>(null);
-  const [platform, setPlatform] = useState(() =>
-    typeof window !== "undefined"
-      ? detectInstallPlatform(window.navigator.userAgent)
-      : "unknown",
-  );
+  const {
+    ready,
+    installed,
+    canNativeInstall,
+    platform,
+    promptInstall,
+  } = usePwaInstall();
 
   const eligiblePlatform = useMemo(
     () =>
@@ -62,13 +55,13 @@ export function StudentInstallPrompt({ appName }: StudentInstallPromptProps) {
   );
 
   const evaluatePrompt = useCallback(() => {
-    if (isStandaloneDisplay()) {
+    if (installed) {
       return false;
     }
 
     const state = recordStudentVisit();
     return shouldAutoShowInstallPrompt(state, { force: forceOpen });
-  }, [forceOpen]);
+  }, [forceOpen, installed]);
 
   useEffect(() => {
     if (open) {
@@ -81,41 +74,7 @@ export function StudentInstallPrompt({ appName }: StudentInstallPromptProps) {
   }, [open]);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    /* eslint-disable react-hooks/set-state-in-effect -- client-only platform + install events after mount */
-    setPlatform(detectInstallPlatform(window.navigator.userAgent));
-    /* eslint-enable react-hooks/set-state-in-effect */
-
-    if (isStandaloneDisplay()) {
-      return;
-    }
-
-    function handleBeforeInstallPrompt(event: Event) {
-      event.preventDefault();
-      setPromptEvent(event as BeforeInstallPromptEvent);
-    }
-
-    function handleInstalled() {
-      markInstallCompleted();
-      trackPwaEvent("pwa_appinstalled", { platform });
-      setPromptEvent(null);
-      setOpen(false);
-    }
-
-    window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-    window.addEventListener("appinstalled", handleInstalled);
-
-    return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
-      window.removeEventListener("appinstalled", handleInstalled);
-    };
-  }, [platform]);
-
-  useEffect(() => {
-    if (isStandaloneDisplay()) {
+    if (!ready || installed) {
       return;
     }
 
@@ -141,25 +100,22 @@ export function StudentInstallPrompt({ appName }: StudentInstallPromptProps) {
     }, forceOpen ? 0 : 1500);
 
     return () => window.clearTimeout(timer);
-  }, [eligiblePlatform, evaluatePrompt, forceOpen, platform]);
+  }, [eligiblePlatform, evaluatePrompt, forceOpen, installed, platform, ready]);
 
   async function install() {
-    if (!promptEvent) {
+    if (!canNativeInstall) {
       return;
     }
 
     trackPwaEvent("pwa_install_clicked", { platform });
 
-    await promptEvent.prompt();
-    const choice = await promptEvent.userChoice;
-    if (choice.outcome === "accepted") {
-      markInstallCompleted();
+    const outcome = await promptInstall();
+    if (outcome === "accepted") {
       trackPwaEvent("pwa_install_accepted", { platform });
       setOpen(false);
-    } else {
+    } else if (outcome === "dismissed") {
       trackPwaEvent("pwa_install_declined", { platform });
     }
-    setPromptEvent(null);
   }
 
   function handleNotNow() {
@@ -174,7 +130,7 @@ export function StudentInstallPrompt({ appName }: StudentInstallPromptProps) {
     setOpen(false);
   }
 
-  if (isStandaloneDisplay()) {
+  if (!ready || installed) {
     return null;
   }
 
@@ -197,7 +153,7 @@ export function StudentInstallPrompt({ appName }: StudentInstallPromptProps) {
             appName={appName}
             platform={platform}
             variant="sheet"
-            canNativeInstall={Boolean(promptEvent)}
+            canNativeInstall={canNativeInstall}
             onInstall={install}
           />
         </div>

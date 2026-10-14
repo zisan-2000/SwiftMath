@@ -33,6 +33,8 @@ import { ClassPerformanceHistory } from "@/components/class-performance-history"
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { FormMessage } from "@/components/ui/form-message";
+import { InstallAppButton } from "@/components/pwa/install-app-button";
+import { APP_NAME } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Student",
@@ -114,6 +116,9 @@ export default async function StudentDashboardPage({
       institute={institute}
       title={`Hello, ${user.name}`}
       subtitle="Your practice home."
+      actions={
+        <InstallAppButton appName={institute?.name ?? APP_NAME} size="sm" />
+      }
     >
       {examErrorMessage && (
         <FormMessage variant="error" className="mb-6">

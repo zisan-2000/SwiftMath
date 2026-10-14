@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { SerwistProvider } from "@serwist/turbopack/react";
 
 import { SERVICE_WORKER_PATH, shouldRegisterServiceWorker } from "@/lib/pwa";
+import { PwaInstallProvider } from "@/components/pwa/pwa-install-provider";
 
 /**
  * Registers the Serwist service worker in production (or dev when
@@ -12,12 +13,14 @@ import { SERVICE_WORKER_PATH, shouldRegisterServiceWorker } from "@/lib/pwa";
  */
 export function PwaShell({ children }: { children: ReactNode }) {
   return (
-    <SerwistProvider
-      swUrl={SERVICE_WORKER_PATH}
-      disable={!shouldRegisterServiceWorker()}
-      cacheOnNavigation={false}
-    >
-      {children}
-    </SerwistProvider>
+    <PwaInstallProvider>
+      <SerwistProvider
+        swUrl={SERVICE_WORKER_PATH}
+        disable={!shouldRegisterServiceWorker()}
+        cacheOnNavigation={false}
+      >
+        {children}
+      </SerwistProvider>
+    </PwaInstallProvider>
   );
 }

@@ -27,6 +27,8 @@ import { AdminOnboardingChecklist } from "@/components/admin/onboarding-checklis
 import { StatCard } from "@/components/stat-card";
 import { PracticeActivityChart } from "@/components/practice-activity-chart";
 import { Card } from "@/components/ui/card";
+import { InstallAppButton } from "@/components/pwa/install-app-button";
+import { APP_NAME } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Admin",
@@ -111,6 +113,9 @@ export default async function AdminDashboardPage() {
       institute={institute}
       title="Admin dashboard"
       subtitle="Overview of your institute."
+      actions={
+        <InstallAppButton appName={institute?.name ?? APP_NAME} size="sm" />
+      }
     >
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="Teachers" value={teachers} icon={Users} />

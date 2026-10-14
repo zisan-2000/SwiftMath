@@ -18,6 +18,8 @@ import { SuperPageShell } from "@/components/super/super-page-shell";
 import { StatCard } from "@/components/stat-card";
 import { PracticeActivityChart } from "@/components/practice-activity-chart";
 import { Card } from "@/components/ui/card";
+import { InstallAppButton } from "@/components/pwa/install-app-button";
+import { APP_NAME } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Super Admin",
@@ -40,6 +42,7 @@ export default async function SuperAdminDashboardPage() {
       user={user}
       title="Super Admin"
       subtitle="Platform-wide overview across all institutes."
+      actions={<InstallAppButton appName={APP_NAME} size="sm" />}
     >
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
         <StatCard label="Institutes" value={stats.institutes} icon={Building2} />

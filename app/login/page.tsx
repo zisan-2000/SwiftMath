@@ -6,6 +6,7 @@ import { APP_NAME } from "@/lib/constants";
 import { getCurrentUser } from "@/lib/session";
 import { roleHomePath } from "@/lib/roles";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { InstallAppButton } from "@/components/pwa/install-app-button";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = {
@@ -64,6 +65,7 @@ export default async function LoginPage({
       <Suspense fallback={null}>
         <LoginForm />
       </Suspense>
+      <InstallAppButton appName={APP_NAME} className="mt-4 w-full" />
     </AuthShell>
   );
 }

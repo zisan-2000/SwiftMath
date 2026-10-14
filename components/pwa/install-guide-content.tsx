@@ -75,12 +75,12 @@ function PlatformInstructions({
       <div className="rounded-lg border bg-muted/30 p-4 text-sm text-muted-foreground">
         <p className="flex items-center gap-2 font-medium text-foreground">
           <Smartphone className="h-4 w-4" aria-hidden />
-          Phone-এ install করুন
+          Desktop browser থেকে install করুন
         </p>
         <p className="mt-2">
-          Daily practice-এর জন্য phone বা tablet-এ এই site খুলে home screen-এ
-          যোগ করুন। Desktop-এ browser address bar থেকেও install option পাওয়া
-          যেতে পারে।
+          Chrome বা Edge-এর address bar-এর Install icon চাপুন। Icon না থাকলে
+          browser menu খুলে “Install app” অথবা “Apps → Install this site as an
+          app” নির্বাচন করুন।
         </p>
       </div>
     );

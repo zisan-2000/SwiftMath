@@ -11,6 +11,7 @@ import {
 
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
 import { PlatformLogo } from "@/components/brand/platform-logo";
+import { InstallAppButton } from "@/components/pwa/install-app-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -98,9 +99,16 @@ export default function Home() {
         </p>
 
         <div className="mt-8 flex flex-col items-center gap-3">
-          <Button asChild size="lg" className="w-full sm:w-auto">
-            <Link href="/login">Sign in</Link>
-          </Button>
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+            <Button asChild size="lg" className="w-full sm:w-auto">
+              <Link href="/login">Sign in</Link>
+            </Button>
+            <InstallAppButton
+              appName={APP_NAME}
+              size="lg"
+              className="w-full sm:w-auto"
+            />
+          </div>
           <Link
             href="/forgot-password"
             className="text-sm text-muted-foreground transition-colors hover:text-foreground"
