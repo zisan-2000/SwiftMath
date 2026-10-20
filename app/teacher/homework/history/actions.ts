@@ -1,28 +1,23 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 
+import type { HomeworkReviewState } from "@/components/homework/homework-review-form";
 import { HomeworkSubmissionStatus } from "@/lib/generated/prisma/enums";
 import { PERMISSIONS } from "@/lib/permissions";
 import { requirePermission } from "@/lib/session";
 import { HomeworkError, reviewHomeworkSubmission } from "@/server/homework";
 
-function historyUrl(returnQuery: string, key: "error" | "success", message: string) {
-  const params = new URLSearchParams(returnQuery);
-  params.delete("error");
-  params.delete("success");
-  params.set(key, message);
-  return `/teacher/homework/history?${params.toString()}`;
-}
-
-export async function reviewHomeworkFromHistoryAction(formData: FormData) {
+export async function reviewHomeworkFromHistoryAction(
+  _previousState: HomeworkReviewState,
+  formData: FormData,
+): Promise<HomeworkReviewState> {
   const teacher = await requirePermission(PERMISSIONS.HOMEWORK_MANAGE);
-  const returnQuery = String(formData.get("returnQuery") ?? "");
   const rawStatus = String(formData.get("status") ?? "");
-  const status = Object.values(HomeworkSubmissionStatus).includes(rawStatus as HomeworkSubmissionStatus)
-    ? rawStatus as HomeworkSubmissionStatus
-    : HomeworkSubmissionStatus.REJECTED;
+  if (!Object.values(HomeworkSubmissionStatus).includes(rawStatus as HomeworkSubmissionStatus)) {
+    return { error: "Choose Approve, Reject, or Request resubmission." };
+  }
+  const status = rawStatus as HomeworkSubmissionStatus;
   const scoreText = String(formData.get("score") ?? "").trim();
 
   try {
@@ -33,11 +28,11 @@ export async function reviewHomeworkFromHistoryAction(formData: FormData) {
       comment: String(formData.get("comment") ?? ""),
     });
   } catch (error) {
-    if (error instanceof HomeworkError) redirect(historyUrl(returnQuery, "error", error.message));
+    if (error instanceof HomeworkError) return { error: error.message };
     throw error;
   }
 
   revalidatePath("/teacher/homework/history");
   revalidatePath("/student/homework");
-  redirect(historyUrl(returnQuery, "success", "Review saved."));
+  return { ok: true, message: "Review saved successfully." };
 }

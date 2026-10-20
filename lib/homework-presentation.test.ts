@@ -5,7 +5,9 @@ import {
   buildHomeworkPageSuggestions,
   canAccessHomeworkPhoto,
   elapsedSecondsSince,
+  formatDhakaTime,
   formatElapsedTime,
+  formatHomeworkDuration,
 } from "@/lib/homework-presentation";
 
 describe("homework presentation", () => {
@@ -21,6 +23,12 @@ describe("homework presentation", () => {
     expect(elapsedSecondsSince("2026-10-06T10:00:00Z", new Date("2026-10-06T10:08:35Z"))).toBe(515);
     expect(formatElapsedTime(515)).toBe("08:35");
     expect(formatElapsedTime(3_661)).toBe("01:01:01");
+  });
+
+  it("shows exact teacher-review times and duration down to seconds", () => {
+    expect(formatHomeworkDuration(272)).toBe("4 min 32 sec");
+    expect(formatHomeworkDuration(3_672)).toBe("1 hr 1 min 12 sec");
+    expect(formatDhakaTime("2026-10-20T05:04:32Z")).toBe("11:04:32 AM");
   });
 
   it("uses the original schedule creator for teacher photo authorization", () => {

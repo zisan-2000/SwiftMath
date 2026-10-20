@@ -28,6 +28,29 @@ export function formatElapsedTime(totalSeconds: number): string {
   return hours > 0 ? `${hours.toString().padStart(2, "0")}:${parts.join(":")}` : parts.join(":");
 }
 
+/** Human-readable completed duration for teacher review cards. */
+export function formatHomeworkDuration(totalSeconds: number): string {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const seconds = safeSeconds % 60;
+  const parts: string[] = [];
+  if (hours > 0) parts.push(`${hours} hr`);
+  parts.push(`${minutes} min`, `${seconds} sec`);
+  return parts.join(" ");
+}
+
+/** Time-only label in the application's fixed Bangladesh timezone. */
+export function formatDhakaTime(date: string | Date): string {
+  return new Intl.DateTimeFormat("en-BD", {
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+    timeZone: "Asia/Dhaka",
+  }).format(new Date(date));
+}
+
 export function canAccessHomeworkPhoto(input: {
   role: Role;
   userId: string;

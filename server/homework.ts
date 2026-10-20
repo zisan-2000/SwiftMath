@@ -515,6 +515,9 @@ export async function startHomeworkSubmission(
     });
   } catch (error) {
     await removeHomeworkPhoto(key);
+    if (typeof error === "object" && error && "code" in error && error.code === "P2002") {
+      throw new HomeworkError("This homework attempt has already started. Refresh to continue it.");
+    }
     throw error;
   }
 }
@@ -539,8 +542,8 @@ export async function finishHomeworkSubmission(
   const key = await storeHomeworkPhoto(student.instituteId, student.id, "final", finalPhoto);
   const submittedAt = new Date();
   try {
-    return await prisma.homeworkSubmission.update({
-      where: { id: submission.id },
+    const result = await prisma.homeworkSubmission.updateMany({
+      where: { id: submission.id, status: HomeworkSubmissionStatus.IN_PROGRESS },
       data: {
         finalPhotoKey: key,
         submittedAt,
@@ -548,6 +551,10 @@ export async function finishHomeworkSubmission(
         ...homeworkTiming(submission.startedAt, submittedAt, submission.expectation.occurrence.dueAt, submission.expectation.occurrence.timeLimitMinutesSnapshot),
       },
     });
+    if (result.count !== 1) {
+      throw new HomeworkError("This homework has already been submitted. Refresh to see the result.");
+    }
+    return prisma.homeworkSubmission.findUniqueOrThrow({ where: { id: submission.id } });
   } catch (error) {
     await removeHomeworkPhoto(key);
     throw error;

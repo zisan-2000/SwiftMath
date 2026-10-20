@@ -2,13 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { reviewHomeworkFromHistoryAction } from "@/app/teacher/homework/history/actions";
+import { HomeworkPhotoViewer } from "@/components/homework/homework-photo-viewer";
+import { HomeworkReviewForm } from "@/components/homework/homework-review-form";
+import { HomeworkTimingSummary } from "@/components/homework/homework-timing-summary";
 import { TeacherPageShell } from "@/components/teacher/teacher-page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { HomeworkSubmissionStatus, HomeworkTargetType } from "@/lib/generated/prisma/enums";
 import { formatDhakaDateTime } from "@/lib/homework-schedule";
 import { getTeacherGlobalHomeworkHistory } from "@/server/homework";
@@ -68,10 +70,6 @@ export default async function TeacherHomeworkHistoryPage({
   const students = [...new Map(rows.map((row) => [row.student.id, row.student])).values()]
     .sort((left, right) => left.name.localeCompare(right.name));
   const academicLevels = [...new Set(rows.map((row) => row.academicLevelNameSnapshot).filter((name): name is string => Boolean(name)))].sort();
-  const returnQuery = new URLSearchParams(
-    Object.entries(query).filter(([key, value]) => key !== "error" && key !== "success" && Boolean(value)) as Array<[string, string]>,
-  ).toString();
-
   return (
     <TeacherPageShell
       user={teacher}
@@ -126,27 +124,21 @@ export default async function TeacherHomeworkHistoryPage({
                   <div className="grid gap-4">
                     <div className="flex flex-wrap gap-4 text-sm">
                       <span>Attempt {latest.attemptNumber}</span><span>Page {latest.pageNumber}</span>
-                      {latest.completionSeconds != null && <span>{Math.ceil(latest.completionSeconds / 60)} min</span>}
                       {latest.isLate && <Badge variant="destructive">Late</Badge>}
                       {latest.isOverTimeLimit && <Badge variant="outline">Over timer</Badge>}
                     </div>
+                    <HomeworkTimingSummary startedAt={latest.startedAt} submittedAt={latest.submittedAt} completionSeconds={latest.completionSeconds} />
                     <div className="flex flex-wrap gap-3">
-                      <Button asChild size="sm" variant="outline"><Link target="_blank" href={`/api/homework/photos/${latest.id}/first`}>First photo</Link></Button>
-                      {latest.finalPhotoKey && <Button asChild size="sm" variant="outline"><Link target="_blank" href={`/api/homework/photos/${latest.id}/final`}>Final photo</Link></Button>}
+                      <HomeworkPhotoViewer submissionId={latest.id} kind="first" label="First photo" studentName={row.student.name} />
+                      {latest.finalPhotoKey && <HomeworkPhotoViewer submissionId={latest.id} kind="final" label="Final photo" studentName={row.student.name} />}
                     </div>
                     {latest.status !== HomeworkSubmissionStatus.IN_PROGRESS && latest.finalPhotoKey && (
-                      <form action={reviewHomeworkFromHistoryAction} className="grid gap-3 rounded-lg border p-4 sm:grid-cols-3">
-                        <input type="hidden" name="submissionId" value={latest.id} />
-                        <input type="hidden" name="returnQuery" value={returnQuery} />
-                        <div className="space-y-2"><Label htmlFor={`score-${latest.id}`}>Score / {row.occurrence.maxScoreSnapshot.toString()}</Label><Input id={`score-${latest.id}`} name="score" type="number" min="0" max={row.occurrence.maxScoreSnapshot.toString()} step="0.01" defaultValue={latest.score?.toString() ?? ""} /></div>
-                        <div className="space-y-2 sm:col-span-2"><Label htmlFor={`comment-${latest.id}`}>Comment</Label><Textarea id={`comment-${latest.id}`} name="comment" defaultValue={latest.teacherComment ?? ""} /></div>
-                        <div className="flex flex-wrap gap-2 sm:col-span-3"><Button name="status" value={HomeworkSubmissionStatus.APPROVED}>Approve</Button><Button name="status" value={HomeworkSubmissionStatus.RESUBMISSION_REQUESTED} variant="outline">Request resubmission</Button><Button name="status" value={HomeworkSubmissionStatus.REJECTED} variant="destructive">Reject</Button></div>
-                      </form>
+                      <HomeworkReviewForm action={reviewHomeworkFromHistoryAction} hiddenFields={{ submissionId: latest.id }} maxScore={row.occurrence.maxScoreSnapshot.toString()} initialScore={latest.score?.toString() ?? ""} initialComment={latest.teacherComment ?? ""} />
                     )}
                     {row.submissions.length > 1 && (
                       <details className="rounded-lg border p-4">
                         <summary className="cursor-pointer text-sm font-medium">All attempts ({row.submissions.length})</summary>
-                        <div className="mt-3 grid gap-3">{row.submissions.map((attempt) => <div key={attempt.id} className="flex flex-wrap items-center gap-3 border-t pt-3 text-sm"><span>Attempt {attempt.attemptNumber}</span><span>Page {attempt.pageNumber}</span><Badge variant="muted">{attempt.status}</Badge><Link className="text-primary underline" target="_blank" href={`/api/homework/photos/${attempt.id}/first`}>First photo</Link>{attempt.finalPhotoKey && <Link className="text-primary underline" target="_blank" href={`/api/homework/photos/${attempt.id}/final`}>Final photo</Link>}</div>)}</div>
+                        <div className="mt-3 grid gap-4">{row.submissions.map((attempt) => <div key={attempt.id} className="grid gap-3 border-t pt-3 text-sm"><div className="flex flex-wrap items-center gap-3"><span>Attempt {attempt.attemptNumber}</span><span>Page {attempt.pageNumber}</span><Badge variant="muted">{attempt.status}</Badge></div><HomeworkTimingSummary startedAt={attempt.startedAt} submittedAt={attempt.submittedAt} completionSeconds={attempt.completionSeconds} /><div className="flex flex-wrap gap-2"><HomeworkPhotoViewer submissionId={attempt.id} kind="first" label="First photo" studentName={row.student.name} />{attempt.finalPhotoKey && <HomeworkPhotoViewer submissionId={attempt.id} kind="final" label="Final photo" studentName={row.student.name} />}</div></div>)}</div>
                       </details>
                     )}
                   </div>

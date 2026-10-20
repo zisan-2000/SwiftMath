@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import type { HomeworkReviewState } from "@/components/homework/homework-review-form";
 import { HomeworkScheduleMode, HomeworkScheduleStatus, HomeworkSubmissionStatus } from "@/lib/generated/prisma/enums";
 import { parseDateOnly, parseDhakaLocalDateTime, parseTimeToMinute } from "@/lib/homework-schedule";
 import { PERMISSIONS } from "@/lib/permissions";
@@ -68,13 +69,18 @@ export async function setHomeworkScheduleStatusAction(formData: FormData) {
   redirect(back(groupId, "Schedule status updated.", true));
 }
 
-export async function reviewHomeworkAction(formData: FormData) {
+export async function reviewHomeworkAction(
+  _previousState: HomeworkReviewState,
+  formData: FormData,
+): Promise<HomeworkReviewState> {
   const teacher = await requirePermission(PERMISSIONS.HOMEWORK_MANAGE);
   const groupId = String(formData.get("groupId") ?? "");
   const occurrenceId = String(formData.get("occurrenceId") ?? "");
   const rawStatus = String(formData.get("status") ?? "");
-  const status = Object.values(HomeworkSubmissionStatus).includes(rawStatus as HomeworkSubmissionStatus)
-    ? rawStatus as HomeworkSubmissionStatus : HomeworkSubmissionStatus.REJECTED;
+  if (!Object.values(HomeworkSubmissionStatus).includes(rawStatus as HomeworkSubmissionStatus)) {
+    return { error: "Choose Approve, Reject, or Request resubmission." };
+  }
+  const status = rawStatus as HomeworkSubmissionStatus;
   const scoreText = String(formData.get("score") ?? "").trim();
   try {
     await reviewHomeworkSubmission(teacher, {
@@ -84,10 +90,11 @@ export async function reviewHomeworkAction(formData: FormData) {
       comment: String(formData.get("comment") ?? ""),
     });
   } catch (error) {
-    if (error instanceof HomeworkError) redirect(`/teacher/groups/${groupId}/homework/${occurrenceId}?error=${encodeURIComponent(error.message)}`);
+    if (error instanceof HomeworkError) return { error: error.message };
     throw error;
   }
   revalidatePath(`/teacher/groups/${groupId}/homework/${occurrenceId}`);
+  revalidatePath("/teacher/homework/history");
   revalidatePath("/student/homework");
-  redirect(`/teacher/groups/${groupId}/homework/${occurrenceId}?success=${encodeURIComponent("Review saved.")}`);
+  return { ok: true, message: "Review saved successfully." };
 }
