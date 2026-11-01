@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:class-performance:db": "node scripts/test-class-performance-db.mjs",
+    "test:reports:db": "node scripts/test-class-performance-db.mjs server/reports.integration.test.ts",
     "lighthouse:pwa": "node scripts/check-pwa-installable.mjs",
     "check:pwa": "node scripts/check-pwa-installable.mjs",
     "postinstall": "prisma generate",

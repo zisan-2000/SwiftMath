@@ -42,9 +42,14 @@ export const NAV_ITEMS: Record<Role, NavItem[]> = {
     { href: "/admin/students", label: "Students", icon: GraduationCap },
     { href: "/admin/groups", label: "Groups", icon: Boxes },
     { href: "/admin/levels", label: "Levels", icon: Layers },
-    { href: "/admin/academic-levels", label: "Academic Levels", icon: BookMarked },
+    {
+      href: "/admin/academic-levels",
+      label: "Academic Levels",
+      icon: BookMarked,
+    },
     { href: "/admin/notifications", label: "Notifications", icon: Bell },
     { href: "/admin/activity", label: "Activity", icon: ScrollText },
+    { href: "/admin/reports", label: "Reports", icon: ScrollText },
     { href: "/admin/settings", label: "Settings", icon: Settings },
   ],
   TEACHER: [
@@ -56,6 +61,7 @@ export const NAV_ITEMS: Record<Role, NavItem[]> = {
     { href: "/teacher/ranking", label: "Ranking", icon: Trophy },
     { href: "/teacher/notifications", label: "Notifications", icon: Bell },
     { href: "/teacher/activity", label: "Activity", icon: ScrollText },
+    { href: "/teacher/reports", label: "Reports", icon: ScrollText },
   ],
   STUDENT: [
     { href: "/student", label: "Home", icon: Home },
@@ -72,7 +78,10 @@ export const NAV_ITEMS: Record<Role, NavItem[]> = {
  * longest-prefix matching so `/admin/teachers` highlights "Teachers" rather
  * than the "/admin" dashboard root.
  */
-export function getActiveHref(items: NavItem[], pathname: string): string | null {
+export function getActiveHref(
+  items: NavItem[],
+  pathname: string,
+): string | null {
   const matches = items.filter(
     (item) => pathname === item.href || pathname.startsWith(`${item.href}/`),
   );

@@ -38,6 +38,8 @@ export const PERMISSIONS = {
   INSTITUTE_BRANDING: "institute:branding",
 
   ANALYTICS_VIEW: "analytics:view",
+  REPORT_VIEW: "report:view",
+  REPORT_EXPORT: "report:export",
   ACTIVITY_VIEW: "activity:view",
 
   INSTITUTE_CREATE: "institute:create",
@@ -62,6 +64,21 @@ export interface PermissionMetadata {
 }
 
 export const PERMISSION_METADATA = {
+  [PERMISSIONS.REPORT_VIEW]: {
+    label: "View reports",
+    description: "Build filtered class, homework, exam and practice reports.",
+    domain: "Analytics",
+    scope: "institute",
+    assignableTo: [Role.ADMIN, Role.TEACHER],
+  },
+  [PERMISSIONS.REPORT_EXPORT]: {
+    label: "Export reports",
+    description:
+      "Print reports, save PDF through the browser and download CSV.",
+    domain: "Analytics",
+    scope: "institute",
+    assignableTo: [Role.ADMIN, Role.TEACHER],
+  },
   [PERMISSIONS.TEACHER_CREATE]: {
     label: "Create teachers",
     description: "Create teacher accounts inside an institute.",
@@ -388,6 +405,8 @@ export function getRoleDefaultPermissions(role: Role): Set<Permission> {
         PERMISSIONS.EXAM_SCHEDULE,
         PERMISSIONS.EXAM_CANCEL,
         PERMISSIONS.ANALYTICS_VIEW,
+        PERMISSIONS.REPORT_VIEW,
+        PERMISSIONS.REPORT_EXPORT,
         PERMISSIONS.ACTIVITY_VIEW,
       ]);
     case Role.STUDENT:

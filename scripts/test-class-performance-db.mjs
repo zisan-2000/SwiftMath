@@ -4,6 +4,15 @@ import { Client } from "pg";
 import { readdirSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 
+const suite = process.argv[2] ?? "server/class-performance.integration.test.ts";
+if (
+  ![
+    "server/class-performance.integration.test.ts",
+    "server/reports.integration.test.ts",
+  ].includes(suite)
+)
+  throw new Error("Unknown isolated test suite.");
+
 const sourceUrl = new URL(process.env.DATABASE_URL);
 if (!["localhost", "127.0.0.1", "[::1]"].includes(sourceUrl.hostname)) {
   throw new Error(
@@ -15,11 +24,23 @@ async function fingerprint() {
   await client.connect();
   try {
     await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
-    const result = await client.query(`
-      SELECT 'sheets' kind, count(*)::text count,
-        md5(coalesce(string_agg(row_to_json(t)::text, '' ORDER BY t.id), '')) fingerprint FROM class_performance t
-      UNION ALL SELECT 'entries', count(*)::text,
-        md5(coalesce(string_agg(row_to_json(t)::text, '' ORDER BY t.id), '')) FROM class_performance_entry t`);
+    const tables = [
+      "class_performance",
+      "class_performance_entry",
+      "homework_schedule",
+      "homework_occurrence",
+      "homework_expectation",
+      "homework_submission",
+      "practice_session",
+    ];
+    const result = await client.query(
+      tables
+        .map(
+          (table) =>
+            `SELECT '${table}' kind, count(*)::text count, md5(coalesce(string_agg(row_to_json(t)::text, '' ORDER BY t.id), '')) fingerprint FROM "${table}" t`,
+        )
+        .join(" UNION ALL "),
+    );
     await client.query("COMMIT");
     return result.rows;
   } finally {
@@ -67,11 +88,7 @@ try {
 console.log(`Isolated PostgreSQL database: ${name} (retained for inspection)`);
 const test = spawnSync(
   process.execPath,
-  [
-    "node_modules/vitest/vitest.mjs",
-    "run",
-    "server/class-performance.integration.test.ts",
-  ],
+  ["node_modules/vitest/vitest.mjs", "run", suite],
   {
     stdio: "inherit",
     env: {
