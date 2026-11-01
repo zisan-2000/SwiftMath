@@ -63,9 +63,20 @@ const unsavedDrafts = new Map<
 
 function snapshotKey(props: EntryFormProps): string {
   return JSON.stringify([
-    props.groupId, props.selectedDate, props.sheetId, props.revision,
-    props.maximumMark, props.isExisting,
-    props.students.map((student) => [student.id, student.name, student.contactNumber ?? null, student.mark, student.status, student.canBeNotEntered]),
+    props.groupId,
+    props.selectedDate,
+    props.sheetId,
+    props.revision,
+    props.maximumMark,
+    props.isExisting,
+    props.students.map((student) => [
+      student.id,
+      student.name,
+      student.contactNumber ?? null,
+      student.mark,
+      student.status,
+      student.canBeNotEntered,
+    ]),
   ]);
 }
 
@@ -119,45 +130,7 @@ export function ClassPerformanceEntryForm(props: EntryFormProps) {
   }, [dirty, saving, draftKey]);
 
   return (
-    <>
-      <div className="mb-4 flex flex-wrap items-end gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="class-performance-select-date">
-            Open / create class date
-          </Label>
-          <Input
-            id="class-performance-select-date"
-            type="date"
-            value={props.selectedDate}
-            disabled={navigating || saving}
-            onChange={(event) => {
-              const date = event.target.value;
-              if (!date || date === props.selectedDate) return;
-              if (
-                dirty &&
-                !window.confirm(
-                  "Discard unsaved marks and load the selected class date?",
-                )
-              )
-                return;
-              unsavedDrafts.delete(draftKey);
-              startNavigation(() =>
-                router.push(
-                  `/teacher/groups/${props.groupId}/performance?date=${date}`,
-                ),
-              );
-            }}
-          />
-        </div>
-        {navigating && (
-          <p role="status" className="text-sm text-muted-foreground">
-            Loading class record…
-          </p>
-        )}
-        {dirty && (
-          <p className="text-sm text-muted-foreground">Unsaved changes</p>
-        )}
-      </div>
+    <div className="min-w-0 max-w-full">
       {stale && dirty && (
         <div className="mb-4 space-y-2" role="alert">
           <FormMessage variant="error">
@@ -189,6 +162,24 @@ export function ClassPerformanceEntryForm(props: EntryFormProps) {
         onSaved={saved}
         onPendingChange={setSaving}
         blocked={navigating || stale}
+        dirty={dirty}
+        navigating={navigating}
+        onDateChange={(date) => {
+          if (!date || date === props.selectedDate || saving) return;
+          if (
+            dirty &&
+            !window.confirm(
+              "Discard unsaved marks and load the selected class date?",
+            )
+          )
+            return;
+          unsavedDrafts.delete(draftKey);
+          startNavigation(() =>
+            router.push(
+              `/teacher/groups/${props.groupId}/performance?date=${date}`,
+            ),
+          );
+        }}
         onReload={() => {
           if (
             dirty &&
@@ -202,7 +193,7 @@ export function ClassPerformanceEntryForm(props: EntryFormProps) {
           startNavigation(() => router.refresh());
         }}
       />
-    </>
+    </div>
   );
 }
 
@@ -219,12 +210,18 @@ function ClassPerformanceEditor({
   onPendingChange,
   onReload,
   blocked,
+  onDateChange,
+  dirty,
+  navigating,
 }: EntryFormProps & {
   onDirtyChange: (dirty: boolean) => void;
   onSaved: () => void;
   onPendingChange: (pending: boolean) => void;
   onReload: () => void;
   blocked: boolean;
+  onDateChange: (date: string) => void;
+  dirty: boolean;
+  navigating: boolean;
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState(
@@ -303,7 +300,7 @@ function ClassPerformanceEditor({
   }
 
   return (
-    <Card>
+    <Card className="min-w-0 max-w-full">
       <CardHeader className="border-b border-border">
         <CardTitle className="text-base">
           {isExisting ? "Edit class performance" : "Record class performance"}
@@ -313,9 +310,11 @@ function ClassPerformanceEditor({
           with zero marks. Not entered students are excluded from ranking.
         </p>
       </CardHeader>
-      <CardContent className="pt-6">
-        <form action={formAction} className="space-y-6">
+      <CardContent className="min-w-0 pt-6">
+        <form action={formAction} className="min-w-0 space-y-6">
           <input type="hidden" name="groupId" value={groupId} />
+          {/* The picker navigates; only the loaded record's date is submitted. */}
+          <input type="hidden" name="classDate" value={selectedDate} />
           <input
             type="hidden"
             name="mode"
@@ -331,18 +330,30 @@ function ClassPerformanceEditor({
             name="revision"
             value={state.ok ? state.revision : (revision ?? "")}
           />
-          <fieldset disabled={pending || blocked} className="space-y-6">
+          {/* Fieldset defaults to min-inline-size:min-content in browsers.
+              Override it so the wide table scrolls inside the card, not the page. */}
+          <fieldset
+            disabled={pending || blocked}
+            className="min-w-0 w-full space-y-6"
+          >
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="class-performance-date">Class date</Label>
                 <Input
                   id="class-performance-date"
-                  name="classDate"
                   type="date"
                   value={selectedDate}
-                  readOnly
+                  onChange={(event) => onDateChange(event.target.value)}
+                  className="min-w-0 max-w-full"
+                  aria-describedby="class-performance-date-help"
                   required
                 />
+                <p
+                  id="class-performance-date-help"
+                  className="text-xs text-muted-foreground"
+                >
+                  Select a date to load its marks or start a new record.
+                </p>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="class-performance-maximum">Maximum mark</Label>
@@ -363,6 +374,15 @@ function ClassPerformanceEditor({
                 />
               </div>
             </div>
+
+            {navigating && (
+              <p role="status" className="text-sm text-muted-foreground">
+                Loading class record…
+              </p>
+            )}
+            {dirty && (
+              <p className="text-sm text-muted-foreground">Unsaved changes</p>
+            )}
 
             {students.length > 0 ? (
               <>
@@ -401,7 +421,12 @@ function ClassPerformanceEditor({
                   </Button>
                 </div>
 
-                <div className="overflow-x-auto rounded-lg border border-border">
+                <div
+                  className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain rounded-lg border border-border"
+                  role="region"
+                  aria-label="Student marks"
+                  tabIndex={0}
+                >
                   <table className="w-full min-w-[620px] text-sm">
                     <thead>
                       <tr className="border-b border-border bg-muted/40 text-left text-muted-foreground">

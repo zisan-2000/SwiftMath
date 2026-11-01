@@ -72,18 +72,23 @@ describe("Class performance form date and revision regression", () => {
     vi.restoreAllMocks();
   });
 
-  it("locks the saved date and uses a separate date picker to load A-B-A marks", async () => {
+  it("uses one in-card date picker to load A-B-A while keeping the submitted date locked", async () => {
     await render(props());
-    expect(input("classDate").readOnly).toBe(true);
+    expect(container.querySelectorAll('input[type="date"]')).toHaveLength(1);
+    expect(input("classDate").type).toBe("hidden");
     const picker = () =>
-      container.querySelector<HTMLInputElement>(
-        "#class-performance-select-date",
-      )!;
+      container.querySelector<HTMLInputElement>("#class-performance-date")!;
+    expect(picker().closest("form")).not.toBeNull();
+    expect(picker().readOnly).toBe(false);
     await change(picker(), "2026-10-26");
     expect(mocks.router.push).toHaveBeenCalledWith(
       `/teacher/groups/${groupId}/performance?date=2026-10-26`,
     );
     expect(input("classDate").value).toBe("2026-10-25");
+    const submitted = new FormData(container.querySelector("form")!);
+    expect(submitted.get("sheetId")).toBe("sheet-2026-10-25");
+    expect(submitted.get("classDate")).toBe("2026-10-25");
+    expect(mocks.action).not.toHaveBeenCalled();
     await render(props("2026-10-26", ["2", "3"]));
     expect(input("mark:Rafi").value).toBe("2");
     await change(picker(), "2026-10-25");
@@ -123,12 +128,16 @@ describe("Class performance form date and revision regression", () => {
     await render(props());
     await change(input("mark:Rafi"), "7");
     await change(
-      container.querySelector("#class-performance-select-date")!,
+      container.querySelector("#class-performance-date")!,
       "2026-10-26",
     );
     expect(window.confirm).toHaveBeenCalled();
     expect(mocks.router.push).not.toHaveBeenCalled();
     expect(input("mark:Rafi").value).toBe("7");
+    expect(
+      container.querySelector<HTMLInputElement>("#class-performance-date")!
+        .value,
+    ).toBe("2026-10-25");
   });
 
   it("new date starts a separate create draft with reset maximum, marks and attendance", async () => {

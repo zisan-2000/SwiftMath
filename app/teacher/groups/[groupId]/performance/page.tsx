@@ -61,7 +61,7 @@ export default async function ClassPerformancePage({
         <ClassPerformanceTrendChart data={workspace.history} />
       </div>
 
-      <Card className="mt-6">
+      <Card className="mt-6 min-w-0 max-w-full">
         <CardHeader className="border-b border-border">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -86,7 +86,12 @@ export default async function ClassPerformancePage({
               className="border-0"
             />
           ) : (
-            <div className="overflow-x-auto">
+            <div
+              className="min-w-0 max-w-full overflow-x-auto overscroll-x-contain"
+              role="region"
+              aria-label="Date-wise class records"
+              tabIndex={0}
+            >
               <table className="w-full min-w-[620px] text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/40 text-left text-muted-foreground">
