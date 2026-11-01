@@ -9,7 +9,7 @@ import {
 
 describe("getNotificationRetentionPolicy", () => {
   it("uses defaults when env is unset", () => {
-    expect(getNotificationRetentionPolicy({})).toEqual({
+    expect(getNotificationRetentionPolicy({ NODE_ENV: "test" })).toEqual({
       readRetentionDays: DEFAULT_NOTIFICATION_READ_RETENTION_DAYS,
       unreadRetentionDays: DEFAULT_NOTIFICATION_UNREAD_RETENTION_DAYS,
     });
@@ -18,6 +18,7 @@ describe("getNotificationRetentionPolicy", () => {
   it("parses positive integer overrides", () => {
     expect(
       getNotificationRetentionPolicy({
+        NODE_ENV: "test",
         NOTIFICATION_READ_RETENTION_DAYS: "30",
         NOTIFICATION_UNREAD_RETENTION_DAYS: "180",
       }),
@@ -30,6 +31,7 @@ describe("getNotificationRetentionPolicy", () => {
   it("falls back on invalid env values", () => {
     expect(
       getNotificationRetentionPolicy({
+        NODE_ENV: "test",
         NOTIFICATION_READ_RETENTION_DAYS: "0",
         NOTIFICATION_UNREAD_RETENTION_DAYS: "abc",
       }),

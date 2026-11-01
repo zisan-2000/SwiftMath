@@ -7,20 +7,20 @@ import {
 
 describe("getNotificationPollIntervalMs", () => {
   it("defaults to 60 seconds", () => {
-    expect(getNotificationPollIntervalMs({})).toBe(
+    expect(getNotificationPollIntervalMs({ NODE_ENV: "test" })).toBe(
       DEFAULT_NOTIFICATION_POLL_INTERVAL_MS,
     );
   });
 
   it("parses a valid override", () => {
     expect(
-      getNotificationPollIntervalMs({ NOTIFICATION_POLL_INTERVAL_MS: "30000" }),
+      getNotificationPollIntervalMs({ NODE_ENV: "test", NOTIFICATION_POLL_INTERVAL_MS: "30000" }),
     ).toBe(30_000);
   });
 
   it("rejects values below 15 seconds", () => {
     expect(
-      getNotificationPollIntervalMs({ NOTIFICATION_POLL_INTERVAL_MS: "5000" }),
+      getNotificationPollIntervalMs({ NODE_ENV: "test", NOTIFICATION_POLL_INTERVAL_MS: "5000" }),
     ).toBe(DEFAULT_NOTIFICATION_POLL_INTERVAL_MS);
   });
 });

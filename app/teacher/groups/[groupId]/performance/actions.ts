@@ -15,6 +15,8 @@ export interface SaveClassPerformanceState {
   ok?: boolean;
   message?: string;
   savedDate?: string;
+  revision?: number;
+  sheetId?: string;
 }
 
 export async function saveClassPerformanceAction(
@@ -44,6 +46,11 @@ export async function saveClassPerformanceAction(
 
   try {
     const result = await saveClassPerformance(teacher, {
+      mode: formData.get("mode") as "create" | "update",
+      sheetId: String(formData.get("sheetId") ?? "") || null,
+      revision: formData.get("revision")
+        ? Number(formData.get("revision"))
+        : null,
       groupId,
       classDate,
       maximumMark,
@@ -55,10 +62,14 @@ export async function saveClassPerformanceAction(
     revalidatePath(`/teacher/groups/${groupId}/students`);
     revalidatePath("/teacher/activity");
     revalidatePath("/student");
+    revalidatePath("/teacher/groups/[groupId]/students/[studentId]", "page");
+    revalidatePath("/admin/students/[studentId]", "page");
 
     return {
       ok: true,
       savedDate: classDate,
+      sheetId: result.sheetId,
+      revision: result.revision,
       message: result.created
         ? "Class performance saved."
         : "Class performance updated.",

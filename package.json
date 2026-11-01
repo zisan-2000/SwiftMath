@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:class-performance:db": "node scripts/test-class-performance-db.mjs",
     "lighthouse:pwa": "node scripts/check-pwa-installable.mjs",
     "check:pwa": "node scripts/check-pwa-installable.mjs",
     "postinstall": "prisma generate",
@@ -52,6 +53,7 @@
   "devDependencies": {
     "@serwist/turbopack": "^9.5.11",
     "@tailwindcss/postcss": "^4",
+    "@types/jsdom": "^30.0.0",
     "@types/node": "^20",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19",
@@ -61,6 +63,7 @@
     "esbuild": "^0.28.1",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "jsdom": "^29.1.1",
     "prisma": "^7.8.0",
     "serwist": "^9.5.11",
     "tailwindcss": "^4",

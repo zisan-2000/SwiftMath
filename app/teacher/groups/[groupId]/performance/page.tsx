@@ -21,7 +21,8 @@ export default async function ClassPerformancePage({
   searchParams: Promise<{ date?: string }>;
 }) {
   const [{ groupId }, query] = await Promise.all([params, searchParams]);
-  const { teacher, institute, group } = await loadTeacherGroupPageContext(groupId);
+  const { teacher, institute, group } =
+    await loadTeacherGroupPageContext(groupId);
   const workspace = await getGroupClassPerformanceWorkspace(
     teacher,
     groupId,
@@ -46,12 +47,14 @@ export default async function ClassPerformancePage({
       }
     >
       <ClassPerformanceEntryForm
-        key={`${workspace.selectedDate}:${workspace.isExisting}:${workspace.maximumMark}`}
+        key={`${groupId}:${workspace.selectedDate}`}
         groupId={groupId}
         selectedDate={workspace.selectedDate}
         maximumMark={workspace.maximumMark}
         students={workspace.students}
         isExisting={workspace.isExisting}
+        sheetId={workspace.sheetId}
+        revision={workspace.revision}
       />
 
       <div className="mt-6">
@@ -97,16 +100,25 @@ export default async function ClassPerformancePage({
                 </thead>
                 <tbody>
                   {workspace.history.map((row) => (
-                    <tr key={row.date} className="border-b border-border last:border-0">
+                    <tr
+                      key={row.date}
+                      className="border-b border-border last:border-0"
+                    >
                       <td className="px-5 py-3 font-medium text-foreground">
                         {row.label}
                       </td>
-                      <td className="px-5 py-3 tabular-nums">{row.maximumMark}</td>
+                      <td className="px-5 py-3 tabular-nums">
+                        {row.maximumMark}
+                      </td>
                       <td className="px-5 py-3 tabular-nums">
                         {row.averagePercentage}%
                       </td>
-                      <td className="px-5 py-3 tabular-nums">{row.presentCount}</td>
-                      <td className="px-5 py-3 tabular-nums">{row.absentCount}</td>
+                      <td className="px-5 py-3 tabular-nums">
+                        {row.presentCount}
+                      </td>
+                      <td className="px-5 py-3 tabular-nums">
+                        {row.absentCount}
+                      </td>
                       <td className="px-5 py-3 text-right">
                         <Link
                           href={`/teacher/groups/${groupId}/performance?date=${row.date}`}
@@ -126,4 +138,3 @@ export default async function ClassPerformancePage({
     </TeacherGroupShell>
   );
 }
-

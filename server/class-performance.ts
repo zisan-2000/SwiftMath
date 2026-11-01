@@ -21,7 +21,6 @@ import {
   ClassPerformanceStatus,
   Role,
 } from "@/lib/generated/prisma/enums";
-import { auditActorFromTeacher, recordAuditLog } from "@/server/audit-log";
 import type { AdminContext } from "@/server/admin";
 import type { TeacherContext } from "@/server/teacher";
 
@@ -34,6 +33,9 @@ export interface ClassPerformanceEntryInput {
 }
 
 export interface SaveClassPerformanceInput {
+  mode: "create" | "update";
+  sheetId?: string | null;
+  revision?: number | null;
   groupId: string;
   classDate: string;
   maximumMark: string;
@@ -52,7 +54,9 @@ function decimalNumber(value: { toString(): string }): number {
 function parseMark(value: string, label: string): number {
   const trimmed = value.trim();
   if (!/^\d+(?:\.\d{1,2})?$/.test(trimmed)) {
-    throw new ClassPerformanceError(`${label} must be a valid number with up to 2 decimal places.`);
+    throw new ClassPerformanceError(
+      `${label} must be a valid number with up to 2 decimal places.`,
+    );
   }
   const number = Number(trimmed);
   if (!Number.isFinite(number)) {
@@ -121,32 +125,37 @@ export async function getGroupClassPerformanceWorkspace(
   });
   if (!group) return null;
 
-  const [selected, historyRows] = await Promise.all([
-    prisma.classPerformance.findUnique({
-      where: { groupId_classDate: { groupId, classDate: date } },
-      select: {
-        maximumMark: true,
-        entries: {
-          orderBy: { student: { name: "asc" } },
-          select: {
-            studentId: true,
-            mark: true,
-            status: true,
-            student: { select: { name: true, contactNumber: true } },
+  const [selected, historyRows] = await prisma.$transaction(
+    [
+      prisma.classPerformance.findUnique({
+        where: { groupId_classDate: { groupId, classDate: date } },
+        select: {
+          id: true,
+          revision: true,
+          maximumMark: true,
+          entries: {
+            orderBy: { student: { name: "asc" } },
+            select: {
+              studentId: true,
+              mark: true,
+              status: true,
+              student: { select: { name: true, contactNumber: true } },
+            },
           },
         },
-      },
-    }),
-    prisma.classPerformance.findMany({
-      where: { groupId, instituteId: teacher.instituteId },
-      orderBy: { classDate: "desc" },
-      select: {
-        classDate: true,
-        maximumMark: true,
-        entries: { select: { mark: true, status: true } },
-      },
-    }),
-  ]);
+      }),
+      prisma.classPerformance.findMany({
+        where: { groupId, instituteId: teacher.instituteId },
+        orderBy: { classDate: "desc" },
+        select: {
+          classDate: true,
+          maximumMark: true,
+          entries: { select: { mark: true, status: true } },
+        },
+      }),
+    ],
+    { isolationLevel: "RepeatableRead" },
+  );
 
   const students = selected
     ? mergeClassPerformanceRoster(
@@ -168,6 +177,8 @@ export async function getGroupClassPerformanceWorkspace(
 
   return {
     selectedDate,
+    sheetId: selected?.id ?? null,
+    revision: selected?.revision ?? null,
     isExisting: selected != null,
     maximumMark: selected ? decimalText(selected.maximumMark) : "10",
     students,
@@ -179,7 +190,23 @@ export async function getGroupClassPerformanceWorkspace(
 export async function saveClassPerformance(
   teacher: TeacherContext,
   input: SaveClassPerformanceInput,
-): Promise<{ created: boolean }> {
+): Promise<{ created: boolean; sheetId: string; revision: number }> {
+  if (input.mode !== "create" && input.mode !== "update") {
+    throw new ClassPerformanceError("Reload this class before saving.");
+  }
+  if (input.mode === "create" && (input.sheetId || input.revision != null)) {
+    throw new ClassPerformanceError(
+      "A new class cannot reuse an existing record.",
+    );
+  }
+  if (
+    input.mode === "update" &&
+    (!input.sheetId ||
+      !Number.isSafeInteger(input.revision) ||
+      input.revision! < 1)
+  ) {
+    throw new ClassPerformanceError("Reload this class before updating it.");
+  }
   const classDate = parseClassDate(input.classDate);
   if (!classDate) {
     throw new ClassPerformanceError("Choose a valid class date.");
@@ -209,140 +236,234 @@ export async function saveClassPerformance(
     throw new ClassPerformanceError("Group not found or not owned by you.");
   }
 
-  const existing = await prisma.classPerformance.findUnique({
-    where: {
-      groupId_classDate: { groupId: input.groupId, classDate },
-    },
-    select: {
-      id: true,
-      entries: {
-        select: {
-          studentId: true,
-          mark: true,
-          status: true,
-          student: { select: { name: true } },
-        },
-      },
-    },
-  });
+  try {
+    return await prisma.$transaction(
+      async (tx) => {
+        const existing = await tx.classPerformance.findUnique({
+          where: {
+            groupId_classDate: { groupId: input.groupId, classDate },
+          },
+          select: {
+            id: true,
+            revision: true,
+            maximumMark: true,
+            entries: {
+              select: {
+                studentId: true,
+                mark: true,
+                status: true,
+                student: { select: { name: true } },
+              },
+            },
+          },
+        });
 
-  if (
-    existing?.entries.some(
-      (entry) => decimalNumber(entry.mark) > maximumMark,
-    )
-  ) {
-    throw new ClassPerformanceError(
-      "Maximum mark cannot be lower than a mark already saved on this class.",
-    );
-  }
+        if (input.mode === "create" && existing) {
+          throw new ClassPerformanceError(
+            "This date already has a record. Open it to edit; existing marks were not changed.",
+          );
+        }
+        if (
+          input.mode === "update" &&
+          (!existing || existing.id !== input.sheetId)
+        ) {
+          throw new ClassPerformanceError(
+            "The class date does not match the record being edited. Reload the correct date.",
+          );
+        }
+        if (existing) {
+          const claimed = await tx.classPerformance.updateMany({
+            where: {
+              id: existing.id,
+              groupId: input.groupId,
+              instituteId: teacher.instituteId,
+              classDate,
+              revision: input.revision!,
+            },
+            data: { revision: { increment: 1 }, maximumMark },
+          });
+          if (claimed.count !== 1) {
+            throw new ClassPerformanceError(
+              "Another editor saved this class. Your changes were not saved. Reload the latest record before editing again.",
+            );
+          }
+        }
 
-  const authoritativeRoster = existing
-    ? mergeClassPerformanceRoster(
-        group.students,
-        existing.entries.map((entry) => ({
-          id: entry.studentId,
-          name: entry.student.name,
-          mark: decimalText(entry.mark),
-          status: entry.status,
-        })),
-      )
-    : group.students;
-  const expectedIds = new Set(authoritativeRoster.map((student) => student.id));
-  const receivedIds = new Set(input.entries.map((entry) => entry.studentId));
-  if (
-    expectedIds.size !== receivedIds.size ||
-    input.entries.length !== receivedIds.size ||
-    [...expectedIds].some((id) => !receivedIds.has(id))
-  ) {
-    throw new ClassPerformanceError(
-      "The submitted student list no longer matches this class record. Refresh and try again.",
-    );
-  }
+        if (
+          existing?.entries.some(
+            (entry) => decimalNumber(entry.mark) > maximumMark,
+          )
+        ) {
+          throw new ClassPerformanceError(
+            "Maximum mark cannot be lower than a mark already saved on this class.",
+          );
+        }
 
-  const studentNames = new Map(
-    authoritativeRoster.map((student) => [student.id, student.name]),
-  );
-  const savedStudentIds = new Set(
-    existing?.entries.map((entry) => entry.studentId) ?? [],
-  );
-  const entries = input.entries.flatMap((entry) => {
-    if (entry.status === CLASS_PERFORMANCE_NOT_ENTERED) {
-      if (!existing || savedStudentIds.has(entry.studentId)) {
-        throw new ClassPerformanceError(
-          "Only a newly added student can remain Not entered on an existing class record.",
+        const authoritativeRoster = existing
+          ? mergeClassPerformanceRoster(
+              group.students,
+              existing.entries.map((entry) => ({
+                id: entry.studentId,
+                name: entry.student.name,
+                mark: decimalText(entry.mark),
+                status: entry.status,
+              })),
+            )
+          : group.students;
+        const expectedIds = new Set(
+          authoritativeRoster.map((student) => student.id),
         );
-      }
-      return [];
-    }
+        const receivedIds = new Set(
+          input.entries.map((entry) => entry.studentId),
+        );
+        if (
+          expectedIds.size !== receivedIds.size ||
+          input.entries.length !== receivedIds.size ||
+          [...expectedIds].some((id) => !receivedIds.has(id))
+        ) {
+          throw new ClassPerformanceError(
+            "The submitted student list no longer matches this class record. Refresh and try again.",
+          );
+        }
+
+        const studentNames = new Map(
+          authoritativeRoster.map((student) => [student.id, student.name]),
+        );
+        const savedStudentIds = new Set(
+          existing?.entries.map((entry) => entry.studentId) ?? [],
+        );
+        const entries = input.entries.flatMap((entry) => {
+          if (entry.status === CLASS_PERFORMANCE_NOT_ENTERED) {
+            if (!existing || savedStudentIds.has(entry.studentId)) {
+              throw new ClassPerformanceError(
+                "Only a newly added student can remain Not entered on an existing class record.",
+              );
+            }
+            return [];
+          }
+          if (
+            entry.status !== ClassPerformanceStatus.PRESENT &&
+            entry.status !== ClassPerformanceStatus.ABSENT
+          ) {
+            throw new ClassPerformanceError(
+              "Choose a valid attendance status.",
+            );
+          }
+          const name = studentNames.get(entry.studentId) ?? "Student";
+          const mark =
+            entry.status === ClassPerformanceStatus.ABSENT
+              ? 0
+              : parseMark(entry.mark, `${name}'s mark`);
+          if (mark < 0 || mark > maximumMark) {
+            throw new ClassPerformanceError(
+              `${name}'s mark must be between 0 and ${maximumMark}.`,
+            );
+          }
+          return [{ studentId: entry.studentId, mark, status: entry.status }];
+        });
+
+        const sheet = existing
+          ? { id: existing.id, revision: existing.revision + 1 }
+          : await tx.classPerformance.create({
+              data: {
+                instituteId: teacher.instituteId,
+                groupId: input.groupId,
+                classDate,
+                maximumMark,
+                createdById: teacher.id,
+              },
+              select: { id: true, revision: true },
+            });
+
+        for (const entry of entries) {
+          await tx.classPerformanceEntry.upsert({
+            where: {
+              classPerformanceId_studentId: {
+                classPerformanceId: sheet.id,
+                studentId: entry.studentId,
+              },
+            },
+            create: {
+              instituteId: teacher.instituteId,
+              classPerformanceId: sheet.id,
+              studentId: entry.studentId,
+              mark: entry.mark,
+              status: entry.status,
+            },
+            update: { mark: entry.mark, status: entry.status },
+          });
+        }
+        const previousEntries = new Map(
+          existing?.entries.map((row) => [row.studentId, row]),
+        );
+        const changes = entries.flatMap((entry) => {
+          const previous = previousEntries.get(entry.studentId);
+          if (
+            !previous ||
+            decimalNumber(previous.mark) !== entry.mark ||
+            previous.status !== entry.status ||
+            decimalNumber(existing!.maximumMark) !== maximumMark
+          ) {
+            return [
+              {
+                instituteId: teacher.instituteId,
+                groupId: input.groupId,
+                sheetId: sheet.id,
+                classDate,
+                studentId: entry.studentId,
+                editorId: teacher.id,
+                revision: sheet.revision,
+                previousMark: previous?.mark ?? null,
+                updatedMark: entry.mark,
+                previousStatus: previous?.status ?? null,
+                updatedStatus: entry.status,
+                previousMaximumMark: existing?.maximumMark ?? null,
+                updatedMaximumMark: maximumMark,
+              },
+            ];
+          }
+          return [];
+        });
+        if (changes.length > 0)
+          await tx.classPerformanceChange.createMany({ data: changes });
+
+        const created = existing == null;
+        await tx.auditLog.create({
+          data: {
+            instituteId: teacher.instituteId,
+            actorUserId: teacher.id,
+            actorRole: Role.TEACHER,
+            action: created
+              ? AuditAction.CLASS_PERFORMANCE_RECORDED
+              : AuditAction.CLASS_PERFORMANCE_UPDATED,
+            targetType: "ClassPerformance",
+            targetId: sheet.id,
+            summary: `${created ? "Recorded" : "Updated"} ${group.name} class performance for ${formatClassDate(classDate)} (${maximumMark} marks).`,
+            metadata: {
+              groupId: input.groupId,
+              classDate: input.classDate,
+              revision: sheet.revision,
+            },
+          },
+        });
+
+        return { created, sheetId: sheet.id, revision: sheet.revision };
+      },
+      { timeout: 30_000 },
+    );
+  } catch (error) {
     if (
-      entry.status !== ClassPerformanceStatus.PRESENT &&
-      entry.status !== ClassPerformanceStatus.ABSENT
+      typeof error === "object" &&
+      error &&
+      "code" in error &&
+      error.code === "P2002"
     ) {
-      throw new ClassPerformanceError("Choose a valid attendance status.");
-    }
-    const name = studentNames.get(entry.studentId) ?? "Student";
-    const mark =
-      entry.status === ClassPerformanceStatus.ABSENT
-        ? 0
-        : parseMark(entry.mark, `${name}'s mark`);
-    if (mark < 0 || mark > maximumMark) {
       throw new ClassPerformanceError(
-        `${name}'s mark must be between 0 and ${maximumMark}.`,
+        "This date was just created by another editor. Reload it; existing marks were not changed.",
       );
     }
-    return [{ studentId: entry.studentId, mark, status: entry.status }];
-  });
-
-  const savedSheetId = await prisma.$transaction(async (tx) => {
-    const sheet = await tx.classPerformance.upsert({
-      where: {
-        groupId_classDate: { groupId: input.groupId, classDate },
-      },
-      create: {
-        instituteId: teacher.instituteId,
-        groupId: input.groupId,
-        classDate,
-        maximumMark,
-        createdById: teacher.id,
-      },
-      update: { maximumMark },
-      select: { id: true },
-    });
-
-    for (const entry of entries) {
-      await tx.classPerformanceEntry.upsert({
-        where: {
-          classPerformanceId_studentId: {
-            classPerformanceId: sheet.id,
-            studentId: entry.studentId,
-          },
-        },
-        create: {
-          instituteId: teacher.instituteId,
-          classPerformanceId: sheet.id,
-          studentId: entry.studentId,
-          mark: entry.mark,
-          status: entry.status,
-        },
-        update: { mark: entry.mark, status: entry.status },
-      });
-    }
-    return sheet.id;
-  });
-
-  const created = existing == null;
-  await recordAuditLog({
-    actor: auditActorFromTeacher(teacher),
-    action: created
-      ? AuditAction.CLASS_PERFORMANCE_RECORDED
-      : AuditAction.CLASS_PERFORMANCE_UPDATED,
-    targetType: "ClassPerformance",
-    targetId: savedSheetId,
-    summary: `${created ? "Recorded" : "Updated"} ${group.name} class performance for ${formatClassDate(classDate)} (${maximumMark} marks).`,
-    metadata: { groupId: input.groupId, classDate: input.classDate },
-  });
-
-  return { created };
+    throw error;
+  }
 }
 
 /** A ranking sourced only from teacher-entered class marks. */
@@ -436,8 +557,9 @@ async function loadStudentClassPerformanceHistory(studentId: string) {
   return {
     rows,
     classCount: rows.length,
-    absentCount: rows.filter((row) => row.status === ClassPerformanceStatus.ABSENT)
-      .length,
+    absentCount: rows.filter(
+      (row) => row.status === ClassPerformanceStatus.ABSENT,
+    ).length,
     overallPercentage: percentage(totalMark, totalMaximumMark),
   };
 }
@@ -468,7 +590,8 @@ export async function getOwnClassPerformanceHistory(
     where: { id: studentId, instituteId, role: Role.STUDENT },
     select: { id: true },
   });
-  if (!student) return { rows: [], classCount: 0, absentCount: 0, overallPercentage: 0 };
+  if (!student)
+    return { rows: [], classCount: 0, absentCount: 0, overallPercentage: 0 };
   return loadStudentClassPerformanceHistory(student.id);
 }
 

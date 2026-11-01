@@ -647,6 +647,9 @@ model ClassPerformance {
   /// Maximum possible mark for this class, e.g. 10 or 100.
   maximumMark Decimal @db.Decimal(8, 2)
 
+  /// Compare-and-swap token for atomic optimistic concurrency control.
+  revision Int @default(1)
+
   createdById String
   createdBy   User   @relation("ClassPerformanceCreator", fields: [createdById], references: [id], onDelete: Restrict)
 
@@ -659,6 +662,31 @@ model ClassPerformance {
   @@index([instituteId, classDate])
   @@index([groupId, classDate])
   @@map("class_performance")
+}
+
+/// Append-only snapshots. Scalar identifiers intentionally survive removal of
+/// a user/group/sheet; database triggers reject UPDATE, DELETE and TRUNCATE.
+model ClassPerformanceChange {
+  id String @id @default(cuid())
+  instituteId String
+  groupId String
+  sheetId String
+  classDate DateTime @db.Date
+  studentId String
+  editorId String
+  revision Int
+  previousMark Decimal? @db.Decimal(8, 2)
+  updatedMark Decimal @db.Decimal(8, 2)
+  previousStatus ClassPerformanceStatus?
+  updatedStatus ClassPerformanceStatus
+  previousMaximumMark Decimal? @db.Decimal(8, 2)
+  updatedMaximumMark Decimal @db.Decimal(8, 2)
+  changedAt DateTime @default(now())
+
+  @@unique([sheetId, revision, studentId])
+  @@index([instituteId, sheetId, changedAt])
+  @@index([studentId, classDate])
+  @@map("class_performance_change")
 }
 
 /// One student's mark and attendance state on a class performance sheet.
