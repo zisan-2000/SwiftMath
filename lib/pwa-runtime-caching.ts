@@ -12,7 +12,9 @@ export function secureRuntimeCaching(
     {
       matcher: ({ url: { pathname }, sameOrigin }) =>
         sameOrigin &&
-        (pathname.startsWith("/api/") || pathname.startsWith("/_next/data/")),
+        (pathname.startsWith("/api/") ||
+          pathname.startsWith("/_next/data/") ||
+          pathname === "/student/homework"),
       handler: new NetworkOnly(),
     },
     ...baseCache,

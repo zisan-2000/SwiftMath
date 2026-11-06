@@ -190,6 +190,7 @@ model Institute {
   homeworkSchedules       HomeworkSchedule[]
   homeworkOccurrences     HomeworkOccurrence[]
   homeworkExpectations    HomeworkExpectation[]
+  homeworkPhotoUploads    HomeworkPhotoUpload[]
 
   @@map("institute")
 }
@@ -311,6 +312,7 @@ model User {
   homeworkSchedulesTargeted HomeworkSchedule[]    @relation("HomeworkScheduleStudentTarget")
   homeworkExpectations      HomeworkExpectation[] @relation("HomeworkExpectationStudent")
   homeworkReviews           HomeworkSubmission[]  @relation("HomeworkSubmissionReviewer")
+  homeworkPhotoUploads      HomeworkPhotoUpload[]
 
   // --- better-auth relations ---
   sessions Session[]
@@ -840,6 +842,7 @@ model HomeworkExpectation {
   academicLevelNameSnapshot String?
 
   submissions HomeworkSubmission[]
+  photoUploads HomeworkPhotoUpload[]
 
   createdAt DateTime @default(now())
 
@@ -847,6 +850,50 @@ model HomeworkExpectation {
   @@index([instituteId, studentId])
   @@index([studentId, createdAt])
   @@map("homework_expectation")
+}
+
+enum HomeworkPhotoUploadKind {
+  FIRST
+  FINAL
+}
+
+enum HomeworkPhotoUploadStatus {
+  PENDING
+  FINALIZING
+  FINALIZED
+  EXPIRED
+}
+
+/// A scoped upload intent. Existing photo keys and historical submissions are untouched.
+model HomeworkPhotoUpload {
+  id String @id
+  requestId String
+  instituteId String
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  studentId String
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  expectationId String
+  expectation HomeworkExpectation @relation(fields: [expectationId], references: [id], onDelete: Cascade)
+  kind HomeworkPhotoUploadKind
+  submissionId String?
+  expectedAttemptNumber Int
+  pageNumber String?
+  pathname String @unique
+  storage String @default("blob")
+  byteSize Int
+  contentType String
+  sha256 String
+  status HomeworkPhotoUploadStatus @default(PENDING)
+  completedSubmissionId String?
+  expiresAt DateTime
+  finalizedAt DateTime?
+  cleanedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([studentId, requestId])
+  @@index([instituteId, studentId, status])
+  @@index([status, expiresAt])
+  @@map("homework_photo_upload")
 }
 
 /// One upload attempt. Resubmission appends another attempt; reviewed history

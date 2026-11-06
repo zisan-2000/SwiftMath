@@ -5,6 +5,7 @@ import { mkdir, readFile, unlink, writeFile } from "fs/promises";
 import path from "path";
 
 import { del, get, put } from "@vercel/blob";
+import { homeworkHeicPreview } from "@/server/homework-image-validation";
 
 const MAX_HOMEWORK_PHOTO_BYTES = 8 * 1024 * 1024;
 const ALLOWED_TYPES = new Map([
@@ -73,6 +74,11 @@ export async function readHomeworkPhoto(key: string) {
       token: process.env.BLOB_READ_WRITE_TOKEN,
     });
     if (!result) return null;
+    if (/image\/hei[cf]/.test(result.blob.contentType ?? "")) {
+      const buffer = Buffer.from(await new Response(result.stream).arrayBuffer());
+      if (buffer.length > MAX_HOMEWORK_PHOTO_BYTES) throw new HomeworkPhotoError("Photo exceeds the supported size.");
+      return { body: await homeworkHeicPreview(buffer), contentType: "image/jpeg" };
+    }
     return { body: result.stream, contentType: result.blob.contentType ?? "application/octet-stream" };
   }
   if (!key.startsWith("local:")) return null;
@@ -84,6 +90,7 @@ export async function readHomeworkPhoto(key: string) {
       extension === ".webp" ? "image/webp" :
       extension === ".heic" ? "image/heic" : "image/jpeg";
     const body = await readFile(path.join(process.cwd(), ".data", ...relative.split("/")));
+    if (extension === ".heic") return { body: await homeworkHeicPreview(body), contentType: "image/jpeg" };
     return { body, contentType };
   } catch {
     return null;

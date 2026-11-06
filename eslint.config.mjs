@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Prisma client output (generated on postinstall; not hand-written).
     "lib/generated/**",
+    // Private local photos and isolated verification apps are runtime artifacts.
+    ".data/**",
   ]),
 ]);
 

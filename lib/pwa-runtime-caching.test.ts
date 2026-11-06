@@ -39,5 +39,7 @@ describe("secureRuntimeCaching", () => {
       }),
     ).toBe(false);
     expect(rules[0]?.handler).toBeInstanceOf(NetworkOnly);
+    expect(apiMatcher({url: new URL("https://example.com/student/homework?_rsc=new"),sameOrigin:true})).toBe(true);
+    expect(apiMatcher({url: new URL("https://unrelated.test/student/homework"),sameOrigin:false})).toBe(false);
   });
 });

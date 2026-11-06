@@ -1,4 +1,5 @@
 import "server-only";
+import type { Prisma } from "@/lib/generated/prisma/client";
 
 import {
   AuditAction,
@@ -450,15 +451,15 @@ export async function getStudentHomework(studentId: string, instituteId: string)
   });
 }
 
-export async function startHomeworkSubmission(
+export async function prepareHomeworkStart(
   student: { id: string; instituteId: string },
   expectationId: string,
   pageNumber: string,
-  firstPhoto: File,
+  db: Prisma.TransactionClient = prisma,
 ) {
   const page = pageNumber.trim();
   if (!page || page.length > 80) throw new HomeworkError("Enter a valid page number.");
-  const expectation = await prisma.homeworkExpectation.findFirst({
+  const expectation = await db.homeworkExpectation.findFirst({
     where: { id: expectationId, studentId: student.id, instituteId: student.instituteId },
     select: {
       id: true, academicLevelIdSnapshot: true,
@@ -472,7 +473,7 @@ export async function startHomeworkSubmission(
   let academicLevelIdSnapshot = expectation.academicLevelIdSnapshot;
   if (!academicLevelIdSnapshot && expectation.student.academicLevelId) {
     academicLevelIdSnapshot = expectation.student.academicLevelId;
-    await prisma.homeworkExpectation.update({
+    await db.homeworkExpectation.update({
       where: { id: expectation.id },
       data: {
         academicLevelIdSnapshot,
@@ -487,7 +488,7 @@ export async function startHomeworkSubmission(
     throw new HomeworkError("This homework has already been submitted.");
   }
   if (!expectation.occurrence.allowSamePageAgainSnapshot) {
-    const approvedDuplicate = await prisma.homeworkSubmission.findFirst({
+    const approvedDuplicate = await db.homeworkSubmission.findFirst({
       where: {
         pageNumber: { equals: page, mode: "insensitive" },
         status: HomeworkSubmissionStatus.APPROVED,
@@ -503,12 +504,18 @@ export async function startHomeworkSubmission(
     }
   }
 
+  return { expectation, page, attemptNumber: (latest?.attemptNumber ?? 0) + 1 };
+}
+
+/** Legacy service retained for callers; the student UI uses direct upload tickets. */
+export async function startHomeworkSubmission(student: { id: string; instituteId: string }, expectationId: string, pageNumber: string, firstPhoto: File) {
+  const { expectation, page, attemptNumber } = await prepareHomeworkStart(student, expectationId, pageNumber);
   const key = await storeHomeworkPhoto(student.instituteId, student.id, "first", firstPhoto);
   try {
     return await prisma.homeworkSubmission.create({
       data: {
         expectationId: expectation.id,
-        attemptNumber: (latest?.attemptNumber ?? 0) + 1,
+        attemptNumber,
         pageNumber: page,
         firstPhotoKey: key,
       },
@@ -522,23 +529,28 @@ export async function startHomeworkSubmission(
   }
 }
 
-export async function finishHomeworkSubmission(
+export async function prepareHomeworkFinal(
   student: { id: string; instituteId: string },
   submissionId: string,
-  finalPhoto: File,
+  db: Prisma.TransactionClient = prisma,
 ) {
-  const submission = await prisma.homeworkSubmission.findFirst({
+  const submission = await db.homeworkSubmission.findFirst({
     where: {
       id: submissionId,
       status: HomeworkSubmissionStatus.IN_PROGRESS,
       expectation: { studentId: student.id, instituteId: student.instituteId },
     },
     select: {
-      id: true, startedAt: true,
+      id: true, startedAt: true, expectationId: true, attemptNumber: true,
       expectation: { select: { occurrence: { select: { dueAt: true, timeLimitMinutesSnapshot: true } } } },
     },
   });
   if (!submission) throw new HomeworkError("Active homework attempt not found.");
+  return submission;
+}
+
+export async function finishHomeworkSubmission(student: { id: string; instituteId: string }, submissionId: string, finalPhoto: File) {
+  const submission = await prepareHomeworkFinal(student, submissionId);
   const key = await storeHomeworkPhoto(student.instituteId, student.id, "final", finalPhoto);
   const submittedAt = new Date();
   try {

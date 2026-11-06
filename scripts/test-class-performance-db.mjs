@@ -9,6 +9,7 @@ if (
   ![
     "server/class-performance.integration.test.ts",
     "server/reports.integration.test.ts",
+    "server/homework-uploads.integration.test.ts",
   ].includes(suite)
 )
   throw new Error("Unknown isolated test suite.");
@@ -62,6 +63,8 @@ const isolatedUrl = new URL(sourceUrl);
 isolatedUrl.pathname = `/${name}`;
 const isolated = new Client({ connectionString: isolatedUrl.toString() });
 await isolated.connect();
+let homeworkBefore;
+const homeworkFingerprint = async () => (await isolated.query(`SELECT md5(coalesce(string_agg(row_to_json(t)::text, '' ORDER BY t.id), '')) fingerprint FROM homework_submission t`)).rows[0].fingerprint;
 try {
   for (const dir of readdirSync("prisma/migrations").sort()) {
     if (dir === "migration_lock.toml") continue;
@@ -78,10 +81,21 @@ try {
         INSERT INTO class_performance_entry(id,"instituteId","classPerformanceId","studentId",mark,status,"updatedAt")
           VALUES ('migration-entry','migration-institute','migration-sheet','migration-student',8.5,'PRESENT',now());`);
     }
+    if (dir === "20261107010000_homework_direct_photo_uploads") {
+      await isolated.query(`
+        INSERT INTO homework_schedule(id,"instituteId","createdById",mode,"targetType","groupId",title,"startDate","manualOpensAt","manualDueAt","maxScore","timeLimitMinutes","updatedAt") VALUES ('upload-migration-schedule','migration-institute','migration-teacher','MANUAL_SPECIFIC','GROUP','migration-group','Historical homework','2026-01-01','2026-01-01','2026-01-02',10,30,now());
+        INSERT INTO homework_occurrence(id,"instituteId","scheduleId","opensAt","dueAt","maxScoreSnapshot","timeLimitMinutesSnapshot","showTimerSnapshot","allowSamePageAgainSnapshot","expectationsMaterializedAt","updatedAt") VALUES ('upload-migration-occurrence','migration-institute','upload-migration-schedule','2026-01-01','2026-01-02',10,30,true,false,now(),now());
+        INSERT INTO homework_expectation(id,"instituteId","occurrenceId","studentId","academicLevelNameSnapshot") VALUES ('upload-migration-expectation','migration-institute','upload-migration-occurrence','migration-student','Historical level');
+        INSERT INTO homework_submission(id,"expectationId","attemptNumber","pageNumber","firstPhotoKey","finalPhotoKey",status,score,"startedAt","submittedAt","completionSeconds","updatedAt") VALUES ('upload-migration-submission','upload-migration-expectation',1,'49','blob:homework/legacy-first.jpg','blob:homework/legacy-final.jpg','APPROVED',8.5,'2026-01-01T01:00:00Z','2026-01-01T01:04:32Z',272,now());
+      `);
+      homeworkBefore = await homeworkFingerprint();
+    }
     await isolated.query(
       readFileSync(`prisma/migrations/${dir}/migration.sql`, "utf8"),
     );
   }
+  if (homeworkBefore !== await homeworkFingerprint()) throw new Error("Migration changed historical homework data.");
+  console.log("Additive upload migration preserved historical submission fingerprint.");
 } finally {
   await isolated.end();
 }
