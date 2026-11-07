@@ -24,7 +24,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
 
       - name: Install dependencies
@@ -32,7 +32,7 @@ jobs:
         # representation isn't strict-compatible with `npm ci`, and this matches
         # what the Vercel deploy uses. --ignore-scripts skips postinstall so we
         # run prisma generate explicitly below.
-        run: npm install --ignore-scripts
+        run: npm install --include=optional --ignore-scripts
 
       - name: Generate Prisma client
         run: npx prisma generate
@@ -61,11 +61,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: "24"
           cache: npm
 
       - name: Install dependencies
-        run: npm install --ignore-scripts
+        run: npm install --include=optional --ignore-scripts
 
       - name: Generate Prisma client
         run: npx prisma generate
@@ -81,3 +81,39 @@ jobs:
 
       - name: PWA installability check
         run: npm run check:pwa
+
+  homework-linux-runtime:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+      BETTER_AUTH_SECRET: ci-sharp-synthetic-secret-do-not-use-in-production
+      BETTER_AUTH_URL: http://127.0.0.1:3467
+      SHARP_TEST_ADMIN_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm install --include=optional --ignore-scripts
+      - run: npx prisma generate
+      - name: Build and verify Linux Sharp native assets in production traces
+        run: npm run build
+      - name: Test homework pages, photo uploads and native failure recovery
+        run: npm run test:homework:production
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: homework-linux-runtime-results
+          path: .data/swiftmath_sharp_test_*/results.json

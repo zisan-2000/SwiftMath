@@ -1,11 +1,23 @@
 import "server-only";
-import sharp from "sharp";
 import {
   homeworkPhotoType,
   MAX_HOMEWORK_PHOTO_BYTES,
   MAX_HOMEWORK_PHOTO_PIXELS,
   HomeworkUploadError,
 } from "@/lib/homework-upload";
+
+/** Native image processing must never be initialized merely to render homework. */
+async function homeworkImageEngine() {
+  try {
+    return (await import("sharp")).default;
+  } catch {
+    throw new HomeworkUploadError(
+      "IMAGE_PROCESSOR_UNAVAILABLE",
+      "Photo processing is temporarily unavailable. Your uploaded photo is safe; please retry shortly.",
+      503,
+    );
+  }
+}
 
 function checkDimensions(width: number, height: number) {
   if (!width || !height || width * height > MAX_HOMEWORK_PHOTO_PIXELS)
@@ -30,6 +42,7 @@ export async function validateHomeworkImage(buffer: Buffer) {
     if (type === "image/heic") {
       await homeworkHeicPreview(buffer);
     } else {
+      const sharp = await homeworkImageEngine();
       const image = sharp(buffer, {
         limitInputPixels: MAX_HOMEWORK_PHOTO_PIXELS,
         failOn: "warning",
@@ -59,6 +72,7 @@ export async function validateHomeworkImage(buffer: Buffer) {
 }
 /** HEIC remains private and unchanged in storage; browsers receive a JPEG preview. */
 export async function homeworkHeicPreview(buffer: Buffer) {
+  const sharp = await homeworkImageEngine();
   const { default: decode } = await import("heic-decode");
   const images = await decode.all({ buffer });
   try {

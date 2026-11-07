@@ -23,6 +23,15 @@ const nextConfig: NextConfig = {
     "pg",
     "sharp",
   ],
+  // Next 16.2's NFT special case recognizes sharp/lib/index.js, whereas Sharp
+  // 0.35 uses dist/index.cjs. Trace both native packages explicitly: tracing the
+  // .node addon alone does not retain its libvips shared library / relative RPATH.
+  outputFileTracingIncludes: {
+    "/*": [
+      "node_modules/@img/sharp-linux-x64/**/*",
+      "node_modules/@img/sharp-libvips-linux-x64/**/*",
+    ],
+  },
   async headers() {
     return [
       {
