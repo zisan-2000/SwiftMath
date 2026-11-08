@@ -1,3 +1,5 @@
+import { can } from "@/server/permissions";
+import { PERMISSIONS } from "@/lib/permissions";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Boxes, GraduationCap, Settings } from "lucide-react";
@@ -21,6 +23,8 @@ export const metadata: Metadata = {
 export default async function AdminGroupsPage() {
   const { admin, institute } = await loadAdminPageContext();
 
+  const canManage = await can(admin, PERMISSIONS.GROUP_MANAGE);
+  const canAssign = await can(admin, PERMISSIONS.GROUP_ASSIGN_TEACHER);
   const [groups, teachers] = await Promise.all([
     listInstituteGroups(admin.instituteId),
     listInstituteTeacherOptions(admin.instituteId),
@@ -38,7 +42,7 @@ export default async function AdminGroupsPage() {
       institute={institute}
       title="Groups"
       subtitle="Create groups, assign teachers, and open a group to view its students."
-      actions={<CreateGroupDialog teachers={teacherOptions} />}
+      actions={canManage ? <CreateGroupDialog teachers={teacherOptions} canAssign={canAssign} /> : undefined}
     >
       <BackLink href="/admin">Admin dashboard</BackLink>
 
@@ -49,12 +53,12 @@ export default async function AdminGroupsPage() {
           title="No groups yet"
           description={
             teachers.length === 0
-              ? "Create a teacher first, then add a group."
+              ? "Create a group now and assign teachers later."
               : "Use “Create group” to add your first class."
           }
           action={
-            teachers.length > 0 ? (
-              <CreateGroupDialog teachers={teacherOptions} />
+            canManage ? (
+              <CreateGroupDialog teachers={teacherOptions} canAssign={canAssign} />
             ) : undefined
           }
         />
@@ -73,7 +77,7 @@ export default async function AdminGroupsPage() {
                         {group.name}
                       </span>
                       <span className="text-sm text-muted-foreground">
-                        {group.teacher.name} · {group._count.students}{" "}
+                        {group.teacherAssignments.map(row => row.teacher.name).join(", ") || "No teachers assigned"} · {group._count.students}{" "}
                         {group._count.students === 1 ? "student" : "students"}
                       </span>
                     </div>

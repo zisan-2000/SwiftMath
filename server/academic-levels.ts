@@ -1,3 +1,4 @@
+import { teacherGroupScope, lockTeacherGroup } from "@/server/group-access";
 import "server-only";
 
 import { AuditAction, Role } from "@/lib/generated/prisma/enums";
@@ -32,7 +33,7 @@ export function getTeacherStudentAcademicLevel(actor: AcademicActor, groupId: st
       groupId,
       instituteId: actor.instituteId,
       role: Role.STUDENT,
-      group: { teacherId: actor.id },
+      group: teacherGroupScope(actor),
     },
     select: { academicLevelId: true, academicLevel: { select: { name: true } } },
   });
@@ -125,7 +126,7 @@ export async function assignStudentAcademicLevel(
         instituteId: actor.instituteId,
         role: Role.STUDENT,
         ...(actor.role === Role.TEACHER
-          ? { group: { teacherId: actor.id } }
+          ? { group: teacherGroupScope(actor) }
           : actor.role === Role.ADMIN
             ? {}
             : { id: "__forbidden__" }),
@@ -133,12 +134,14 @@ export async function assignStudentAcademicLevel(
       select: {
         id: true,
         name: true,
+        groupId: true,
         academicLevelId: true,
         academicLevel: { select: { name: true } },
       },
     });
     if (!student) throw new AcademicLevelError("Student not found or not managed by you.");
 
+    if (actor.role === Role.TEACHER && student.groupId) await lockTeacherGroup(tx, actor, student.groupId);
     const nextLevel = academicLevelId
       ? await tx.academicLevel.findFirst({
           where: { id: academicLevelId, instituteId: actor.instituteId, isActive: true },
@@ -151,16 +154,18 @@ export async function assignStudentAcademicLevel(
 
     if (student.academicLevelId === (nextLevel?.id ?? null)) return;
 
-    await tx.user.update({
-      where: { id: student.id },
+    const changed = await tx.user.updateMany({
+      where: { id: student.id, academicLevelId: student.academicLevelId, groupId: student.groupId },
       data: { academicLevelId: nextLevel?.id ?? null },
     });
+    if (!changed.count) throw new AcademicLevelError("Student details changed. Reload before assigning a level.");
     await tx.auditLog.create({
       data: {
         instituteId: actor.instituteId,
         actorUserId: actor.id,
         actorRole: actor.role,
         action: AuditAction.STUDENT_ACADEMIC_LEVEL_CHANGED,
+        scopeGroupId: student.groupId,
         targetType: "User",
         targetId: student.id,
         summary: `Changed ${student.name}'s academic level from ${student.academicLevel?.name ?? "Unassigned"} to ${nextLevel?.name ?? "Unassigned"}.`,

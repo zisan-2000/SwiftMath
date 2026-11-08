@@ -1,3 +1,6 @@
+import { can } from "@/server/permissions";
+import { PERMISSIONS } from "@/lib/permissions";
+import { teacherGroupScope } from "@/server/group-access";
 import type { Metadata } from "next";
 import Link from "next/link";
 import {
@@ -38,14 +41,13 @@ export default async function TeacherDashboardPage() {
 
   await syncTeacherExamClosedNotifications(teacher.id, teacher.instituteId);
 
+  const viewAnalytics = await can(teacher, PERMISSIONS.ANALYTICS_VIEW);
   const [groupCount, studentCount, dashboard] = await Promise.all([
-    prisma.group.count({ where: { teacherId: teacher.id } }),
-    prisma.user.count({ where: { group: { teacherId: teacher.id } } }),
-    getTeacherDashboardAnalytics(teacher.id),
+    prisma.group.count({ where: teacherGroupScope(teacher) }),
+    prisma.user.count({ where: { role: "STUDENT", instituteId: teacher.instituteId, group: teacherGroupScope(teacher) } }),
+    viewAnalytics ? getTeacherDashboardAnalytics(teacher) : null,
   ]);
 
-  const { practice, speed, dailyProgress, groupComparison, groupCompletion } =
-    dashboard;
 
   return (
     <TeacherPageShell
@@ -89,25 +91,26 @@ export default async function TeacherDashboardPage() {
         <StatCard label="My students" value={studentCount} icon={GraduationCap} />
       </div>
 
+      {dashboard && <>
       <h2 className="mb-3 mt-10 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         Practice (last 7 days)
       </h2>
       <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Sessions" value={practice.totalSessions} icon={Brain} />
+        <StatCard label="Sessions" value={dashboard.practice.totalSessions} icon={Brain} />
         <StatCard
           label="Pass rate"
-          value={`${practice.passRate}%`}
+          value={`${dashboard.practice.passRate}%`}
           hint="Attempt completion"
           icon={Target}
         />
         <StatCard
           label="Avg accuracy"
-          value={`${practice.avgAccuracy}%`}
+          value={`${dashboard.practice.avgAccuracy}%`}
           icon={TrendingUp}
         />
         <StatCard
           label="Avg pass time"
-          value={formatSpeedDuration(speed.avgPassMs)}
+          value={formatSpeedDuration(dashboard.speed.avgPassMs)}
           hint="Among passed attempts"
           icon={Timer}
         />
@@ -115,19 +118,19 @@ export default async function TeacherDashboardPage() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <PracticeActivityChart
-          data={practice.daily}
-          empty={practice.totalSessions === 0}
+          data={dashboard.practice.daily}
+          empty={dashboard.practice.totalSessions === 0}
           description="Finished attempts over the last 7 days"
         />
         <TeacherProgressChart
-          data={dailyProgress}
-          empty={practice.totalSessions === 0}
+          data={dashboard.dailyProgress}
+          empty={dashboard.practice.totalSessions === 0}
         />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6">
         <TeacherGroupComparisonChart
-          data={groupComparison}
+          data={dashboard.groupComparison}
           empty={groupCount === 0}
         />
       </div>
@@ -135,7 +138,8 @@ export default async function TeacherDashboardPage() {
       <h2 className="mb-3 mt-10 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
         Completion by group
       </h2>
-      <GroupCompletionTable rows={groupCompletion} />
+      <GroupCompletionTable rows={dashboard.groupCompletion} />
+      </>}
     </TeacherPageShell>
   );
 }

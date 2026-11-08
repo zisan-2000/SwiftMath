@@ -52,8 +52,7 @@ export function TeacherRankingFilters({
           defaultValue={values.view}
           className={SELECT_CLASS}
         >
-          <option value="institute">Whole institute</option>
-          <option value="mine">All my groups</option>
+          <option value="mine">All assigned groups</option>
           {groups.map((group) => (
             <option key={group.id} value={`group:${group.id}`}>
               {group.name}

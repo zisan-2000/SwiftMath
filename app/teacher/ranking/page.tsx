@@ -1,3 +1,5 @@
+import { requirePermission } from "@/lib/session";
+import { PERMISSIONS } from "@/lib/permissions";
 import type { Metadata } from "next";
 import { Trophy } from "lucide-react";
 
@@ -26,6 +28,7 @@ export default async function TeacherRankingPage({
 }: {
   searchParams: Promise<{ period?: string; view?: string; level?: string }>;
 }) {
+  await requirePermission(PERMISSIONS.ANALYTICS_VIEW);
   const { teacher, institute } = await loadTeacherPageContext();
   const params = await searchParams;
 
@@ -33,7 +36,7 @@ export default async function TeacherRankingPage({
   const levelParam = params.level && params.level !== "all" ? params.level : "all";
 
   const [groups, levels] = await Promise.all([
-    listTeacherGroups(teacher.id),
+    listTeacherGroups(teacher),
     prisma.level.findMany({
       where: { instituteId: teacher.instituteId, ...ACTIVE_LEVEL_FILTER },
       orderBy: { orderIndex: "asc" },
@@ -42,10 +45,12 @@ export default async function TeacherRankingPage({
   ]);
 
   const ownedGroupIds = new Set(groups.map((group) => group.id));
-  const { scope, groupId: scopedGroupId } = parseTeacherRankingView(
+  const parsedView = parseTeacherRankingView(
     params.view,
     ownedGroupIds,
   );
+  const scope = parsedView.scope === "institute" ? "mine" : parsedView.scope;
+  const scopedGroupId = parsedView.groupId;
 
   const validLevelId =
     levelParam !== "all" && levels.some((level) => level.id === levelParam)
@@ -55,7 +60,7 @@ export default async function TeacherRankingPage({
   const leaderboard = await getInstituteLeaderboard(teacher.instituteId, {
     period,
     ...(validLevelId && { levelId: validLevelId }),
-    ...(scope === "mine" && { teacherId: teacher.id }),
+    teacherId: teacher.id,
     ...(scope === "group" && scopedGroupId && { groupId: scopedGroupId }),
   });
 
@@ -93,7 +98,7 @@ export default async function TeacherRankingPage({
       />
 
       <p className="mb-4 text-sm text-muted-foreground">
-        Read-only institute leaderboard. Students need 100% on every timed attempt
+        Read-only leaderboard for your assigned groups. Students need 100% on every timed attempt
         in this view, then rank by fastest pass
         {selectedLevelName ? ` at ${selectedLevelName}` : ""}
         {period === "week"

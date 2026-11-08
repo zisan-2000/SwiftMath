@@ -10,6 +10,7 @@ import { deleteAdminGroup, updateAdminGroup } from "@/server/admin";
 export interface EditGroupState {
   error?: string;
   ok?: boolean;
+  revision?: number;
 }
 
 /** Update a group in the admin's institute. */
@@ -21,18 +22,19 @@ export async function updateGroupAction(
   const admin = await requireAdminPermission(PERMISSIONS.GROUP_MANAGE);
 
   const name = String(formData.get("name") ?? "").trim();
-  const teacherId = String(formData.get("teacherId") ?? "");
+  const teacherIds = formData.getAll("teacherIds").map(String);
 
-  if (!teacherId) return { error: "Choose a teacher." };
 
-  const result = await updateAdminGroup(admin, groupId, { name, teacherId });
+  const result = await updateAdminGroup(admin, groupId, { name, teacherIds, revision: Number(formData.get("revision")) });
   if (!result.ok) {
-    return { error: result.error };
+    return { error: result.error, revision: Number(formData.get("revision")) };
   }
 
-  revalidatePath("/admin/groups");
+  revalidatePath("/admin/groups", "layout");
+  revalidatePath("/teacher", "layout");
+  revalidatePath("/admin/teachers");
   revalidatePath(`/admin/groups/${groupId}`);
-  return { ok: true };
+  return { ok: true, revision: result.revision };
 }
 
 /** Delete an empty group in the admin's institute. */
@@ -46,12 +48,14 @@ export async function deleteGroupAction(
     if (result.reason === "not-empty") {
       return {
         error:
-          "This group still has students. Move them to another group first.",
+          "This group has students or saved class, homework or exam records. It cannot be deleted.",
       };
     }
     return { error: "Group not found." };
   }
 
-  revalidatePath("/admin/groups");
+  revalidatePath("/admin/groups", "layout");
+  revalidatePath("/teacher", "layout");
+  revalidatePath("/admin/teachers");
   return { ok: true };
 }

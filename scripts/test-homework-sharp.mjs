@@ -243,6 +243,7 @@ try {
     `INSERT INTO "group"(id,name,"instituteId","teacherId","updatedAt") VALUES($1,'Synthetic Group',$2,$3,now())`,
     [ids.group, ids.institute, ids.teacher],
   );
+  await db.query(`INSERT INTO teacher_group_assignment("groupId","teacherId","instituteId") VALUES($1,$2,$3)`, [ids.group, ids.teacher, ids.institute]);
   await db.query(
     `INSERT INTO academic_level(id,"instituteId",name,"orderIndex","updatedAt") VALUES($1,$2,'Synthetic level',1,now())`,
     [ids.level, ids.institute],
@@ -252,7 +253,7 @@ try {
     [ids.group, ids.level, ids.student],
   );
   await db.query(
-    `INSERT INTO homework_schedule(id,"instituteId","createdById",mode,"targetType","groupId",title,"startDate","manualOpensAt","manualDueAt","maxScore","timeLimitMinutes","updatedAt") VALUES($1,$2,$3,'MANUAL_SPECIFIC','GROUP',$4,'Synthetic Homework',$5,$5,$6,10,30,now())`,
+    `INSERT INTO homework_schedule(id,"instituteId","createdById",mode,"targetType","groupId","originGroupId",title,"startDate","manualOpensAt","manualDueAt","maxScore","timeLimitMinutes","updatedAt") VALUES($1,$2,$3,'MANUAL_SPECIFIC','GROUP',$4,$4,'Synthetic Homework',$5,$5,$6,10,30,now())`,
     [
       ids.schedule,
       ids.institute,
@@ -369,7 +370,7 @@ try {
       "/teacher/homework/history",
       teacherCookie,
       `teacher global history loads ${state}`,
-      "Search and review every homework record originally assigned by you.",
+      "Search and review homework for your assigned groups.",
     );
   }
   await teacherPages("with Sharp available");

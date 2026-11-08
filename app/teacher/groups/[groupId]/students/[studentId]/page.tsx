@@ -35,7 +35,7 @@ export default async function StudentProgressPage({
 
   const [progress, groups, classPerformance, academicLevels, academicAssignment, query] = await Promise.all([
     getStudentProgress(teacher, groupId, studentId),
-    listTeacherGroups(teacher.id),
+    listTeacherGroups(teacher),
     getStudentClassPerformanceForTeacher(teacher, groupId, studentId),
     listAcademicLevels(teacher.instituteId),
     getTeacherStudentAcademicLevel({ id: teacher.id, instituteId: teacher.instituteId, role: teacher.role }, groupId, studentId),

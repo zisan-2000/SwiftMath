@@ -1,3 +1,4 @@
+import { teacherGroupScope, lockTeacherGroup, withTeacherStudent } from "@/server/group-access";
 // Trusted, server-only logic for the teacher flow.
 //
 // Every function takes the authenticated teacher's identity and enforces
@@ -29,10 +30,10 @@ export interface TeacherContext {
   instituteId: string;
 }
 
-/** Groups owned by this teacher, with how many students are in each. */
-export function listTeacherGroups(teacherId: string) {
+/** Groups assigned to this teacher, with how many students are in each. */
+export function listTeacherGroups(teacher: TeacherContext) {
   return prisma.group.findMany({
-    where: { teacherId },
+    where: teacherGroupScope(teacher),
     orderBy: { createdAt: "asc" },
     select: {
       id: true,
@@ -43,11 +44,12 @@ export function listTeacherGroups(teacherId: string) {
 }
 
 /** All students across this teacher's groups, for the roster view. */
-export function listTeacherStudents(teacherId: string) {
+export function listTeacherStudents(teacher: TeacherContext) {
   return prisma.user.findMany({
     where: {
       role: Role.STUDENT,
-      group: { teacherId },
+      instituteId: teacher.instituteId,
+      group: teacherGroupScope(teacher),
     },
     orderBy: [{ group: { name: "asc" } }, { name: "asc" }],
     select: {
@@ -66,7 +68,7 @@ export function listTeacherScheduledExams(teacher: TeacherContext) {
   return prisma.scheduledExam.findMany({
     where: {
       instituteId: teacher.instituteId,
-      group: { teacherId: teacher.id },
+      group: teacherGroupScope(teacher),
     },
     orderBy: { opensAt: "desc" },
     select: {
@@ -81,28 +83,30 @@ export function listTeacherScheduledExams(teacher: TeacherContext) {
   });
 }
 
-/** Create a new group owned by this teacher, in their institute. */
+/** Create a new group assigned to this teacher, in their institute. */
 export function createGroup(teacher: TeacherContext, name: string) {
   return prisma.group.create({
     data: {
       name: name.trim(),
       teacherId: teacher.id,
       instituteId: teacher.instituteId,
+      teacherAssignments: { create: { teacherId: teacher.id, assignedById: teacher.id } },
     },
   });
 }
 
 /**
- * A single group owned by the teacher, with its students and each student's
+ * A single group assigned to the teacher, with its students and each student's
  * current level. Returns null if the group does not exist or isn't theirs.
  */
 export function getTeacherGroup(teacher: TeacherContext, groupId: string) {
   return prisma.group.findFirst({
-    where: { id: groupId, teacherId: teacher.id },
+    where: { id: groupId, ...teacherGroupScope(teacher) },
     select: {
       id: true,
       name: true,
       students: {
+        where: { role: Role.STUDENT, instituteId: teacher.instituteId },
         orderBy: { name: "asc" },
         select: {
           id: true,
@@ -136,13 +140,13 @@ export interface GroupLevelTimeRuleRow {
   effectiveSeconds: number;
 }
 
-/** Levels plus any per-group time overrides owned by this teacher's group. */
+/** Levels plus any per-group time overrides assigned to this teacher's group. */
 export async function listGroupLevelTimeRules(
   teacher: TeacherContext,
   groupId: string,
 ): Promise<GroupLevelTimeRuleRow[] | null> {
   const group = await prisma.group.findFirst({
-    where: { id: groupId, teacherId: teacher.id },
+    where: { id: groupId, ...teacherGroupScope(teacher) },
     select: { id: true },
   });
   if (!group) return null;
@@ -190,7 +194,7 @@ export async function setGroupLevelTimeRule(
   timeLimitSeconds: number | null,
 ): Promise<SetGroupLevelTimeResult> {
   const group = await prisma.group.findFirst({
-    where: { id: groupId, teacherId: teacher.id },
+    where: { id: groupId, ...teacherGroupScope(teacher) },
     select: { id: true, instituteId: true },
   });
   if (!group) {
@@ -205,8 +209,10 @@ export async function setGroupLevelTimeRule(
     return { ok: false, error: "Level not found in this institute." };
   }
 
+  return prisma.$transaction(async tx => {
+    await lockTeacherGroup(tx, teacher, groupId);
   if (timeLimitSeconds == null) {
-    await prisma.groupLevelRule.deleteMany({
+    await tx.groupLevelRule.deleteMany({
       where: { groupId, levelId },
     });
     return { ok: true };
@@ -217,13 +223,14 @@ export async function setGroupLevelTimeRule(
     return { ok: false, error: validationError };
   }
 
-  await prisma.groupLevelRule.upsert({
+  await tx.groupLevelRule.upsert({
     where: { groupId_levelId: { groupId, levelId } },
     create: { groupId, levelId, timeLimitSeconds },
     update: { timeLimitSeconds },
   });
 
   return { ok: true };
+  });
 }
 
 /** Effective timed limit for a student, honouring their group's override. */
@@ -268,11 +275,11 @@ export async function addStudentToGroup(
   },
 ) {
   const group = await prisma.group.findFirst({
-    where: { id: groupId, teacherId: teacher.id },
+    where: { id: groupId, ...teacherGroupScope(teacher) },
     select: { id: true, name: true },
   });
   if (!group) {
-    throw new Error("Group not found or not owned by this teacher.");
+    throw new Error("Group not found or not assigned to this teacher.");
   }
 
   const user = await createUserAccount({
@@ -283,11 +290,10 @@ export async function addStudentToGroup(
     instituteId: teacher.instituteId,
     groupId: group.id,
     contactNumber: student.contactNumber,
-  });
+  }, tx => lockTeacherGroup(tx, teacher, groupId));
 
   await notifyTeacherStudentJoined({
     instituteId: teacher.instituteId,
-    teacherId: teacher.id,
     groupId: group.id,
     groupName: group.name,
     studentId: user.id,
@@ -316,7 +322,8 @@ export async function assignStudentLevel(
     where: {
       id: studentId,
       role: Role.STUDENT,
-      group: { teacherId: teacher.id },
+      instituteId: teacher.instituteId,
+      group: teacherGroupScope(teacher),
     },
     select: { id: true },
   });
@@ -342,10 +349,8 @@ export async function assignStudentLevel(
       return { ok: false, error: access.message ?? "This level is locked." };
     }
 
-    await prisma.user.update({
-      where: { id: studentId },
-      data: { currentLevelId: levelId },
-    });
+    const updated = await withTeacherStudent(teacher, studentId, tx => tx.user.update({ where: { id: studentId }, data: { currentLevelId: levelId } }));
+    if (!updated) throw new Error("Student access changed. Reload and try again.");
 
     await notifyStudentLevelAssigned({
       studentId,
@@ -357,10 +362,8 @@ export async function assignStudentLevel(
     return { ok: true };
   }
 
-  await prisma.user.update({
-    where: { id: studentId },
-    data: { currentLevelId: levelId },
-  });
+  const updated = await withTeacherStudent(teacher, studentId, tx => tx.user.update({ where: { id: studentId }, data: { currentLevelId: levelId } }));
+  if (!updated) throw new Error("Student access changed. Reload and try again.");
   return { ok: true };
 }
 
@@ -379,8 +382,9 @@ export async function getStudentProgress(
     where: {
       id: studentId,
       role: Role.STUDENT,
+      instituteId: teacher.instituteId,
       groupId,
-      group: { teacherId: teacher.id },
+      group: teacherGroupScope(teacher),
     },
     select: {
       id: true,
@@ -392,7 +396,7 @@ export async function getStudentProgress(
   });
   if (!student) return null;
 
-  return loadStudentProgress(student);
+  return loadStudentProgress(student, { OR: [{ mode: { not: "EXAM" } }, { scheduledExam: { group: teacherGroupScope(teacher) } }] });
 }
 
 /** Update contact details for a student currently managed by this teacher. */
@@ -401,16 +405,8 @@ export async function updateTeacherStudentContactNumber(
   studentId: string,
   contactNumber: string | null,
 ): Promise<boolean> {
-  const updated = await prisma.user.updateMany({
-    where: {
-      id: studentId,
-      instituteId: teacher.instituteId,
-      role: Role.STUDENT,
-      group: { teacherId: teacher.id },
-    },
-    data: { contactNumber },
-  });
-  return updated.count === 1;
+  const updated = await withTeacherStudent(teacher, studentId, tx => tx.user.update({ where: { id: studentId }, data: { contactNumber } }));
+  return updated !== null;
 }
 
 /**
@@ -429,23 +425,24 @@ export async function moveStudentToGroup(
     where: {
       id: studentId,
       role: Role.STUDENT,
-      group: { teacherId: teacher.id },
+      instituteId: teacher.instituteId,
+      group: teacherGroupScope(teacher),
     },
-    select: { id: true },
+    select: { id: true, groupId: true },
   });
   if (!student) return false;
 
   const target = await prisma.group.findFirst({
-    where: { id: targetGroupId, teacherId: teacher.id },
+    where: { id: targetGroupId, ...teacherGroupScope(teacher) },
     select: { id: true },
   });
   if (!target) return false;
 
-  await prisma.user.update({
-    where: { id: studentId },
-    data: { groupId: targetGroupId },
+  return prisma.$transaction(async tx => {
+    for (const id of [...new Set([student.groupId!, targetGroupId])].sort()) await lockTeacherGroup(tx, teacher, id);
+    const changed = await tx.user.updateMany({ where: { id: studentId, groupId: student.groupId, group: teacherGroupScope(teacher) }, data: { groupId: targetGroupId } });
+    return changed.count === 1;
   });
-  return true;
 }
 
 /**
@@ -462,13 +459,21 @@ export async function resetStudentPassword(
     where: {
       id: studentId,
       role: Role.STUDENT,
-      group: { teacherId: teacher.id },
+      instituteId: teacher.instituteId,
+      group: teacherGroupScope(teacher),
     },
     select: { id: true },
   });
   if (!student) return false;
 
-  await setUserPassword(studentId, newPassword);
+  await setUserPassword(studentId, newPassword, async tx => {
+    const current = await tx.user.findFirst({ where: { id: studentId, group: teacherGroupScope(teacher) }, select: { groupId: true } });
+    if (!current?.groupId) throw new Error("Student access changed.");
+    await lockTeacherGroup(tx, teacher, current.groupId);
+    await tx.$queryRaw`SELECT id FROM "user" WHERE id=${studentId} FOR UPDATE`;
+    const stillAssigned = await tx.user.count({ where: { id: studentId, groupId: current.groupId, group: teacherGroupScope(teacher) } });
+    if (!stillAssigned) throw new Error("Student access changed.");
+  });
   return true;
 }
 
@@ -477,20 +482,22 @@ export type DeleteGroupResult =
   | { ok: false; reason: "not-found" | "not-empty" };
 
 /**
- * Delete a group owned by this teacher. Only allowed when the group has no
+ * Delete a group assigned to this teacher. Only allowed when the group has no
  * students — move students to another group first.
  */
 export async function deleteGroup(
   teacher: TeacherContext,
   groupId: string,
 ): Promise<DeleteGroupResult> {
-  const group = await prisma.group.findFirst({
-    where: { id: groupId, teacherId: teacher.id },
-    select: { id: true, _count: { select: { students: true } } },
+  return prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM "group" WHERE id=${groupId} AND "instituteId"=${teacher.instituteId} FOR UPDATE`;
+    const group = await tx.group.findFirst({
+      where: { id: groupId, ...teacherGroupScope(teacher) },
+      select: { id: true, _count: { select: { students: true, classPerformances: true, homeworkOrigins: true, scheduledExams: true } } },
+    });
+    if (!group) return { ok: false, reason: "not-found" };
+    if (Object.values(group._count).some(count => count > 0)) return { ok: false, reason: "not-empty" };
+    await tx.group.delete({ where: { id: group.id } });
+    return { ok: true };
   });
-  if (!group) return { ok: false, reason: "not-found" };
-  if (group._count.students > 0) return { ok: false, reason: "not-empty" };
-
-  await prisma.group.delete({ where: { id: group.id } });
-  return { ok: true };
 }

@@ -204,6 +204,7 @@ describe.skipIf(!url)(
             name: "Upload group",
             instituteId: institute.id,
             teacherId: teacher.id,
+          teacherAssignments: { create: { teacherId: teacher.id } },
           },
         })
       ).id;
@@ -233,6 +234,7 @@ describe.skipIf(!url)(
             instituteId: institute.id,
             createdById: teacher.id,
             groupId,
+            originGroupId: groupId,
             mode: "MANUAL_SPECIFIC",
             targetType: "GROUP",
             title: "Upload regression",

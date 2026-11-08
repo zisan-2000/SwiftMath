@@ -1,3 +1,4 @@
+import type { Prisma } from "@/lib/generated/prisma/client";
 // Shared student progress aggregates for teacher and admin views.
 //
 // Callers must verify access (teacher group ownership or admin institute scope)
@@ -33,7 +34,7 @@ export type StudentProgressData = Awaited<
  * Load recent attempts and aggregate stats for a student. All metrics come from
  * server-written session rows — the browser cannot influence them.
  */
-export async function loadStudentProgress(student: StudentProgressSubject) {
+export async function loadStudentProgress(student: StudentProgressSubject, scope: Prisma.PracticeSessionWhereInput = {}) {
   const studentId = student.id;
 
   const [
@@ -46,7 +47,7 @@ export async function loadStudentProgress(student: StudentProgressSubject) {
     speedSessions,
   ] = await Promise.all([
     prisma.practiceSession.findMany({
-      where: { studentId },
+      where: { studentId, ...scope },
       orderBy: { createdAt: "desc" },
       take: 20,
       select: {
@@ -64,13 +65,13 @@ export async function loadStudentProgress(student: StudentProgressSubject) {
       },
     }),
     prisma.practiceSession.aggregate({
-      where: { studentId, status: { not: SessionStatus.IN_PROGRESS } },
+      where: { studentId, ...scope, status: { not: SessionStatus.IN_PROGRESS } },
       _avg: { accuracy: true },
       _max: { accuracy: true },
       _count: { _all: true },
     }),
-    prisma.practiceSession.count({ where: { studentId, passed: true } }),
-    prisma.practiceSession.count({ where: { studentId, leveledUp: true } }),
+    prisma.practiceSession.count({ where: { studentId, ...scope, passed: true } }),
+    prisma.practiceSession.count({ where: { studentId, ...scope, leveledUp: true } }),
     prisma.practiceSession.count({
       where: failedStandardSessionWhere(studentId),
     }),

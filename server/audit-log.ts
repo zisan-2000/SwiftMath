@@ -1,3 +1,6 @@
+import { can } from "@/server/permissions";
+import { PERMISSIONS } from "@/lib/permissions";
+import { teacherGroupScope } from "@/server/group-access";
 // Trusted audit trail writes and institute-scoped reads.
 
 import "server-only";
@@ -27,6 +30,7 @@ export interface RecordAuditLogInput {
   targetId?: string | null;
   summary: string;
   metadata?: Prisma.InputJsonValue;
+  scopeGroupId?: string;
 }
 
 export interface AuditLogListItem {
@@ -69,6 +73,7 @@ export async function recordAuditLog(input: RecordAuditLogInput): Promise<void> 
         targetId: input.targetId ?? null,
         summary: input.summary,
         metadata: input.metadata ?? undefined,
+        scopeGroupId: input.scopeGroupId,
       },
     });
   } catch (error) {
@@ -126,6 +131,7 @@ export async function listInstituteAuditLogs(
 }
 
 const TEACHER_GROUP_AUDIT_ACTIONS = [
+  AuditAction.GROUP_TEACHERS_UPDATED,
   AuditAction.GROUP_QUESTION_ENABLED,
   AuditAction.GROUP_QUESTION_DISABLED,
   AuditAction.CLASS_PERFORMANCE_RECORDED,
@@ -178,7 +184,7 @@ async function assertTeacherOwnsGroup(
   const group = await prisma.group.findFirst({
     where: {
       id: groupId,
-      teacherId: teacher.id,
+      ...teacherGroupScope(teacher),
       instituteId: teacher.instituteId,
     },
     select: { id: true },
@@ -195,6 +201,7 @@ export async function listTeacherAuditLogs(
   teacher: TeacherContext,
   options: { page?: number; groupId?: string | null; limit?: number } = {},
 ): Promise<PaginatedList<AuditLogListItem>> {
+  if (!await can({ id: teacher.id, role: Role.TEACHER }, PERMISSIONS.ACTIVITY_VIEW)) return buildPaginatedList([], 0, 1, options.limit ?? DEFAULT_PAGE_SIZE);
   if (options.groupId) {
     const ownsGroup = await assertTeacherOwnsGroup(teacher, options.groupId);
     if (!ownsGroup) {
@@ -204,10 +211,10 @@ export async function listTeacherAuditLogs(
 
   const where = {
     instituteId: teacher.instituteId,
-    actorUserId: teacher.id,
+    scopeGroup: teacherGroupScope(teacher),
     action: { in: [...TEACHER_GROUP_AUDIT_ACTIONS] },
     ...(options.groupId
-      ? { metadata: { path: ["groupId"], equals: options.groupId } }
+      ? { scopeGroupId: options.groupId }
       : {}),
   };
 

@@ -71,11 +71,11 @@ describe.skipIf(!url)("Report adapters on isolated PostgreSQL", () => {
     newTeacher = { ...teacher, id: next.id };
     admin = { ...teacher, role: "ADMIN" };
     const group = await db.group.create({
-      data: { name: "Group A", teacherId: old.id, instituteId: institute.id },
+      data: { name: "Group A", teacherId: old.id, instituteId: institute.id, teacherAssignments: { create: { teacherId: old.id } } },
     });
     groupId = group.id;
     const other = await db.group.create({
-      data: { name: "Group B", teacherId: next.id, instituteId: institute.id },
+      data: { name: "Group B", teacherId: next.id, instituteId: institute.id, teacherAssignments: { create: { teacherId: next.id } } },
     });
     unrelatedGroupId = other.id;
     const student = await makeUser("Rafi", "STUDENT", groupId);
@@ -145,6 +145,7 @@ describe.skipIf(!url)("Report adapters on isolated PostgreSQL", () => {
         data: {
           instituteId: institute.id,
           createdById: owner,
+          originGroupId: owner === old.id ? groupId : unrelatedGroupId,
           title: individual ? "Individual task" : "Group task",
           mode: "MANUAL_SPECIFIC",
           manualOpensAt: new Date("2026-10-25T00:00:00Z"),

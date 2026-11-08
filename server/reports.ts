@@ -1,3 +1,4 @@
+import { teacherGroupScope, teacherHomeworkScope } from "@/server/group-access";
 import "server-only";
 
 import { prisma } from "@/lib/prisma";
@@ -27,7 +28,7 @@ function assertActor(actor: ReportActor) {
 function groupScope(actor: ReportActor): Prisma.GroupWhereInput {
   return {
     instituteId: actor.instituteId,
-    ...(actor.role === "TEACHER" ? { teacherId: actor.id } : {}),
+    ...(actor.role === "TEACHER" ? teacherGroupScope(actor) : {}),
   };
 }
 function studentScope(actor: ReportActor): Prisma.UserWhereInput {
@@ -37,13 +38,13 @@ function studentScope(actor: ReportActor): Prisma.UserWhereInput {
     ...(actor.role === "TEACHER"
       ? {
           OR: [
-            { group: { teacherId: actor.id, instituteId: actor.instituteId } },
+            { group: teacherGroupScope(actor) },
             {
               classPerformanceEntries: {
                 some: {
                   classPerformance: {
                     instituteId: actor.instituteId,
-                    group: { teacherId: actor.id },
+                    group: teacherGroupScope(actor),
                   },
                 },
               },
@@ -54,7 +55,7 @@ function studentScope(actor: ReportActor): Prisma.UserWhereInput {
                   occurrence: {
                     schedule: {
                       instituteId: actor.instituteId,
-                      createdById: actor.id,
+                      ...teacherHomeworkScope(actor),
                     },
                   },
                 },
@@ -65,7 +66,7 @@ function studentScope(actor: ReportActor): Prisma.UserWhereInput {
                 some: {
                   scheduledExam: {
                     instituteId: actor.instituteId,
-                    createdById: actor.id,
+                    group: teacherGroupScope(actor),
                   },
                 },
               },
@@ -201,7 +202,7 @@ export async function buildPerformanceReport(
               instituteId: actor.instituteId,
               ...(group ? { groupId: group.id } : {}),
               ...(actor.role === "TEACHER"
-                ? { group: { teacherId: actor.id } }
+                ? { group: teacherGroupScope(actor) }
                 : {}),
               classDate: {
                 gte: parseClassDate(filters.from)!,
@@ -254,7 +255,7 @@ export async function buildPerformanceReport(
               dueAt: range,
               schedule: {
                 instituteId: actor.instituteId,
-                ...(actor.role === "TEACHER" ? { createdById: actor.id } : {}),
+                ...(actor.role === "TEACHER" ? teacherHomeworkScope(actor) : {}),
                 ...(group ? { groupId: group.id } : {}),
               },
             },
@@ -367,7 +368,7 @@ export async function buildPerformanceReport(
                     instituteId: actor.instituteId,
                     ...(group ? { groupId: group.id } : {}),
                     ...(actor.role === "TEACHER"
-                      ? { createdById: actor.id }
+                      ? { group: teacherGroupScope(actor) }
                       : {}),
                   },
                 }
@@ -376,7 +377,7 @@ export async function buildPerformanceReport(
                     instituteId: actor.instituteId,
                     ...(group ? { groupId: group.id } : {}),
                     ...(actor.role === "TEACHER"
-                      ? { group: { teacherId: actor.id } }
+                      ? { group: teacherGroupScope(actor) }
                       : {}),
                   },
                 }),

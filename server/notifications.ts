@@ -1,3 +1,4 @@
+import { teacherGroupScope } from "@/server/group-access";
 // Trusted in-app notification writes and user-scoped reads.
 
 import "server-only";
@@ -620,7 +621,7 @@ export async function syncTeacherExamClosedNotifications(
     where: {
       instituteId,
       closesAt: { lte: now, gte: lookbackStart },
-      group: { teacherId },
+      group: teacherGroupScope({ id: teacherId, instituteId }),
     },
     select: {
       id: true,
@@ -667,34 +668,35 @@ export async function notifyTeacherGroupBankBlocked(input: {
   available: number;
   required: number;
 }): Promise<void> {
-  const student = await prisma.user.findUnique({
-    where: { id: input.studentId },
+  const student = await prisma.user.findFirst({
+    where: { id: input.studentId, instituteId: input.instituteId },
     select: {
       group: {
-        select: { id: true, name: true, teacherId: true },
+        select: { id: true, name: true, teacherAssignments: { where: { teacher: { isActive: true } }, select: { teacherId: true } } },
       },
     },
   });
   if (!student?.group) return;
+  const group = student.group;
 
   const content = buildGroupBankBlockedNotification({
-    groupName: student.group.name,
-    groupId: student.group.id,
+    groupName: group.name,
+    groupId: group.id,
     levelName: input.levelName,
     available: input.available,
     required: input.required,
   });
 
-  await createNotification({
+  await Promise.all(group.teacherAssignments.map(assignment => createNotification({
     instituteId: input.instituteId,
-    userId: student.group.teacherId,
+    userId: assignment.teacherId,
     type: NotificationType.GROUP_BANK_BLOCKED,
     dedupeKey: notificationDedupeKeys.groupBankBlocked(
-      student.group.id,
+      group.id,
       input.levelId,
     ),
     ...content,
-  });
+  })));
 }
 
 /** A3 — notify institute admins when a teacher disables a group question. */
@@ -803,7 +805,6 @@ export async function notifyStudentLevelAssigned(input: {
 /** T1 — notify a teacher when a student joins their group. */
 export async function notifyTeacherStudentJoined(input: {
   instituteId: string;
-  teacherId: string;
   groupId: string;
   groupName: string;
   studentId: string;
@@ -814,16 +815,17 @@ export async function notifyTeacherStudentJoined(input: {
     groupName: input.groupName,
     groupId: input.groupId,
   });
-  await createNotification({
+  const assignments = await prisma.teacherGroupAssignment.findMany({ where: { groupId: input.groupId, instituteId: input.instituteId, teacher: { isActive: true, role: Role.TEACHER } }, select: { teacherId: true } });
+  await Promise.all(assignments.map(assignment => createNotification({
     instituteId: input.instituteId,
-    userId: input.teacherId,
+    userId: assignment.teacherId,
     type: NotificationType.STUDENT_JOINED_GROUP,
     dedupeKey: notificationDedupeKeys.studentJoinedGroup(
       input.groupId,
       input.studentId,
     ),
     ...content,
-  });
+  })));
 }
 
 /** U1 — notify a user when staff changes one account permission. */

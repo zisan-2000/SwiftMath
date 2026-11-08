@@ -24,6 +24,7 @@ describe("truncateAuditPrompt", () => {
 
 describe("formatAuditActionLabel", () => {
   it("returns readable labels", () => {
+    expect(formatAuditActionLabel(AuditAction.GROUP_TEACHERS_UPDATED)).toBe("Group teachers updated");
     expect(formatAuditActionLabel(AuditAction.GROUP_QUESTION_DISABLED)).toBe(
       "Disabled (group)",
     );

@@ -15,6 +15,7 @@ export interface HomeworkReviewState {
   ok?: boolean;
   message?: string;
   error?: string;
+  expectedUpdatedAt?: string;
 }
 
 export type HomeworkReviewAction = (
@@ -35,6 +36,7 @@ export function HomeworkReviewForm({
   initialScore: string;
   initialComment: string;
 }) {
+  const [snapshotUpdatedAt] = useState(hiddenFields.expectedUpdatedAt);
   const [state, formAction, pending] = useActionState<HomeworkReviewState, FormData>(
     action,
     {},
@@ -60,7 +62,7 @@ export function HomeworkReviewForm({
   return (
     <form action={formAction} className="grid gap-3 rounded-lg border p-4 sm:grid-cols-3" aria-busy={pending}>
       {Object.entries(hiddenFields).map(([name, value]) => (
-        <input key={name} type="hidden" name={name} value={value} />
+        <input key={name} type="hidden" name={name} value={name === "expectedUpdatedAt" ? (state.expectedUpdatedAt ?? snapshotUpdatedAt) : value} />
       ))}
       <div className="space-y-2">
         <Label htmlFor={`score-${hiddenFields.submissionId}`}>Score / {maxScore}</Label>
@@ -124,7 +126,7 @@ export function HomeworkReviewForm({
           {pendingLabel} Please wait.
         </p>
       )}
-      {state.error && <FormMessage variant="error" className="sm:col-span-3">{state.error}</FormMessage>}
+      {state.error && <div className="sm:col-span-3 space-y-2"><FormMessage variant="error">{state.error}</FormMessage><Button type="button" variant="outline" onClick={() => window.location.reload()}>Reload latest review</Button></div>}
       {state.ok && state.message && <FormMessage variant="success" className="sm:col-span-3">{state.message}</FormMessage>}
     </form>
   );

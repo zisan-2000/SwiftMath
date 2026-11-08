@@ -20,15 +20,16 @@ export async function createGroupAction(
   const admin = await requireAdminPermission(PERMISSIONS.GROUP_MANAGE);
 
   const name = String(formData.get("name") ?? "").trim();
-  const teacherId = String(formData.get("teacherId") ?? "");
+  const teacherIds = formData.getAll("teacherIds").map(String);
 
-  if (!teacherId) return { error: "Choose a teacher." };
 
-  const result = await createAdminGroup(admin, { name, teacherId });
+  const result = await createAdminGroup(admin, { name, teacherIds });
   if (!result.ok) {
     return { error: result.error };
   }
 
-  revalidatePath("/admin/groups");
+  revalidatePath("/admin/groups", "layout");
+  revalidatePath("/teacher", "layout");
+  revalidatePath("/admin/teachers");
   return { ok: true };
 }

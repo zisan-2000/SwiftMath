@@ -76,25 +76,28 @@ export async function reviewHomeworkAction(
   const teacher = await requirePermission(PERMISSIONS.HOMEWORK_MANAGE);
   const groupId = String(formData.get("groupId") ?? "");
   const occurrenceId = String(formData.get("occurrenceId") ?? "");
+  let expectedUpdatedAt = String(formData.get("expectedUpdatedAt") ?? "");
   const rawStatus = String(formData.get("status") ?? "");
   if (!Object.values(HomeworkSubmissionStatus).includes(rawStatus as HomeworkSubmissionStatus)) {
-    return { error: "Choose Approve, Reject, or Request resubmission." };
+    return { error: "Choose Approve, Reject, or Request resubmission.", expectedUpdatedAt };
   }
   const status = rawStatus as HomeworkSubmissionStatus;
   const scoreText = String(formData.get("score") ?? "").trim();
   try {
-    await reviewHomeworkSubmission(teacher, {
+    const saved = await reviewHomeworkSubmission(teacher, {
       submissionId: String(formData.get("submissionId") ?? ""),
       status,
+      expectedUpdatedAt,
       score: scoreText ? Number(scoreText) : null,
       comment: String(formData.get("comment") ?? ""),
     });
+    expectedUpdatedAt = saved.updatedAt.toISOString();
   } catch (error) {
-    if (error instanceof HomeworkError) return { error: error.message };
+    if (error instanceof HomeworkError) return { error: error.message, expectedUpdatedAt };
     throw error;
   }
   revalidatePath(`/teacher/groups/${groupId}/homework/${occurrenceId}`);
   revalidatePath("/teacher/homework/history");
   revalidatePath("/student/homework");
-  return { ok: true, message: "Review saved successfully." };
+  return { ok: true, message: "Review saved successfully.", expectedUpdatedAt };
 }

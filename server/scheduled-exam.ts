@@ -1,3 +1,4 @@
+import { teacherGroupScope, lockTeacherGroup } from "@/server/group-access";
 // Trusted, server-only scheduled exam logic.
 //
 // Teachers schedule exam windows for a group + level. Students in that group
@@ -205,7 +206,7 @@ export async function createScheduledExam(
   const group = await prisma.group.findFirst({
     where: {
       id: input.groupId,
-      teacherId: teacher.id,
+      ...teacherGroupScope(teacher),
       instituteId: teacher.instituteId,
     },
     select: { id: true },
@@ -229,6 +230,7 @@ export async function createScheduledExam(
   const title = input.title?.trim() || null;
 
   const exam = await prisma.$transaction(async (tx) => {
+    await lockTeacherGroup(tx, teacher, group.id);
     const created = await tx.scheduledExam.create({
       data: {
         instituteId: teacher.instituteId,
@@ -280,9 +282,11 @@ export async function updateScheduledExam(
     where: {
       id: scheduledExamId,
       instituteId: teacher.instituteId,
-      group: { teacherId: teacher.id },
+      group: teacherGroupScope(teacher),
     },
     select: {
+      groupId: true,
+      updatedAt: true,
       opensAt: true,
       _count: { select: { practiceSessions: true } },
     },
@@ -303,14 +307,19 @@ export async function updateScheduledExam(
 
   const title = input.title?.trim() || null;
 
-  await prisma.scheduledExam.update({
-    where: { id: scheduledExamId },
+  const changed = await prisma.$transaction(async tx => {
+    await lockTeacherGroup(tx, teacher, exam.groupId);
+    return tx.scheduledExam.updateMany({
+    where: { id: scheduledExamId, updatedAt: exam.updatedAt, practiceSessions: { none: {} }, opensAt: { gt: new Date() } },
     data: {
       title,
       opensAt: input.opensAt,
       closesAt: input.closesAt,
     },
   });
+
+  });
+  if (!changed.count) throw new ScheduledExamError("Another teacher changed this exam or a student started it. Reload before saving.");
 
   await notifyExamRescheduled(teacher.instituteId, scheduledExamId);
 }
@@ -327,9 +336,10 @@ export async function deleteScheduledExam(
     where: {
       id: scheduledExamId,
       instituteId: teacher.instituteId,
-      group: { teacherId: teacher.id },
+      group: teacherGroupScope(teacher),
     },
     select: {
+      updatedAt: true,
       title: true,
       groupId: true,
       group: { select: { name: true } },
@@ -351,6 +361,12 @@ export async function deleteScheduledExam(
     select: { name: true },
   });
 
+  await prisma.$transaction(async tx => {
+    await lockTeacherGroup(tx, teacher, exam.groupId);
+    const removed = await tx.scheduledExam.deleteMany({ where: { id: scheduledExamId, updatedAt: exam.updatedAt, practiceSessions: { none: {} } } });
+    if (!removed.count) throw new ScheduledExamError("Another teacher changed this exam or a student started it. Reload before cancelling.");
+  });
+
   await notifyExamCancelled(teacher.instituteId, scheduledExamId, {
     examTitle: exam.title,
     levelName: exam.level.name,
@@ -360,10 +376,9 @@ export async function deleteScheduledExam(
     actorName: teacherUser?.name ?? "Your teacher",
   });
 
-  await prisma.scheduledExam.delete({ where: { id: scheduledExamId } });
 }
 
-/** Load a scheduled exam owned by this teacher's group. */
+/** Load a scheduled exam assigned to this teacher's group. */
 export function getTeacherScheduledExam(
   teacher: TeacherContext,
   scheduledExamId: string,
@@ -372,7 +387,7 @@ export function getTeacherScheduledExam(
     where: {
       id: scheduledExamId,
       instituteId: teacher.instituteId,
-      group: { teacherId: teacher.id },
+      group: teacherGroupScope(teacher),
     },
     select: {
       id: true,
@@ -395,7 +410,7 @@ export function listGroupScheduledExams(
     where: {
       groupId,
       instituteId: teacher.instituteId,
-      group: { teacherId: teacher.id },
+      group: teacherGroupScope(teacher),
     },
     orderBy: { opensAt: "desc" },
     select: {

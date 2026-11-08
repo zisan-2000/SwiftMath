@@ -1,3 +1,5 @@
+import { requirePermission } from "@/lib/session";
+import { PERMISSIONS } from "@/lib/permissions";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
@@ -26,6 +28,7 @@ export default async function TeacherActivityPage({
 }: {
   searchParams: Promise<{ page?: string; group?: string }>;
 }) {
+  await requirePermission(PERMISSIONS.ACTIVITY_VIEW);
   const { teacher, institute } = await loadTeacherPageContext();
   const params = await searchParams;
   const page = parsePageParam(params.page);

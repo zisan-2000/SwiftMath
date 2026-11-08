@@ -1,3 +1,4 @@
+import type { Prisma } from "@/lib/generated/prisma/client";
 // Trusted, server-only user provisioning.
 //
 // This is the ONLY place users are created in Phase 1. Public sign-up is
@@ -35,13 +36,14 @@ export interface CreateUserAccountParams {
  *
  * Throws if the email is already taken (unique constraint).
  */
-export async function createUserAccount(params: CreateUserAccountParams) {
+export async function createUserAccount(params: CreateUserAccountParams, authorize?: (tx: Prisma.TransactionClient) => Promise<void>) {
   const { email, password, name, role, instituteId, groupId, contactNumber } = params;
 
   const normalizedEmail = email.trim().toLowerCase();
   const passwordHash = await hashPassword(password);
 
   return prisma.$transaction(async (tx) => {
+    await authorize?.(tx);
     const user = await tx.user.create({
       data: {
         email: normalizedEmail,
@@ -81,10 +83,12 @@ export async function createUserAccount(params: CreateUserAccountParams) {
 export async function setUserPassword(
   userId: string,
   newPassword: string,
+  authorize?: (tx: Prisma.TransactionClient) => Promise<void>,
 ): Promise<void> {
   const passwordHash = await hashPassword(newPassword);
 
   await prisma.$transaction(async (tx) => {
+    await authorize?.(tx);
     const updated = await tx.account.updateMany({
       where: { userId, providerId: "credential" },
       data: { password: passwordHash },

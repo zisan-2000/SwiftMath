@@ -51,6 +51,7 @@ describe.skipIf(!url)(
         data: {
           name: "Regression",
           teacherId: teacher.id,
+          teacherAssignments: { create: { teacherId: teacher.id } },
           instituteId: institute.id,
         },
       });

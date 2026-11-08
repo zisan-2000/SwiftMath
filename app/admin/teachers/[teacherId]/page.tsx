@@ -42,8 +42,8 @@ export default async function AdminEditTeacherPage({
       user={admin}
       institute={institute}
       title={teacher.name}
-      subtitle={`${teacher._count.taughtGroups} ${
-        teacher._count.taughtGroups === 1 ? "group" : "groups"
+      subtitle={`${teacher._count.groupAssignments} ${
+        teacher._count.groupAssignments === 1 ? "group" : "groups"
       }`}
     >
       <BackLink href="/admin/teachers">All teachers</BackLink>

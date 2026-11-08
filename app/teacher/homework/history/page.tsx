@@ -75,7 +75,7 @@ export default async function TeacherHomeworkHistoryPage({
       user={teacher}
       institute={institute}
       title="Homework History"
-      subtitle="Search and review every homework record originally assigned by you."
+      subtitle="Search and review homework for your assigned groups."
       actions={<Button asChild variant="outline"><Link href="/teacher/homework">Back to homework</Link></Button>}
     >
       {(query.error || query.success) && (
@@ -133,7 +133,7 @@ export default async function TeacherHomeworkHistoryPage({
                       {latest.finalPhotoKey && <HomeworkPhotoViewer submissionId={latest.id} kind="final" label="Final photo" studentName={row.student.name} />}
                     </div>
                     {latest.status !== HomeworkSubmissionStatus.IN_PROGRESS && latest.finalPhotoKey && (
-                      <HomeworkReviewForm action={reviewHomeworkFromHistoryAction} hiddenFields={{ submissionId: latest.id }} maxScore={row.occurrence.maxScoreSnapshot.toString()} initialScore={latest.score?.toString() ?? ""} initialComment={latest.teacherComment ?? ""} />
+                      <HomeworkReviewForm action={reviewHomeworkFromHistoryAction} hiddenFields={{ submissionId: latest.id, expectedUpdatedAt: latest.updatedAt.toISOString() }} maxScore={row.occurrence.maxScoreSnapshot.toString()} initialScore={latest.score?.toString() ?? ""} initialComment={latest.teacherComment ?? ""} />
                     )}
                     {row.submissions.length > 1 && (
                       <details className="rounded-lg border p-4">

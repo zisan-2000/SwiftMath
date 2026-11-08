@@ -200,7 +200,7 @@ export const PERMISSION_METADATA = {
   },
   [PERMISSIONS.GROUP_ASSIGN_TEACHER]: {
     label: "Assign group teachers",
-    description: "Choose which teacher owns an institute group.",
+    description: "Assign or unassign teachers for an institute group.",
     domain: "Groups",
     scope: "institute",
     assignableTo: [Role.ADMIN],

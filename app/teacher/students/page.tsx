@@ -18,8 +18,8 @@ export default async function TeacherStudentsPage() {
   const { teacher, institute } = await loadTeacherPageContext();
 
   const [students, groups] = await Promise.all([
-    listTeacherStudents(teacher.id),
-    listTeacherGroups(teacher.id),
+    listTeacherStudents(teacher),
+    listTeacherGroups(teacher),
   ]);
 
   return (

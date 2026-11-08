@@ -179,7 +179,7 @@ async function main() {
 
   // --- Group (find-or-create; groups have no natural unique key) ---
   let group = await prisma.group.findFirst({
-    where: { teacherId: teacher.id, name: "Demo Group A" },
+    where: { instituteId: seft.id, name: "Demo Group A" },
     select: { id: true },
   });
   if (!group) {
@@ -188,6 +188,7 @@ async function main() {
         name: "Demo Group A",
         instituteId: seft.id,
         teacherId: teacher.id,
+        teacherAssignments: { create: { teacherId: teacher.id } },
       },
       select: { id: true },
     });

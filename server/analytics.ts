@@ -1,3 +1,6 @@
+import { can } from "@/server/permissions";
+import { PERMISSIONS } from "@/lib/permissions";
+import { teacherGroupScope } from "@/server/group-access";
 // Trusted, server-only analytics for role dashboards (Phase 2.5).
 //
 // Aggregations run here, not in the browser. Each function scopes data to the
@@ -102,7 +105,7 @@ export async function getInstitutePracticeAnalytics(
  * relation so a teacher only ever sees their own students' attempts.
  */
 export async function getTeacherPracticeAnalytics(
-  teacherId: string,
+  teacher: { id: string; instituteId: string },
   days: number = DEFAULT_DAYS,
 ): Promise<InstitutePracticeAnalytics> {
   const windowDays = Math.max(1, days);
@@ -111,7 +114,7 @@ export async function getTeacherPracticeAnalytics(
       mode: PracticeMode.STANDARD,
       status: { not: SessionStatus.IN_PROGRESS },
       createdAt: { gte: windowStart(windowDays) },
-      student: { group: { teacherId } },
+      student: { instituteId: teacher.instituteId, group: teacherGroupScope(teacher) },
     },
     select: { createdAt: true, passed: true, accuracy: true },
     orderBy: { createdAt: "asc" },
@@ -125,7 +128,7 @@ export async function getTeacherPracticeAnalytics(
  * calendar days (passed attempts only for averages shown on the dashboard).
  */
 export async function getTeacherSpeedAnalytics(
-  teacherId: string,
+  teacher: { id: string; instituteId: string },
   days: number = DEFAULT_DAYS,
 ): Promise<TeacherSpeedAnalytics> {
   const windowDays = Math.max(1, days);
@@ -135,7 +138,7 @@ export async function getTeacherSpeedAnalytics(
       status: { not: SessionStatus.IN_PROGRESS },
       submittedAt: { not: null },
       createdAt: { gte: windowStart(windowDays) },
-      student: { group: { teacherId } },
+      student: { instituteId: teacher.instituteId, group: teacherGroupScope(teacher) },
     },
     select: { startedAt: true, submittedAt: true, passed: true },
   });
@@ -164,7 +167,7 @@ export async function getPlatformPracticeAnalytics(
   return summarizeSessions(sessions, windowDays);
 }
 
-/** Per-group practice analytics for a teacher-owned group. */
+/** Per-group practice analytics for a teacher-assigned group. */
 export interface GroupPracticeAnalytics extends InstitutePracticeAnalytics {
   studentCount: number;
   /** Finished standard attempts that did not pass in the window. */
@@ -212,7 +215,7 @@ type TeacherSessionRow = {
 };
 
 async function fetchTeacherSessions(
-  teacherId: string,
+  teacher: { id: string; instituteId: string },
   windowDays: number,
 ): Promise<TeacherSessionRow[]> {
   return prisma.practiceSession.findMany({
@@ -220,7 +223,7 @@ async function fetchTeacherSessions(
       mode: PracticeMode.STANDARD,
       status: { not: SessionStatus.IN_PROGRESS },
       createdAt: { gte: windowStart(windowDays) },
-      student: { group: { teacherId } },
+      student: { instituteId: teacher.instituteId, group: teacherGroupScope(teacher) },
     },
     select: teacherSessionSelect,
     orderBy: { createdAt: "asc" },
@@ -232,13 +235,14 @@ async function fetchTeacherSessions(
  * group comparison, and per-group completion rates.
  */
 export async function getTeacherDashboardAnalytics(
-  teacherId: string,
+  teacher: { id: string; instituteId: string },
   days: number = DEFAULT_DAYS,
 ): Promise<TeacherDashboardAnalytics> {
+  if (!await can({ id: teacher.id, role: "TEACHER" }, PERMISSIONS.ANALYTICS_VIEW)) throw new Error("Analytics access denied.");
   const windowDays = Math.max(1, days);
   const [groups, sessions] = await Promise.all([
     prisma.group.findMany({
-      where: { teacherId },
+      where: teacherGroupScope(teacher),
       orderBy: { name: "asc" },
       select: {
         id: true,
@@ -246,7 +250,7 @@ export async function getTeacherDashboardAnalytics(
         _count: { select: { students: true } },
       },
     }),
-    fetchTeacherSessions(teacherId, windowDays),
+    fetchTeacherSessions(teacher, windowDays),
   ]);
 
   const scopedSessions = sessions.filter(
@@ -292,15 +296,17 @@ export async function getTeacherDashboardAnalytics(
  * the teacher.
  */
 export async function getGroupPracticeAnalytics(
-  teacherId: string,
+  teacher: { id: string; instituteId: string },
   groupId: string,
   days: number = DEFAULT_DAYS,
 ): Promise<GroupPracticeAnalytics | null> {
+  if (!await can({ id: teacher.id, role: "TEACHER" }, PERMISSIONS.ANALYTICS_VIEW)) return null;
   const group = await prisma.group.findFirst({
-    where: { id: groupId, teacherId },
+    where: { id: groupId, ...teacherGroupScope(teacher) },
     select: {
       id: true,
       students: {
+        where: { role: "STUDENT", instituteId: teacher.instituteId },
         orderBy: { name: "asc" },
         select: { id: true, name: true, contactNumber: true },
       },
@@ -314,7 +320,7 @@ export async function getGroupPracticeAnalytics(
       mode: PracticeMode.STANDARD,
       status: { not: SessionStatus.IN_PROGRESS },
       createdAt: { gte: windowStart(windowDays) },
-      student: { groupId },
+      student: { instituteId: teacher.instituteId, groupId },
     },
     select: {
       createdAt: true,

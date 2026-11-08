@@ -110,6 +110,14 @@ jobs:
       - run: npx prisma generate
       - name: Build and verify Linux Sharp native assets in production traces
         run: npm run build
+      - name: Migrate the disposable CI service database
+        run: npx prisma migrate deploy
+      - name: Multi-teacher authorization and existing module regressions
+        run: |
+          npm run test:group-assignments:db
+          npm run test:class-performance:db
+          npm run test:reports:db
+          npm run test:homework-uploads:db
       - name: Test homework pages, photo uploads and native failure recovery
         run: npm run test:homework:production
       - uses: actions/upload-artifact@v4

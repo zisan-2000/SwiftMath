@@ -83,6 +83,7 @@ enum QuestionStatus {
 
 /// Question-control and curriculum actions recorded for compliance audit.
 enum AuditAction {
+  GROUP_TEACHERS_UPDATED
   QUESTION_CREATED
   QUESTION_UPDATED
   QUESTION_DELETED
@@ -191,6 +192,7 @@ model Institute {
   homeworkOccurrences     HomeworkOccurrence[]
   homeworkExpectations    HomeworkExpectation[]
   homeworkPhotoUploads    HomeworkPhotoUpload[]
+  teacherGroupAssignments TeacherGroupAssignment[]
 
   @@map("institute")
 }
@@ -257,8 +259,10 @@ model User {
   instituteId String
   institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
 
-  /// Groups this user owns as a TEACHER (empty for students/admins).
+  /// Legacy compatibility relation; never used to authorize group access.
   taughtGroups Group[] @relation("GroupTeacher")
+  groupAssignments TeacherGroupAssignment[] @relation("AssignedTeacher")
+  groupAssignmentsGranted TeacherGroupAssignment[] @relation("GroupAssignmentGranter")
 
   /// The group a STUDENT belongs to (null for teachers/admins, and for
   /// students not yet placed in a group).
@@ -322,6 +326,7 @@ model User {
   @@index([instituteId, contactNumber])
   @@index([groupId])
   @@index([academicLevelId])
+  @@unique([id, instituteId])
   @@map("user")
 }
 
@@ -402,8 +407,8 @@ model Verification {
 // Teaching structures
 // ---------------------------------------------------------------------------
 
-/// A teacher's class. Students are placed into a group; a group belongs to one
-/// teacher and one institute.
+/// An institute's class. Teachers receive explicit many-to-many assignments;
+/// each student retains one current group.
 model Group {
   id   String @id @default(cuid())
   name String
@@ -411,9 +416,13 @@ model Group {
   instituteId String
   institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
 
-  /// The teacher who owns this group.
-  teacherId String
-  teacher   User   @relation("GroupTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  /// Compatibility pointer only. Membership is authorized through teacherAssignments.
+  teacherId String?
+  teacher   User?   @relation("GroupTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
+  teacherAssignments TeacherGroupAssignment[]
+  assignmentRevision Int @default(1)
+  homeworkOrigins HomeworkSchedule[] @relation("HomeworkOriginalGroup")
+  scopedAuditLogs AuditLog[] @relation("GroupAuditScope")
 
   /// Students placed in this group.
   students User[] @relation("GroupStudents")
@@ -434,7 +443,25 @@ model Group {
 
   @@index([instituteId])
   @@index([teacherId])
+  @@unique([id, instituteId])
   @@map("group")
+}
+
+/// Explicit, tenant-bound many-to-many membership. No permission is granted here.
+model TeacherGroupAssignment {
+  groupId String
+  teacherId String
+  instituteId String
+  assignedById String?
+  assignedAt DateTime @default(now())
+  group Group @relation(fields: [groupId, instituteId], references: [id, instituteId], onDelete: Cascade)
+  teacher User @relation("AssignedTeacher", fields: [teacherId, instituteId], references: [id, instituteId], onDelete: Cascade)
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  assignedBy User? @relation("GroupAssignmentGranter", fields: [assignedById], references: [id], onDelete: SetNull)
+
+  @@id([groupId, teacherId])
+  @@index([instituteId, teacherId])
+  @@map("teacher_group_assignment")
 }
 
 /// Teacher-controlled main/offline level. It intentionally has no relation to
@@ -737,6 +764,9 @@ model HomeworkSchedule {
 
   groupId String?
   group   Group?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  /// Immutable assignment scope, including individual homework after student moves.
+  originGroupId String?
+  originGroup Group? @relation("HomeworkOriginalGroup", fields: [originGroupId, instituteId], references: [id, instituteId], onDelete: Restrict)
 
   studentId String?
   student   User?   @relation("HomeworkScheduleStudentTarget", fields: [studentId], references: [id], onDelete: Cascade)
@@ -765,6 +795,7 @@ model HomeworkSchedule {
 
   @@index([instituteId, status])
   @@index([groupId])
+  @@index([originGroupId])
   @@index([studentId])
   @@index([createdById])
   @@map("homework_schedule")
@@ -1126,11 +1157,15 @@ model AuditLog {
 
   /// Optional structured details (counts, names, flags).
   metadata Json?
+  /// Verified historical group scope, independent of the event's actor.
+  scopeGroupId String?
+  scopeGroup Group? @relation("GroupAuditScope", fields: [scopeGroupId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
 
   @@index([instituteId, createdAt(sort: Desc)])
   @@index([instituteId, action])
+  @@index([scopeGroupId, createdAt(sort: Desc)])
   @@map("audit_log")
 }
 

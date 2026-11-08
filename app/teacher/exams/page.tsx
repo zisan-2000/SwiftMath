@@ -18,7 +18,7 @@ export default async function TeacherExamsPage() {
 
   const [exams, groups] = await Promise.all([
     listTeacherScheduledExams(teacher),
-    listTeacherGroups(teacher.id),
+    listTeacherGroups(teacher),
   ]);
 
   const mapped = exams.map((exam) => ({

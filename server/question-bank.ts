@@ -1,3 +1,4 @@
+import { teacherGroupScope, lockTeacherGroup } from "@/server/group-access";
 // Trusted institute question bank — Admin owns content, Teacher sets group overrides.
 
 import "server-only";
@@ -492,7 +493,7 @@ export async function listGroupQuestionOverrides(
   const group = await prisma.group.findFirst({
     where: {
       id: groupId,
-      teacherId: teacher.id,
+      ...teacherGroupScope(teacher),
       instituteId: teacher.instituteId,
     },
     select: { id: true },
@@ -563,7 +564,7 @@ export async function setGroupQuestionEnabled(
     prisma.group.findFirst({
       where: {
         id: groupId,
-        teacherId: teacher.id,
+        ...teacherGroupScope(teacher),
         instituteId: teacher.instituteId,
       },
       select: { id: true, name: true },
@@ -585,17 +586,21 @@ export async function setGroupQuestionEnabled(
     return { ok: false, error: "Question not found." };
   }
 
-  await prisma.groupQuestionRule.upsert({
+  await prisma.$transaction(async tx => {
+    await lockTeacherGroup(tx, teacher, groupId);
+  await tx.groupQuestionRule.upsert({
     where: {
       groupId_questionId: { groupId, questionId },
     },
     create: { groupId, questionId, enabled },
     update: { enabled },
   });
+  });
 
   const prompt = truncateAuditPrompt(question.prompt);
   await recordAuditLog({
     actor: auditActorFromTeacher(teacher),
+    scopeGroupId: groupId,
     action: enabled
       ? AuditAction.GROUP_QUESTION_ENABLED
       : AuditAction.GROUP_QUESTION_DISABLED,

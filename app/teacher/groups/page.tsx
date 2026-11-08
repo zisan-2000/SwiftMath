@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 export default async function TeacherGroupsPage() {
   const { teacher, institute } = await loadTeacherPageContext();
-  const groups = await listTeacherGroups(teacher.id);
+  const groups = await listTeacherGroups(teacher);
 
   return (
     <TeacherPageShell

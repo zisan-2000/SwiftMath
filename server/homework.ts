@@ -1,3 +1,4 @@
+import { teacherGroupScope, teacherHomeworkScope, lockTeacherGroup } from "@/server/group-access";
 import "server-only";
 import type { Prisma } from "@/lib/generated/prisma/client";
 
@@ -192,7 +193,7 @@ export async function createHomeworkSchedule(
   if (input.endDate && input.endDate < input.startDate) throw new HomeworkError("End date cannot be before start date.");
 
   const group = await prisma.group.findFirst({
-    where: { id: input.groupId, teacherId: teacher.id, instituteId: teacher.instituteId },
+    where: { id: input.groupId, ...teacherGroupScope(teacher), instituteId: teacher.instituteId },
     select: { id: true, name: true },
   });
   if (!group) throw new HomeworkError("Group not found or not owned by you.");
@@ -221,10 +222,12 @@ export async function createHomeworkSchedule(
   }
 
   const schedule = await prisma.$transaction(async (tx) => {
+    await lockTeacherGroup(tx, teacher, group.id);
     const created = await tx.homeworkSchedule.create({
       data: {
         instituteId: teacher.instituteId,
         createdById: teacher.id,
+        originGroupId: group.id,
         mode: input.mode,
         targetType: targetStudent ? HomeworkTargetType.STUDENT : HomeworkTargetType.GROUP,
         groupId: targetStudent ? null : group.id,
@@ -249,6 +252,7 @@ export async function createHomeworkSchedule(
         actorUserId: teacher.id,
         actorRole: Role.TEACHER,
         action: AuditAction.HOMEWORK_SCHEDULE_CREATED,
+        scopeGroupId: group.id,
         targetType: "HomeworkSchedule",
         targetId: created.id,
         summary: `Created ${title} homework for ${targetStudent?.name ?? group.name}.`,
@@ -272,19 +276,22 @@ export async function setHomeworkScheduleStatus(
     where: {
       id: scheduleId,
       instituteId: teacher.instituteId,
-      createdById: teacher.id,
+      ...teacherHomeworkScope(teacher),
     },
-    select: { id: true },
+    select: { id: true, originGroupId: true, updatedAt: true },
   });
   if (!schedule) throw new HomeworkError("Homework schedule not found.");
   await prisma.$transaction(async (tx) => {
-    await tx.homeworkSchedule.update({ where: { id: schedule.id }, data: { status } });
+    await lockTeacherGroup(tx, teacher, schedule.originGroupId!);
+    const changed = await tx.homeworkSchedule.updateMany({ where: { id: schedule.id, updatedAt: schedule.updatedAt, ...teacherHomeworkScope(teacher) }, data: { status } });
+    if (!changed.count) throw new HomeworkError("Another teacher changed this schedule. Reload before saving.");
     await tx.auditLog.create({
       data: {
         instituteId: teacher.instituteId,
         actorUserId: teacher.id,
         actorRole: Role.TEACHER,
         action: AuditAction.HOMEWORK_SCHEDULE_UPDATED,
+        scopeGroupId: schedule.originGroupId,
         targetType: "HomeworkSchedule",
         targetId: schedule.id,
         summary: `Changed homework schedule status to ${status}.`,
@@ -301,7 +308,7 @@ export async function setHomeworkScheduleStatus(
 export async function getTeacherHomeworkWorkspace(teacher: TeacherContext, groupId: string) {
   await maintainHomework(teacher.instituteId);
   const group = await prisma.group.findFirst({
-    where: { id: groupId, teacherId: teacher.id, instituteId: teacher.instituteId },
+    where: { id: groupId, ...teacherGroupScope(teacher), instituteId: teacher.instituteId },
     select: {
       id: true,
       name: true,
@@ -316,14 +323,8 @@ export async function getTeacherHomeworkWorkspace(teacher: TeacherContext, group
   const schedules = await prisma.homeworkSchedule.findMany({
     where: {
       instituteId: teacher.instituteId,
-      OR: [
-        { groupId, createdById: teacher.id },
-        {
-          targetType: HomeworkTargetType.STUDENT,
-          createdById: teacher.id,
-          student: { groupId },
-        },
-      ],
+      originGroupId: groupId,
+      ...teacherHomeworkScope(teacher),
       status: { not: HomeworkScheduleStatus.ARCHIVED },
     },
     orderBy: { createdAt: "desc" },
@@ -345,7 +346,7 @@ export async function getTeacherHomeworkWorkspace(teacher: TeacherContext, group
 }
 
 /**
- * Global history is scoped to the teacher who originally created the schedule.
+ * Global history follows the original group and its current authorized teachers.
  * It deliberately does not follow a student's current group/teacher relation.
  */
 export async function getTeacherGlobalHomeworkHistory(teacher: TeacherContext) {
@@ -355,7 +356,7 @@ export async function getTeacherGlobalHomeworkHistory(teacher: TeacherContext) {
       instituteId: teacher.instituteId,
       occurrence: {
         cancelledAt: null,
-        schedule: { createdById: teacher.id },
+        schedule: teacherHomeworkScope(teacher),
       },
     },
     orderBy: { occurrence: { opensAt: "desc" } },
@@ -384,6 +385,7 @@ export async function getTeacherGlobalHomeworkHistory(teacher: TeacherContext) {
         orderBy: { attemptNumber: "desc" },
         select: {
           id: true,
+          updatedAt: true,
           attemptNumber: true,
           pageNumber: true,
           status: true,
@@ -410,18 +412,18 @@ export async function getTeacherOccurrence(teacher: TeacherContext, occurrenceId
     where: {
       id: occurrenceId,
       instituteId: teacher.instituteId,
-      schedule: { createdById: teacher.id },
+      schedule: teacherHomeworkScope(teacher),
     },
     select: {
       id: true, opensAt: true, dueAt: true, maxScoreSnapshot: true, timeLimitMinutesSnapshot: true,
-      schedule: { select: { title: true, groupId: true, student: { select: { groupId: true } } } },
+      schedule: { select: { title: true, groupId: true, originGroupId: true } },
       expectations: {
         orderBy: { student: { name: "asc" } },
         select: {
           id: true, academicLevelNameSnapshot: true,
           student: { select: { id: true, name: true } },
           submissions: { orderBy: { attemptNumber: "desc" }, select: {
-            id: true, attemptNumber: true, pageNumber: true, status: true, startedAt: true,
+            id: true, updatedAt: true, attemptNumber: true, pageNumber: true, status: true, startedAt: true,
             submittedAt: true, completionSeconds: true, isLate: true, lateBySeconds: true,
             isOverTimeLimit: true, overtimeSeconds: true, score: true, teacherComment: true,
             firstPhotoKey: true, finalPhotoKey: true,
@@ -575,24 +577,28 @@ export async function finishHomeworkSubmission(student: { id: string; instituteI
 
 export async function reviewHomeworkSubmission(
   teacher: TeacherContext,
-  input: { submissionId: string; status: HomeworkSubmissionStatus; score?: number | null; comment?: string | null },
+  input: { submissionId: string; status: HomeworkSubmissionStatus; expectedUpdatedAt: string; score?: number | null; comment?: string | null },
 ) {
   const allowed: HomeworkSubmissionStatus[] = [HomeworkSubmissionStatus.APPROVED, HomeworkSubmissionStatus.REJECTED, HomeworkSubmissionStatus.RESUBMISSION_REQUESTED];
   if (!allowed.includes(input.status)) throw new HomeworkError("Choose a valid review decision.");
+  const expectedUpdatedAt = new Date(input.expectedUpdatedAt);
+  if (!Number.isFinite(expectedUpdatedAt.getTime())) throw new HomeworkError("Reload this homework before reviewing it.");
   const submission = await prisma.homeworkSubmission.findFirst({
     where: {
       id: input.submissionId,
       expectation: {
         instituteId: teacher.instituteId,
-        occurrence: { schedule: { createdById: teacher.id } },
+        occurrence: { schedule: teacherHomeworkScope(teacher) },
       },
     },
-    select: { id: true, status: true, finalPhotoKey: true, expectation: { select: { student: { select: { name: true } }, occurrence: { select: { maxScoreSnapshot: true } } } } },
+    select: { id: true, status: true, updatedAt: true, finalPhotoKey: true, expectation: { select: { student: { select: { name: true } }, occurrence: { select: { maxScoreSnapshot: true, schedule: { select: { originGroupId: true } } } } } } },
   });
   if (!submission) throw new HomeworkError("Submission not found or not managed by you.");
   if (submission.status === HomeworkSubmissionStatus.IN_PROGRESS || !submission.finalPhotoKey) {
     throw new HomeworkError("The student must submit the final photo before review.");
   }
+  if (submission.updatedAt.getTime() !== expectedUpdatedAt.getTime()) throw new HomeworkError("Another teacher changed this homework. Reload the latest review before saving.");
+  const updatedAt = new Date(Math.max(Date.now(), submission.updatedAt.getTime() + 1));
   const max = Number(submission.expectation.occurrence.maxScoreSnapshot.toString());
   const score = input.score ?? null;
   if (score !== null && (!Number.isFinite(score) || score < 0 || score > max)) {
@@ -602,9 +608,11 @@ export async function reviewHomeworkSubmission(
     throw new HomeworkError("Enter a score before approving.");
   }
   await prisma.$transaction(async (tx) => {
-    await tx.homeworkSubmission.update({
-      where: { id: submission.id },
+    await lockTeacherGroup(tx, teacher, submission.expectation.occurrence.schedule.originGroupId!);
+    const changed = await tx.homeworkSubmission.updateMany({
+      where: { id: submission.id, updatedAt: expectedUpdatedAt },
       data: {
+        updatedAt,
         status: input.status,
         score,
         teacherComment: input.comment?.trim() || null,
@@ -612,12 +620,14 @@ export async function reviewHomeworkSubmission(
         reviewedAt: new Date(),
       },
     });
+    if (!changed.count) throw new HomeworkError("Another teacher reviewed this homework. Reload before saving.");
     await tx.auditLog.create({
       data: {
         instituteId: teacher.instituteId,
         actorUserId: teacher.id,
         actorRole: Role.TEACHER,
         action: AuditAction.HOMEWORK_SUBMISSION_REVIEWED,
+        scopeGroupId: submission.expectation.occurrence.schedule.originGroupId,
         targetType: "HomeworkSubmission",
         targetId: submission.id,
         summary: `Reviewed ${submission.expectation.student.name}'s homework: ${input.status}.`,
@@ -625,6 +635,7 @@ export async function reviewHomeworkSubmission(
       },
     });
   });
+  return { updatedAt };
 }
 
 export async function getHomeworkPhotoAccess(user: { id: string; instituteId: string; role: Role }, submissionId: string, kind: "first" | "final") {
@@ -636,12 +647,9 @@ export async function getHomeworkPhotoAccess(user: { id: string; instituteId: st
     },
   });
   if (!submission) return null;
-  const allowed = canAccessHomeworkPhoto({
-    role: user.role,
-    userId: user.id,
-    studentId: submission.expectation.studentId,
-    scheduleCreatorId: submission.expectation.occurrence.schedule.createdById,
-  });
+  const allowed = user.role === Role.TEACHER
+    ? await prisma.homeworkSubmission.count({ where: { id: submissionId, expectation: { instituteId: user.instituteId, occurrence: { schedule: teacherHomeworkScope(user) } } } }) === 1
+    : canAccessHomeworkPhoto({ role: user.role, userId: user.id, studentId: submission.expectation.studentId, scheduleCreatorId: submission.expectation.occurrence.schedule.createdById });
   if (!allowed) return null;
   return kind === "first" ? submission.firstPhotoKey : submission.finalPhotoKey;
 }

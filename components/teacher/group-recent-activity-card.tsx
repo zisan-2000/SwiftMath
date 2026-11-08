@@ -18,9 +18,9 @@ export function GroupRecentActivityCard({
   return (
     <Card className="mt-8 overflow-hidden">
       <CardHeader className="border-b border-border">
-        <CardTitle className="text-base">Your recent changes</CardTitle>
+        <CardTitle className="text-base">Recent group activity</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Question overrides you enabled or disabled for {groupName}.
+          Changes made by authorized teachers for {groupName}.
         </p>
       </CardHeader>
       <CardContent className="p-0">

@@ -1,3 +1,5 @@
+import { requirePermission } from "@/lib/session";
+import { PERMISSIONS } from "@/lib/permissions";
 import type { Metadata } from "next";
 import { Trophy } from "lucide-react";
 
@@ -32,6 +34,7 @@ export default async function ClassPerformanceRankingPage({
 }) {
   const [{ groupId }, query] = await Promise.all([params, searchParams]);
   const period = parseClassPerformancePeriod(query.period);
+  await requirePermission(PERMISSIONS.ANALYTICS_VIEW);
   const { teacher, institute, group } = await loadTeacherGroupPageContext(groupId);
   const ranking = await getGroupClassPerformanceRanking(teacher, groupId, period);
 

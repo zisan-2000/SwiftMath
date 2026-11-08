@@ -1,3 +1,4 @@
+import { teacherGroupScope, lockTeacherGroup } from "@/server/group-access";
 // Trusted reads and writes for teacher-entered, date-wise class performance.
 
 import "server-only";
@@ -111,13 +112,13 @@ export async function getGroupClassPerformanceWorkspace(
   const group = await prisma.group.findFirst({
     where: {
       id: groupId,
-      teacherId: teacher.id,
+      ...teacherGroupScope(teacher),
       instituteId: teacher.instituteId,
     },
     select: {
       id: true,
       students: {
-        where: { role: Role.STUDENT },
+        where: { role: Role.STUDENT, instituteId: teacher.instituteId },
         orderBy: { name: "asc" },
         select: { id: true, name: true, contactNumber: true },
       },
@@ -220,14 +221,14 @@ export async function saveClassPerformance(
   const group = await prisma.group.findFirst({
     where: {
       id: input.groupId,
-      teacherId: teacher.id,
+      ...teacherGroupScope(teacher),
       instituteId: teacher.instituteId,
     },
     select: {
       id: true,
       name: true,
       students: {
-        where: { role: Role.STUDENT },
+        where: { role: Role.STUDENT, instituteId: teacher.instituteId },
         select: { id: true, name: true, contactNumber: true },
       },
     },
@@ -239,6 +240,7 @@ export async function saveClassPerformance(
   try {
     return await prisma.$transaction(
       async (tx) => {
+        await lockTeacherGroup(tx, teacher, input.groupId);
         const existing = await tx.classPerformance.findUnique({
           where: {
             groupId_classDate: { groupId: input.groupId, classDate },
@@ -433,6 +435,7 @@ export async function saveClassPerformance(
             instituteId: teacher.instituteId,
             actorUserId: teacher.id,
             actorRole: Role.TEACHER,
+            scopeGroupId: input.groupId,
             action: created
               ? AuditAction.CLASS_PERFORMANCE_RECORDED
               : AuditAction.CLASS_PERFORMANCE_UPDATED,
@@ -475,12 +478,12 @@ export async function getGroupClassPerformanceRanking(
   const group = await prisma.group.findFirst({
     where: {
       id: groupId,
-      teacherId: teacher.id,
+      ...teacherGroupScope(teacher),
       instituteId: teacher.instituteId,
     },
     select: {
       students: {
-        where: { role: Role.STUDENT },
+        where: { role: Role.STUDENT, instituteId: teacher.instituteId },
         orderBy: { name: "asc" },
         select: { id: true, name: true, contactNumber: true },
       },
@@ -519,9 +522,9 @@ export async function getGroupClassPerformanceRanking(
   };
 }
 
-async function loadStudentClassPerformanceHistory(studentId: string) {
+async function loadStudentClassPerformanceHistory(studentId: string, scope: import("@/lib/generated/prisma/client").Prisma.ClassPerformanceEntryWhereInput = {}) {
   const entries = await prisma.classPerformanceEntry.findMany({
-    where: { studentId },
+    where: { studentId, ...scope },
     orderBy: { classPerformance: { classDate: "desc" } },
     select: {
       mark: true,
@@ -573,13 +576,14 @@ export async function getStudentClassPerformanceForTeacher(
     where: {
       id: studentId,
       role: Role.STUDENT,
+      instituteId: teacher.instituteId,
       groupId,
-      group: { teacherId: teacher.id },
+      group: teacherGroupScope(teacher),
     },
     select: { id: true },
   });
   if (!student) return null;
-  return loadStudentClassPerformanceHistory(student.id);
+  return loadStudentClassPerformanceHistory(student.id, { instituteId: teacher.instituteId, classPerformance: { group: teacherGroupScope(teacher) } });
 }
 
 export async function getOwnClassPerformanceHistory(

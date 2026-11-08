@@ -95,8 +95,8 @@ export default async function AdminTeachersPage({
                     </div>
                     <div className="flex flex-wrap items-start gap-3">
                       <span className="text-sm text-muted-foreground sm:pt-1.5">
-                        {teacher._count.taughtGroups}{" "}
-                        {teacher._count.taughtGroups === 1 ? "group" : "groups"}
+                        {teacher._count.groupAssignments}{" "}
+                        {teacher._count.groupAssignments === 1 ? "group" : "groups"}
                       </span>
                       <Link
                         href={`/admin/teachers/${teacher.id}`}

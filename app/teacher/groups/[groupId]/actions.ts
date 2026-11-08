@@ -282,7 +282,7 @@ export async function deleteGroupAction(
     if (result.reason === "not-empty") {
       return {
         error:
-          "This group still has students. Move them to another group first.",
+          "This group has students or saved class, homework or exam records. It cannot be deleted.",
       };
     }
     return { error: "Group not found." };

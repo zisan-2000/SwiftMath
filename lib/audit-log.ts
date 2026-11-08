@@ -12,6 +12,8 @@ export function truncateAuditPrompt(prompt: string, maxLength = 48): string {
 /** Human-readable action label for admin UI badges. */
 export function formatAuditActionLabel(action: AuditAction): string {
   switch (action) {
+    case AuditAction.GROUP_TEACHERS_UPDATED:
+      return "Group teachers updated";
     case AuditAction.QUESTION_CREATED:
       return "Question added";
     case AuditAction.QUESTION_UPDATED:
@@ -55,6 +57,7 @@ export function formatAuditActionLabel(action: AuditAction): string {
 
 /** Actions shown in the admin activity filter dropdown. */
 export const AUDIT_ACTION_FILTER_OPTIONS: AuditAction[] = [
+  AuditAction.GROUP_TEACHERS_UPDATED,
   AuditAction.GROUP_QUESTION_DISABLED,
   AuditAction.GROUP_QUESTION_ENABLED,
   AuditAction.QUESTION_PUBLISHED,

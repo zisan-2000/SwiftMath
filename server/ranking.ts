@@ -1,3 +1,4 @@
+import { teacherGroupScope } from "@/server/group-access";
 // Trusted, server-only leaderboard computation.
 //
 // Institute and global leaderboards are computed here from stored,
@@ -150,7 +151,7 @@ export async function getInstituteLeaderboard(
         role: Role.STUDENT,
         isActive: true,
         ...(options.groupId && { groupId: options.groupId }),
-        ...(options.teacherId && { group: { teacherId: options.teacherId } }),
+        ...(options.teacherId && { group: teacherGroupScope({ id: options.teacherId, instituteId }) }),
       },
       select: {
         id: true,

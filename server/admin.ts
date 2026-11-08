@@ -1,3 +1,4 @@
+import { saveAdminGroupAssignments, type GroupAssignmentInput } from "@/server/group-assignments";
 // Trusted, server-only logic for the ADMIN flow.
 //
 // Phase 1 collapses Super Admin + Institute Admin into one ADMIN who manages a
@@ -66,7 +67,7 @@ export async function listInstituteTeachers(
   email: string;
   isActive: boolean;
   createdAt: Date;
-  _count: { taughtGroups: number };
+  _count: { groupAssignments: number };
 }>> {
   const { skip, take, page: safePage, pageSize: safeSize } = paginationBounds(
     page,
@@ -86,7 +87,7 @@ export async function listInstituteTeachers(
         email: true,
         isActive: true,
         createdAt: true,
-        _count: { select: { taughtGroups: true } },
+        _count: { select: { groupAssignments: true } },
       },
     }),
     prisma.user.count({ where }),
@@ -133,7 +134,7 @@ export function getAdminTeacher(admin: AdminContext, teacherId: string) {
       email: true,
       isActive: true,
       createdAt: true,
-      _count: { select: { taughtGroups: true } },
+      _count: { select: { groupAssignments: true } },
     },
   });
 }
@@ -254,9 +255,8 @@ export async function setUserActive(
 }
 
 /**
- * Every group in the admin's institute, with its owning teacher and student
- * count. Read-only institute-wide view; teachers still create and run their own
- * groups. Ordered by group name for a stable list.
+ * Every group in the admin's institute, with assigned teachers and student
+ * count. Ordered by group name for a stable list.
  */
 export function listInstituteGroups(instituteId: string) {
   return prisma.group.findMany({
@@ -266,7 +266,8 @@ export function listInstituteGroups(instituteId: string) {
       id: true,
       name: true,
       teacherId: true,
-      teacher: { select: { name: true, email: true } },
+      teacherAssignments: { select: { teacherId: true, teacher: { select: { id: true, name: true, email: true, isActive: true } } } },
+      assignmentRevision: true,
       _count: { select: { students: true } },
     },
   });
@@ -275,7 +276,7 @@ export function listInstituteGroups(instituteId: string) {
 /** Active teachers for group create/edit dropdowns. */
 export function listInstituteTeacherOptions(
   instituteId: string,
-  includeTeacherId?: string,
+  includeTeacherIds: string[] = [],
 ) {
   return prisma.user.findMany({
     where: {
@@ -283,11 +284,11 @@ export function listInstituteTeacherOptions(
       role: Role.TEACHER,
       OR: [
         { isActive: true },
-        ...(includeTeacherId ? [{ id: includeTeacherId }] : []),
+        ...(includeTeacherIds.length ? [{ id: { in: includeTeacherIds } }] : []),
       ],
     },
     orderBy: { name: "asc" },
-    select: { id: true, name: true, email: true },
+    select: { id: true, name: true, email: true, isActive: true },
   });
 }
 
@@ -302,7 +303,8 @@ export function getAdminGroup(admin: AdminContext, groupId: string) {
       id: true,
       name: true,
       teacherId: true,
-      teacher: { select: { name: true, email: true } },
+      teacherAssignments: { select: { teacherId: true, teacher: { select: { id: true, name: true, email: true, isActive: true } } } },
+      assignmentRevision: true,
       students: {
         orderBy: { name: "asc" },
         select: {
@@ -323,78 +325,12 @@ export type AdminGroupMutationResult =
   | { ok: true }
   | { ok: false; error: string };
 
-/** Create a group owned by a teacher in the admin's institute. */
-export async function createAdminGroup(
-  admin: AdminContext,
-  input: { name: string; teacherId: string },
-): Promise<AdminGroupMutationResult> {
-  const name = input.name.trim();
-  if (!name) {
-    return { ok: false, error: "Group name is required." };
-  }
-
-  const teacher = await prisma.user.findFirst({
-    where: {
-      id: input.teacherId,
-      instituteId: admin.instituteId,
-      role: Role.TEACHER,
-      isActive: true,
-    },
-    select: { id: true },
-  });
-  if (!teacher) {
-    return { ok: false, error: "Teacher not found in this institute." };
-  }
-
-  await prisma.group.create({
-    data: {
-      name,
-      teacherId: teacher.id,
-      instituteId: admin.instituteId,
-    },
-  });
-
-  return { ok: true };
+/** Admin assignment writes are role-, permission-, tenant- and revision-checked. */
+export function createAdminGroup(admin: AdminContext, input: GroupAssignmentInput) {
+  return saveAdminGroupAssignments(admin, input);
 }
-
-/** Update a group's name and/or owning teacher. */
-export async function updateAdminGroup(
-  admin: AdminContext,
-  groupId: string,
-  input: { name: string; teacherId: string },
-): Promise<AdminGroupMutationResult> {
-  const name = input.name.trim();
-  if (!name) {
-    return { ok: false, error: "Group name is required." };
-  }
-
-  const group = await prisma.group.findFirst({
-    where: { id: groupId, instituteId: admin.instituteId },
-    select: { id: true },
-  });
-  if (!group) {
-    return { ok: false, error: "Group not found." };
-  }
-
-  const teacher = await prisma.user.findFirst({
-    where: {
-      id: input.teacherId,
-      instituteId: admin.instituteId,
-      role: Role.TEACHER,
-      isActive: true,
-    },
-    select: { id: true },
-  });
-  if (!teacher) {
-    return { ok: false, error: "Teacher not found in this institute." };
-  }
-
-  await prisma.group.update({
-    where: { id: group.id },
-    data: { name, teacherId: teacher.id },
-  });
-
-  return { ok: true };
+export function updateAdminGroup(admin: AdminContext, groupId: string, input: GroupAssignmentInput) {
+  return saveAdminGroupAssignments(admin, input, groupId);
 }
 
 export type DeleteAdminGroupResult =
@@ -406,15 +342,17 @@ export async function deleteAdminGroup(
   admin: AdminContext,
   groupId: string,
 ): Promise<DeleteAdminGroupResult> {
-  const group = await prisma.group.findFirst({
-    where: { id: groupId, instituteId: admin.instituteId },
-    select: { id: true, _count: { select: { students: true } } },
+  return prisma.$transaction(async tx => {
+    await tx.$queryRaw`SELECT id FROM "group" WHERE id=${groupId} AND "instituteId"=${admin.instituteId} FOR UPDATE`;
+    const group = await tx.group.findFirst({
+      where: { id: groupId, instituteId: admin.instituteId },
+      select: { id: true, _count: { select: { students: true, classPerformances: true, homeworkOrigins: true, scheduledExams: true } } },
+    });
+    if (!group) return { ok: false, reason: "not-found" };
+    if (Object.values(group._count).some(count => count > 0)) return { ok: false, reason: "not-empty" };
+    await tx.group.delete({ where: { id: group.id } });
+    return { ok: true };
   });
-  if (!group) return { ok: false, reason: "not-found" };
-  if (group._count.students > 0) return { ok: false, reason: "not-empty" };
-
-  await prisma.group.delete({ where: { id: group.id } });
-  return { ok: true };
 }
 
 /**
@@ -561,7 +499,6 @@ export async function createStudentInGroup(
 
   await notifyTeacherStudentJoined({
     instituteId: admin.instituteId,
-    teacherId: group.teacherId,
     groupId: group.id,
     groupName: group.name,
     studentId: user.id,

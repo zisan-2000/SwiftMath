@@ -23,7 +23,7 @@ export default async function HomeworkOccurrencePage({ params, searchParams }: {
   const { groupId, occurrenceId } = await params;
   const [{ teacher, institute, group }, query] = await Promise.all([loadTeacherGroupPageContext(groupId), searchParams]);
   const occurrence = await getTeacherOccurrence(teacher, occurrenceId);
-  if (!occurrence) notFound();
+  if (!occurrence || occurrence.schedule.originGroupId !== groupId) notFound();
   const now = new Date();
   const statusFor = (expectation: (typeof occurrence.expectations)[number]) => {
     const latest = expectation.submissions[0];
@@ -58,7 +58,7 @@ export default async function HomeworkOccurrencePage({ params, searchParams }: {
                 <div className="flex flex-wrap gap-4 text-sm"><span>Attempt {latest.attemptNumber}</span><span>Page {latest.pageNumber}</span>{latest.isLate && <Badge variant="destructive">Late</Badge>}{latest.isOverTimeLimit && <Badge variant="outline">Over timer</Badge>}</div>
                 <HomeworkTimingSummary startedAt={latest.startedAt} submittedAt={latest.submittedAt} completionSeconds={latest.completionSeconds} />
                 <div className="flex flex-wrap gap-3"><HomeworkPhotoViewer submissionId={latest.id} kind="first" label="First photo" studentName={expectation.student.name} />{latest.finalPhotoKey && <HomeworkPhotoViewer submissionId={latest.id} kind="final" label="Final photo" studentName={expectation.student.name} />}</div>
-                {latest.status !== HomeworkSubmissionStatus.IN_PROGRESS && <HomeworkReviewForm action={reviewHomeworkAction} hiddenFields={{ groupId, occurrenceId, submissionId: latest.id }} maxScore={occurrence.maxScoreSnapshot.toString()} initialScore={latest.score?.toString() ?? ""} initialComment={latest.teacherComment ?? ""} />}
+                {latest.status !== HomeworkSubmissionStatus.IN_PROGRESS && <HomeworkReviewForm action={reviewHomeworkAction} hiddenFields={{ groupId, occurrenceId, submissionId: latest.id, expectedUpdatedAt: latest.updatedAt.toISOString() }} maxScore={occurrence.maxScoreSnapshot.toString()} initialScore={latest.score?.toString() ?? ""} initialComment={latest.teacherComment ?? ""} />}
                 {expectation.submissions.length > 1 && <details className="rounded-lg border p-4"><summary className="cursor-pointer text-sm font-medium">All attempts ({expectation.submissions.length})</summary><div className="mt-3 grid gap-4">{expectation.submissions.map((attempt) => <div key={attempt.id} className="grid gap-3 border-t pt-3 text-sm"><div className="flex flex-wrap items-center gap-3"><span>Attempt {attempt.attemptNumber}</span><span>Page {attempt.pageNumber}</span><Badge variant="muted">{attempt.status}</Badge></div><HomeworkTimingSummary startedAt={attempt.startedAt} submittedAt={attempt.submittedAt} completionSeconds={attempt.completionSeconds} /><div className="flex flex-wrap gap-2"><HomeworkPhotoViewer submissionId={attempt.id} kind="first" label="First photo" studentName={expectation.student.name} />{attempt.finalPhotoKey && <HomeworkPhotoViewer submissionId={attempt.id} kind="final" label="Final photo" studentName={expectation.student.name} />}</div></div>)}</div></details>}
               </div>}
             </CardContent>

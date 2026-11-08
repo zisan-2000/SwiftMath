@@ -1,3 +1,5 @@
+import { requirePermission } from "@/lib/session";
+import { PERMISSIONS } from "@/lib/permissions";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import {
@@ -34,8 +36,9 @@ export default async function GroupAnalyticsPage({
   params: Promise<{ groupId: string }>;
 }) {
   const { groupId } = await params;
+  await requirePermission(PERMISSIONS.ANALYTICS_VIEW);
   const { teacher, institute, group } = await loadTeacherGroupPageContext(groupId);
-  const analytics = await getGroupPracticeAnalytics(teacher.id, groupId);
+  const analytics = await getGroupPracticeAnalytics(teacher, groupId);
 
   if (!analytics) {
     notFound();

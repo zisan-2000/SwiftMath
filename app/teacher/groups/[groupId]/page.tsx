@@ -138,14 +138,14 @@ export default async function GroupOverviewPage({
         })}
       </div>
 
-      <div className="mt-8">
+      {recentActivity.total > 0 && <div className="mt-8">
         <GroupRecentActivityCard
           groupId={group.id}
           groupName={group.name}
           items={recentActivity.items}
           total={recentActivity.total}
         />
-      </div>
+      </div>}
     </TeacherGroupShell>
   );
 }

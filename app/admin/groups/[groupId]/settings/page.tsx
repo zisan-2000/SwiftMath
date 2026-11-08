@@ -1,3 +1,5 @@
+import { can } from "@/server/permissions";
+import { PERMISSIONS } from "@/lib/permissions";
 import type { Metadata } from "next";
 
 import { listInstituteTeacherOptions } from "@/server/admin";
@@ -21,13 +23,14 @@ export default async function AdminGroupSettingsPage({
 
   const teachers = await listInstituteTeacherOptions(
     admin.instituteId,
-    group.teacherId,
+    group.teacherAssignments.map(row => row.teacherId),
   );
 
   const teacherOptions = teachers.map((teacher) => ({
     id: teacher.id,
     name: teacher.name,
     email: teacher.email,
+    isActive: teacher.isActive,
   }));
 
   return (
@@ -46,7 +49,10 @@ export default async function AdminGroupSettingsPage({
           <EditGroupForm
             groupId={group.id}
             defaultName={group.name}
-            defaultTeacherId={group.teacherId}
+            defaultTeacherIds={group.teacherAssignments.map(row => row.teacherId)}
+            defaultRevision={group.assignmentRevision}
+            canAssign={await can(admin, PERMISSIONS.GROUP_ASSIGN_TEACHER)}
+            canManage={await can(admin, PERMISSIONS.GROUP_MANAGE)}
             teachers={teacherOptions}
           />
         </CardContent>

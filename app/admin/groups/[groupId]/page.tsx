@@ -41,13 +41,12 @@ export default async function AdminGroupOverviewPage({
       description: "Edit group name, reassign teacher, delete group",
       icon: Settings,
     },
-    {
-      href: `/admin/teachers/${group.teacherId}`,
-      label: "Teacher profile",
-      description: `${group.teacher.name} — view groups and activity`,
+    ...group.teacherAssignments.map(({ teacher }) => ({
+      href: `/admin/teachers/${teacher.id}`,
+      label: teacher.name,
+      description: "Teacher profile and assigned groups",
       icon: UserRound,
-    },
-  ];
+    })),  ];
 
   return (
     <AdminGroupShell
@@ -55,7 +54,7 @@ export default async function AdminGroupOverviewPage({
       institute={institute}
       groupId={groupId}
       groupName={group.name}
-      subtitle={`${group.teacher.name} · ${group._count.students} students`}
+      subtitle={`${group.teacherAssignments.length} teachers · ${group._count.students} students`}
     >
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
@@ -74,9 +73,9 @@ export default async function AdminGroupOverviewPage({
           icon={Users}
         />
         <StatCard
-          label="Teacher"
-          value={group.teacher.name}
-          hint={group.teacher.email}
+          label="Teachers"
+          value={group.teacherAssignments.length}
+          hint={`${group.teacherAssignments.length} assigned teachers`}
           icon={UserRound}
         />
       </div>

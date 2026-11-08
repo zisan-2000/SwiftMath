@@ -12,31 +12,33 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormMessage } from "@/components/ui/form-message";
 
-const SELECT_CLASS =
-  "flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-ring";
-
-interface TeacherOption {
-  id: string;
-  name: string;
-  email: string;
-}
+import {
+  TeacherAssignmentPicker,
+  type TeacherOption,
+} from "@/components/admin/teacher-assignment-picker";
 
 /** Form for an admin to rename a group or change its teacher. */
 export function EditGroupForm({
   groupId,
   defaultName,
-  defaultTeacherId,
+  defaultTeacherIds,
+  defaultRevision,
+  canAssign = true,
+  canManage = true,
   teachers,
 }: {
   groupId: string;
   defaultName: string;
-  defaultTeacherId: string;
+  defaultTeacherIds: string[];
+  defaultRevision: number;
+  canAssign?: boolean;
+  canManage?: boolean;
   teachers: TeacherOption[];
 }) {
-  const [state, formAction, pending] = useActionState<
-    EditGroupState,
-    FormData
-  >(updateGroupAction.bind(null, groupId), {});
+  const [state, formAction, pending] = useActionState<EditGroupState, FormData>(
+    updateGroupAction.bind(null, groupId),
+    { revision: defaultRevision },
+  );
 
   useEffect(() => {
     if (state.ok) {
@@ -45,39 +47,54 @@ export function EditGroupForm({
   }, [state]);
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="edit-group-name">Group name</Label>
-        <Input
-          id="edit-group-name"
-          name="name"
-          defaultValue={defaultName}
-          required
+    <form action={formAction}>
+      <fieldset
+        disabled={pending || !canManage}
+        className="flex flex-col gap-4"
+      >
+        <input
+          type="hidden"
+          name="revision"
+          value={state.revision ?? defaultRevision}
         />
-      </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="edit-group-name">Group name</Label>
+          <Input
+            id="edit-group-name"
+            name="name"
+            defaultValue={defaultName}
+            required
+          />
+        </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="edit-group-teacher">Teacher</Label>
-        <select
-          id="edit-group-teacher"
-          name="teacherId"
-          className={SELECT_CLASS}
-          required
-          defaultValue={defaultTeacherId}
-        >
-          {teachers.map((teacher) => (
-            <option key={teacher.id} value={teacher.id}>
-              {teacher.name} ({teacher.email})
-            </option>
-          ))}
-        </select>
-      </div>
+        <TeacherAssignmentPicker
+          teachers={teachers}
+          defaultTeacherIds={defaultTeacherIds}
+          readOnly={!canAssign}
+        />
 
-      {state.error && <FormMessage variant="error">{state.error}</FormMessage>}
+        {!canAssign && (
+          <FormMessage variant="error">
+            Teacher assignments are read-only for your account.
+          </FormMessage>
+        )}
+        {state.error && (
+          <>
+            <FormMessage variant="error">{state.error}</FormMessage>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => window.location.reload()}
+            >
+              Reload latest group
+            </Button>
+          </>
+        )}
 
-      <Button type="submit" disabled={pending}>
-        {pending ? "Saving…" : "Save changes"}
-      </Button>
+        <Button type="submit" disabled={pending}>
+          {pending ? "Saving…" : "Save changes"}
+        </Button>
+      </fieldset>
     </form>
   );
 }

@@ -99,7 +99,7 @@ export async function runScheduledExamNotificationCron(
         instituteId: true,
         groupId: true,
         title: true,
-        group: { select: { name: true, teacherId: true } },
+        group: { select: { name: true, teacherAssignments: { where: { teacher: { isActive: true, role: Role.TEACHER } }, select: { teacherId: true } } } },
         level: { select: { name: true } },
       },
     }),
@@ -165,9 +165,10 @@ export async function runScheduledExamNotificationCron(
   );
 
   for (const exam of closedExams) {
+    for (const assignment of exam.group.teacherAssignments) {
     await deliverExamClosedSummaryNotification(
       exam.instituteId,
-      exam.group.teacherId,
+      assignment.teacherId,
       {
         examId: exam.id,
         examTitle: exam.title,
@@ -180,6 +181,7 @@ export async function runScheduledExamNotificationCron(
       disabledMap,
     );
     stats.examClosedSummaryAttempts += 1;
+    }
   }
 
   return stats;

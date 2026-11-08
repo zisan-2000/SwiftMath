@@ -10,6 +10,7 @@ if (
     "server/class-performance.integration.test.ts",
     "server/reports.integration.test.ts",
     "server/homework-uploads.integration.test.ts",
+    "server/group-assignments.integration.test.ts",
   ].includes(suite)
 )
   throw new Error("Unknown isolated test suite.");
@@ -26,6 +27,10 @@ async function fingerprint() {
   try {
     await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
     const tables = [
+      "user",
+      "group",
+      "scheduled_exam",
+      "audit_log",
       "class_performance",
       "class_performance_entry",
       "homework_schedule",
@@ -89,6 +94,15 @@ try {
         INSERT INTO homework_submission(id,"expectationId","attemptNumber","pageNumber","firstPhotoKey","finalPhotoKey",status,score,"startedAt","submittedAt","completionSeconds","updatedAt") VALUES ('upload-migration-submission','upload-migration-expectation',1,'49','blob:homework/legacy-first.jpg','blob:homework/legacy-final.jpg','APPROVED',8.5,'2026-01-01T01:00:00Z','2026-01-01T01:04:32Z',272,now());
       `);
       homeworkBefore = await homeworkFingerprint();
+    }
+    if (dir === "20261108010000_multi_teacher_groups") {
+      await isolated.query(`
+        INSERT INTO homework_schedule(id,"instituteId","createdById",mode,"targetType","studentId",title,"startDate","manualOpensAt","manualDueAt","maxScore","timeLimitMinutes","updatedAt") VALUES
+        ('assignment-migration-individual','migration-institute','migration-teacher','MANUAL_SPECIFIC','STUDENT','migration-student','Original group audit','2026-01-01','2026-01-01','2026-01-02',10,30,now()),
+        ('assignment-migration-unmapped','migration-institute','migration-teacher','MANUAL_SPECIFIC','STUDENT','migration-student','Unverifiable original group','2026-01-01','2026-01-01','2026-01-02',10,30,now());
+        INSERT INTO audit_log(id,"instituteId","actorUserId","actorRole",action,"targetType","targetId",summary,metadata)
+        VALUES ('assignment-migration-audit','migration-institute','migration-teacher','TEACHER','HOMEWORK_SCHEDULE_CREATED','HomeworkSchedule','assignment-migration-individual','Historical creation','{"groupId":"migration-group"}');
+      `);
     }
     await isolated.query(
       readFileSync(`prisma/migrations/${dir}/migration.sql`, "utf8"),

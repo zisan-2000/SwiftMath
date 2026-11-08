@@ -48,7 +48,7 @@ export default async function AdminStudentsPage({
   const groupOptions = groups.map((group) => ({
     id: group.id,
     name: group.name,
-    teacherName: group.teacher.name,
+    teacherName: group.teacherAssignments.map(row => row.teacher.name).join(", ") || "Unassigned",
   }));
   const levelOptions = levels.map((level) => ({
     id: level.id,

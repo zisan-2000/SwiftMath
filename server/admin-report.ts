@@ -62,7 +62,7 @@ export async function buildInstituteStudentReport(
       group: {
         select: {
           name: true,
-          teacher: { select: { name: true } },
+          teacherAssignments: { select: { teacher: { select: { name: true } } } },
         },
       },
       currentLevel: { select: { id: true, name: true, orderIndex: true } },
@@ -93,7 +93,7 @@ export async function buildInstituteStudentReport(
       email: student.email,
       contactNumber: student.contactNumber ?? "",
       group: student.group?.name ?? "Unassigned",
-      teacher: student.group?.teacher.name ?? "—",
+      teacher: student.group?.teacherAssignments.map(row => row.teacher.name).join(", ") || "—",
       currentLevel: student.currentLevel
         ? `${student.currentLevel.orderIndex}. ${student.currentLevel.name}`
         : "Not assigned",

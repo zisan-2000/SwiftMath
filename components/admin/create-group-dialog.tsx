@@ -23,16 +23,18 @@ interface TeacherOption {
 /** Header action that opens the admin create-group form in a modal. */
 export function CreateGroupDialog({
   teachers,
+  canAssign = true,
 }: {
   teachers: TeacherOption[];
+  canAssign?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const disabled = teachers.length === 0;
+
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button disabled={disabled}>
+        <Button>
           <Plus className="h-4 w-4" />
           Create group
         </Button>
@@ -41,12 +43,13 @@ export function CreateGroupDialog({
         <DialogHeader>
           <DialogTitle>Create a group</DialogTitle>
           <DialogDescription>
-            Name the group and assign it to a teacher. Students can be added
+            Name the group and assign one or more teachers. Students can be added
             afterward.
           </DialogDescription>
         </DialogHeader>
         <CreateGroupForm
           teachers={teachers}
+          canAssign={canAssign}
           onSuccess={() => setOpen(false)}
         />
       </DialogContent>
