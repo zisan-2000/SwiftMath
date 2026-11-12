@@ -10,6 +10,7 @@ interface AdminPageShellProps {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
+  dashboard?: boolean;
   children: ReactNode;
 }
 
@@ -20,6 +21,7 @@ export function AdminPageShell({
   title,
   subtitle,
   actions,
+  dashboard,
   children,
 }: AdminPageShellProps) {
   return (
@@ -30,6 +32,7 @@ export function AdminPageShell({
       title={title}
       subtitle={subtitle}
       actions={actions}
+      dashboard={dashboard}
     >
       {children}
     </AppShell>

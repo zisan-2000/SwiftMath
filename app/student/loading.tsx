@@ -1,6 +1,4 @@
-import { AppPageSkeleton } from "@/components/loading/page-skeleton";
-
-/** Shell-shaped skeleton shown while a student route segment streams in. */
+import { DashboardSkeleton } from "@/components/dashboard/dashboard-skeleton";
 export default function StudentLoading() {
-  return <AppPageSkeleton />;
+  return <DashboardSkeleton role="student" />;
 }

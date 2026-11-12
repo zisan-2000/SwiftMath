@@ -46,7 +46,7 @@ export function UserMenu({ user }: { user: { name: string; role: Role } }) {
         disabled={busy}
         aria-label={`Account menu for ${user.name}`}
         className={cn(
-          "flex items-center gap-2 rounded-full border border-border bg-background py-1 pl-1 pr-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 sm:rounded-lg sm:py-1.5 sm:pl-2 sm:pr-3",
+          "flex min-h-9 items-center gap-2 rounded-full py-1 pl-1 pr-2 text-left transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 sm:rounded-xl sm:py-1.5 sm:pl-2 sm:pr-3",
         )}
       >
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">

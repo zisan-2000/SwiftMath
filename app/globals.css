@@ -1,5 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "../components/dashboard/dashboard.css";
+@import "../components/dashboard/dashboard-refinement.css";
 
 .report-table th, .report-table td { padding: .65rem; border-bottom: 1px solid var(--border); vertical-align: top; }
 .report-table th { font-weight: 600; background: var(--muted); }

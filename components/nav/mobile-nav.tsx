@@ -7,6 +7,7 @@ import type { Role } from "@/lib/generated/prisma/enums";
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
   SheetTrigger,
@@ -41,9 +42,15 @@ export function MobileNav({
       >
         <Menu className="h-4 w-4" />
       </SheetTrigger>
-      <SheetContent side="left" className="flex h-full w-72 max-w-[80vw] flex-col p-0">
-        <SheetHeader className="shrink-0 border-b border-border p-4">
+      <SheetContent
+        side="left"
+        className="flex h-full w-72 max-w-[80vw] flex-col p-0"
+      >
+        <SheetHeader className="shrink-0 border-b border-border p-4 pr-14">
           <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <SheetDescription className="sr-only">
+            Choose a page in your workspace. Press Escape to close this menu.
+          </SheetDescription>
           <Brand
             instituteName={instituteName}
             role={role}

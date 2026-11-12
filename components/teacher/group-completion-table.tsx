@@ -1,84 +1,62 @@
-import Link from "next/link";
-
+import { Users } from "lucide-react";
 import type { GroupCompletionRow } from "@/lib/group-completion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import {
+  DashboardLink,
+  DashboardProgress,
+} from "@/components/dashboard/dashboard-primitives";
 
-/** Per-group completion breakdown for the teacher dashboard (4.7). */
-export function GroupCompletionTable({
-  rows,
-}: {
-  rows: GroupCompletionRow[];
-}) {
-  if (rows.length === 0) {
+/** A responsive group breakdown with no page-wide table overflow on mobile. */
+export function GroupCompletionTable({ rows }: { rows: GroupCompletionRow[] }) {
+  if (!rows.length)
     return (
       <EmptyState
-        title="No groups yet"
-        description="Create a group to track completion rates here."
+        icon={Users}
+        title="No assigned groups yet"
+        description="Your institute admin can assign a teaching group to get you started."
+        className="py-8"
       />
     );
-  }
-
   return (
-    <Card>
-      <CardHeader className="border-b border-border">
-        <CardTitle className="text-base">Completion by group</CardTitle>
-        <p className="text-sm text-muted-foreground">
-          Student completion = share of enrolled students with at least one pass.
-          Attempt completion = share of finished attempts that passed.
-        </p>
-      </CardHeader>
-      <CardContent className="p-0">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[720px] text-sm">
-            <thead>
-              <tr className="border-b border-border bg-muted/40 text-left text-muted-foreground">
-                <th className="px-5 py-2.5 font-medium">Group</th>
-                <th className="px-5 py-2.5 font-medium">Students</th>
-                <th className="px-5 py-2.5 font-medium">Active</th>
-                <th className="px-5 py-2.5 font-medium">Student completion</th>
-                <th className="px-5 py-2.5 font-medium">Attempt completion</th>
-                <th className="px-5 py-2.5 font-medium">Sessions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <tr
-                  key={row.groupId}
-                  className="border-b border-border last:border-0"
-                >
-                  <td className="px-5 py-3 align-middle">
-                    <Link
-                      href={`/teacher/groups/${row.groupId}/analytics`}
-                      className="font-medium text-foreground transition-colors hover:text-primary hover:underline"
-                    >
-                      {row.groupName}
-                    </Link>
-                  </td>
-                  <td className="px-5 py-3 align-middle tabular-nums">
-                    {row.studentCount}
-                  </td>
-                  <td className="px-5 py-3 align-middle tabular-nums">
-                    {row.activeStudents}
-                  </td>
-                  <td className="px-5 py-3 align-middle tabular-nums">
-                    {row.studentCompletionRate}%
-                    <span className="ml-1 text-xs text-muted-foreground">
-                      ({row.studentsPassed}/{row.studentCount})
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 align-middle tabular-nums">
-                    {row.attemptCompletionRate}%
-                  </td>
-                  <td className="px-5 py-3 align-middle tabular-nums">
-                    {row.sessions}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="teacher-group-list">
+      {rows.map((row) => (
+        <article className="teacher-group-row" key={row.groupId}>
+          <div className="min-w-0">
+            <h3 className="break-words text-sm font-semibold">
+              {row.groupName}
+            </h3>
+            <p className="dashboard-caption mt-1">
+              {row.studentCount} students · {row.activeStudents} active ·{" "}
+              {row.sessions} sessions
+            </p>
+          </div>
+          <div>
+            <div className="mb-2 flex flex-wrap justify-between gap-2 text-xs">
+              <span className="text-muted-foreground">
+                Students with a pass
+              </span>
+              <strong className="font-medium tabular-nums">
+                {row.studentsPassed}/{row.studentCount} ·{" "}
+                {row.studentCompletionRate}%
+              </strong>
+            </div>
+            <DashboardProgress
+              value={row.studentCompletionRate}
+              label={`Student completion for ${row.groupName}`}
+            />
+            <p className="dashboard-caption mt-2">
+              Attempt pass rate: {row.attemptCompletionRate}%
+            </p>
+          </div>
+          <DashboardLink href={`/teacher/groups/${row.groupId}/analytics`}>
+            View progress
+          </DashboardLink>
+        </article>
+      ))}
+      <p className="dashboard-caption mt-2">
+        Student completion counts enrolled students with at least one pass.
+        Attempt pass rate counts passed finished attempts. Last 7 days.
+      </p>
+    </div>
   );
 }

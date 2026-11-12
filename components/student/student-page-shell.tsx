@@ -10,6 +10,7 @@ interface StudentPageShellProps {
   title: string;
   subtitle?: string;
   actions?: ReactNode;
+  dashboard?: boolean;
   children: ReactNode;
 }
 
@@ -20,6 +21,7 @@ export function StudentPageShell({
   title,
   subtitle,
   actions,
+  dashboard,
   children,
 }: StudentPageShellProps) {
   return (
@@ -30,6 +32,7 @@ export function StudentPageShell({
       title={title}
       subtitle={subtitle}
       actions={actions}
+      dashboard={dashboard}
     >
       {children}
     </AppShell>

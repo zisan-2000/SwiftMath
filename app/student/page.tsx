@@ -1,18 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import {
-  Boxes,
-  Brain,
-  ClipboardCheck,
-  Flame,
-  Layers,
-  Play,
-  Target,
-  TrendingUp,
-  Trophy,
-  BookMarked,
-} from "lucide-react";
-
+import { ClipboardCheck, Play } from "lucide-react";
+import { startSessionAction } from "@/app/student/practice/actions";
+import { StudentDashboard } from "@/components/dashboard/student-dashboard";
 import { prisma } from "@/lib/prisma";
 import { PracticeMode } from "@/lib/generated/prisma/enums";
 import { getStudentPracticeAnalytics } from "@/server/analytics";
@@ -25,13 +15,7 @@ import { syncStudentScheduledExamNotifications } from "@/server/notifications";
 import { loadStudentPageContext } from "@/server/student-page";
 import { startExamAction } from "@/app/student/actions";
 import { StudentPageShell } from "@/components/student/student-page-shell";
-import { StatCard } from "@/components/stat-card";
-import { PracticeActivityChart } from "@/components/practice-activity-chart";
-import { StudentHomeHero } from "@/components/student/student-home-hero";
-import { StudentBadgesPanel } from "@/components/student/student-badges-panel";
-import { ClassPerformanceHistory } from "@/components/class-performance-history";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { FormMessage } from "@/components/ui/form-message";
 import { InstallAppButton } from "@/components/pwa/install-app-button";
 import { APP_NAME } from "@/lib/constants";
@@ -83,23 +67,22 @@ export default async function StudentDashboardPage({
     instituteRank,
     gamification,
     classPerformance,
-  ] =
-    await Promise.all([
-      prisma.user.findUnique({
-        where: { id: user.id },
-        select: {
-          group: { select: { name: true } },
-          currentLevel: { select: { name: true } },
-          academicLevel: { select: { name: true } },
-        },
-      }),
-      getStudentPracticeAnalytics(user.id),
-      getStudentInProgressSession(user.id),
-      getStudentPendingScheduledExam(user.id),
-      getStudentInstituteRank(user.id, user.instituteId),
-      getStudentGamificationSummary(user.id),
-      getOwnClassPerformanceHistory(user.id, user.instituteId),
-    ]);
+  ] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: {
+        group: { select: { name: true } },
+        currentLevel: { select: { name: true } },
+        academicLevel: { select: { name: true } },
+      },
+    }),
+    getStudentPracticeAnalytics(user.id),
+    getStudentInProgressSession(user.id),
+    getStudentPendingScheduledExam(user.id),
+    getStudentInstituteRank(user.id, user.instituteId),
+    getStudentGamificationSummary(user.id),
+    getOwnClassPerformanceHistory(user.id, user.instituteId),
+  ]);
 
   const showPracticeInProgress =
     pendingSession != null && pendingSession.mode !== PracticeMode.EXAM;
@@ -110,12 +93,113 @@ export default async function StudentDashboardPage({
     pendingSession != null &&
     pendingSession.mode !== PracticeMode.EXAM;
 
+  const nextAction = pendingExam ? (
+    <>
+      <p className="dashboard-eyebrow">
+        {pendingExam.inProgressSessionId
+          ? "Exam in progress"
+          : "Scheduled exam available"}
+      </p>
+      <h3 className="mt-2 text-xl font-semibold tracking-tight">
+        {pendingExam.title ?? "Scheduled exam"}
+      </h3>
+      <p className="dashboard-description">
+        {pendingExam.level.name} · pass at {pendingExam.level.passAccuracy}% ·
+        closes {formatExamDeadline(pendingExam.closesAt)}
+      </p>
+      {examBlockedByPractice && (
+        <p className="mb-3 text-sm text-muted-foreground">
+          Finish your current practice session before starting this exam.
+        </p>
+      )}
+      {pendingExam.inProgressSessionId ? (
+        <Button asChild size="lg">
+          <Link href={`/student/practice/${pendingExam.inProgressSessionId}`}>
+            <Play className="size-4" />
+            Resume exam
+          </Link>
+        </Button>
+      ) : examBlockedByPractice ? (
+        <Button asChild size="lg" variant="secondary">
+          <Link href={`/student/practice/${pendingSession!.id}`}>
+            <Play className="size-4" />
+            Resume practice
+          </Link>
+        </Button>
+      ) : (
+        <form action={startExamAction}>
+          <input type="hidden" name="scheduledExamId" value={pendingExam.id} />
+          <Button type="submit" size="lg">
+            <ClipboardCheck className="size-4" />
+            Start exam
+          </Button>
+        </form>
+      )}
+    </>
+  ) : showPracticeInProgress && pendingSession ? (
+    <>
+      <p className="dashboard-eyebrow">Practice in progress</p>
+      <h3 className="mt-2 text-xl font-semibold tracking-tight">
+        {pendingSession.level.name}
+      </h3>
+      <p className="dashboard-description">
+        {pendingSession.mode === PracticeMode.REVIEW
+          ? "Review mode — no timer"
+          : pendingSession.mode === PracticeMode.CHALLENGE
+            ? "Challenge mode — harder timed drill"
+            : "Timed practice — pick up where you left off"}
+      </p>
+      <Button asChild size="lg">
+        <Link href={`/student/practice/${pendingSession.id}`}>
+          <Play className="size-4" />
+          Resume practice
+        </Link>
+      </Button>
+    </>
+  ) : profile?.currentLevel ? (
+    <>
+      <p className="dashboard-eyebrow">Your next step</p>
+      <h3 className="mt-2 text-xl font-semibold tracking-tight">
+        Your next practice
+      </h3>
+      <p className="dashboard-description">
+        Continue with {profile.currentLevel.name}. Your next session is ready
+        when you are.
+      </p>
+      <form action={startSessionAction}>
+        <Button type="submit" size="lg">
+          <Play className="size-4" />
+          Start practice
+        </Button>
+      </form>
+      <div className="mt-3">
+        <Link href="/student/practice" className="dashboard-text-link">
+          More practice options
+        </Link>
+      </div>
+    </>
+  ) : (
+    <>
+      <p className="dashboard-eyebrow">Teacher assignment</p>
+      <h3 className="mt-2 text-xl font-semibold tracking-tight">
+        Your starting point is coming.
+      </h3>
+      <p className="dashboard-description">
+        Your teacher has not assigned a practice sub-level yet. Ask them to
+        choose your starting point.
+      </p>
+      <Link href="/student/homework" className="dashboard-text-link">
+        Check your homework
+      </Link>
+    </>
+  );
   return (
     <StudentPageShell
+      dashboard
       user={user}
       institute={institute}
-      title={`Hello, ${user.name}`}
-      subtitle="Your practice home."
+      title="Your learning space"
+      subtitle={`Good to see you, ${user.name}. Make today a step forward.`}
       actions={
         <InstallAppButton appName={institute?.name ?? APP_NAME} size="sm" />
       }
@@ -125,178 +209,17 @@ export default async function StudentDashboardPage({
           {examErrorMessage}
         </FormMessage>
       )}
-
-      {!pendingExam && !showPracticeInProgress && (
-        <StudentHomeHero
-          studentName={user.name}
-          levelName={profile?.currentLevel?.name ?? null}
-          streakDays={gamification.streakDays}
-        />
-      )}
-
-      {pendingExam && (
-        <Card
-          id="pending-exam"
-          className="mb-8 scroll-mt-24 border-amber-500/30 bg-amber-500/5"
-        >
-          <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                {pendingExam.inProgressSessionId
-                  ? "Exam in progress"
-                  : "Scheduled exam available"}
-              </p>
-              <p className="mt-1 font-semibold text-foreground">
-                {pendingExam.title ?? "Scheduled exam"}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {pendingExam.level.name} · pass at {pendingExam.level.passAccuracy}
-                % · closes {formatExamDeadline(pendingExam.closesAt)}
-              </p>
-              {examBlockedByPractice && (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Finish your current practice session before starting this exam.
-                </p>
-              )}
-            </div>
-            {pendingExam.inProgressSessionId ? (
-              <Button asChild size="lg" className="shrink-0">
-                <Link href={`/student/practice/${pendingExam.inProgressSessionId}`}>
-                  <Play className="h-4 w-4" />
-                  Resume exam
-                </Link>
-              </Button>
-            ) : examBlockedByPractice ? (
-              <Button asChild size="lg" variant="secondary" className="shrink-0">
-                <Link href={`/student/practice/${pendingSession!.id}`}>
-                  <Play className="h-4 w-4" />
-                  Resume practice
-                </Link>
-              </Button>
-            ) : (
-              <form action={startExamAction} className="shrink-0">
-                <input
-                  type="hidden"
-                  name="scheduledExamId"
-                  value={pendingExam.id}
-                />
-                <Button type="submit" size="lg">
-                  <ClipboardCheck className="h-4 w-4" />
-                  Start exam
-                </Button>
-              </form>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {showPracticeInProgress && (
-        <Card className="mb-8 border-primary/30 bg-primary/5">
-          <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="min-w-0">
-              <p className="text-sm font-medium text-primary">
-                Practice in progress
-              </p>
-              <p className="mt-1 font-semibold text-foreground">
-                {pendingSession.level.name}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {pendingSession.mode === PracticeMode.REVIEW
-                  ? "Review mode — no timer"
-                  : pendingSession.mode === PracticeMode.CHALLENGE
-                    ? "Challenge mode — harder timed drill"
-                    : "Timed practice — pick up where you left off"}
-              </p>
-            </div>
-            <Button asChild size="lg" className="shrink-0">
-              <Link href={`/student/practice/${pendingSession.id}`}>
-                <Play className="h-4 w-4" />
-                Resume practice
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
-        <StatCard
-          label="Academic Level"
-          value={profile?.academicLevel?.name ?? "Not assigned"}
-          hint="Read-only; set by your teacher"
-          icon={BookMarked}
-        />
-        <StatCard
-          label="Practice level"
-          value={profile?.currentLevel?.name ?? "Not assigned"}
-          hint="Practice/Exam progression"
-          icon={Layers}
-        />
-        <StatCard label="Group" value={profile?.group?.name ?? "—"} icon={Boxes} />
-        <StatCard
-          label="Practice streak"
-          value={
-            gamification.streakDays > 0
-              ? `${gamification.streakDays} ${
-                  gamification.streakDays === 1 ? "day" : "days"
-                }`
-              : "Start today"
-          }
-          hint={
-            gamification.streakDays > 0
-              ? "Consecutive days with timed practice"
-              : "Finish a timed session to begin a streak"
-          }
-          icon={Flame}
-        />
-        <StatCard
-          label="Institute rank"
-          value={
-            instituteRank.rank != null ? `#${instituteRank.rank}` : "Not ranked"
-          }
-          hint={
-            instituteRank.rank != null
-              ? `Of ${instituteRank.totalQualified} on the all-time leaderboard`
-              : "Score 100% on every timed attempt and pass in time to rank"
-          }
-          icon={Trophy}
-        />
-      </div>
-
-      <h2 className="mb-3 mt-10 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-        Your progress (last 7 days)
-      </h2>
-      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Sessions" value={practice.totalSessions} icon={Brain} />
-        <StatCard
-          label="Pass rate"
-          value={`${practice.passRate}%`}
-          icon={Target}
-        />
-        <StatCard
-          label="Avg accuracy"
-          value={`${practice.avgAccuracy}%`}
-          icon={TrendingUp}
-        />
-      </div>
-
-      <PracticeActivityChart
-        data={practice.daily}
-        empty={practice.totalSessions === 0}
-        description="Your finished attempts over the last 7 days"
+      <StudentDashboard
+        studentName={user.name}
+        academicLevel={profile?.academicLevel?.name ?? null}
+        currentLevel={profile?.currentLevel?.name ?? null}
+        groupName={profile?.group?.name ?? null}
+        practice={practice}
+        gamification={gamification}
+        rank={instituteRank}
+        classPerformance={classPerformance}
+        nextAction={nextAction}
       />
-
-      <ClassPerformanceHistory
-        history={classPerformance}
-        title="Your class performance"
-      />
-
-      <StudentBadgesPanel badges={gamification.badges} />
-
-      <div className="mt-8 flex flex-wrap gap-3">
-        <Button asChild variant="outline">
-          <Link href="/student/ranking">View ranking</Link>
-        </Button>
-      </div>
     </StudentPageShell>
   );
 }

@@ -26,12 +26,7 @@ function BrandMark({ logoUrl }: { logoUrl?: string | null }) {
   }
   return (
     <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-white shadow-sm">
-      <PlatformLogo
-        variant="mark"
-        alt=""
-        className="h-8 w-8"
-        sizes="32px"
-      />
+      <PlatformLogo variant="mark" alt="" className="h-8 w-8" sizes="32px" />
     </span>
   );
 }
@@ -56,6 +51,7 @@ export function Brand({
   return (
     <Link
       href={roleHomePath(role)}
+      aria-label={`${instituteName} ${APP_NAME}`}
       className={cn(
         "flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className,
