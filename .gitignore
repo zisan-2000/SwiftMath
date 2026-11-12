@@ -23,6 +23,11 @@
 # misc
 .DS_Store
 *.pem
+# Public synthetic loopback TLS regression fixtures only (never production keys).
+!/tests/fixtures/database-tls/ca.pem
+!/tests/fixtures/database-tls/server.pem
+!/tests/fixtures/database-tls/wrong-host.pem
+!/tests/fixtures/database-tls/server-key.pem
 
 # debug
 npm-debug.log*

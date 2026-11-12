@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -20,6 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MeasuredChart } from "@/components/ui/measured-chart";
 
 interface PracticeActivityChartProps {
   data: DailySessionCount[];
@@ -66,7 +66,7 @@ export function PracticeActivityChart({
   description = "Finished attempts over the last 7 days",
 }: PracticeActivityChartProps) {
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardHeader className="border-b border-border">
         <CardTitle className="text-base">Practice activity</CardTitle>
         <CardDescription>{description}</CardDescription>
@@ -80,48 +80,44 @@ export function PracticeActivityChart({
             className="border-0 bg-transparent py-8"
           />
         ) : (
-          <div
-            className="h-64 w-full"
-            role="img"
-            aria-label="Bar chart of daily practice sessions for the last seven days"
+          <MeasuredChart
+            label="Bar chart of daily practice sessions for the last seven days"
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  className="stroke-border"
-                />
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={false}
-                  className="text-xs fill-muted-foreground"
-                />
-                <YAxis
-                  allowDecimals={false}
-                  tickLine={false}
-                  axisLine={false}
-                  className="text-xs fill-muted-foreground"
-                />
-                <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--accent)", opacity: 0.4 }} />
-                <Bar
-                  dataKey="sessions"
-                  name="Sessions"
-                  fill="var(--primary)"
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={40}
-                />
-                <Bar
-                  dataKey="passed"
-                  name="Passed"
-                  fill="var(--success)"
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={40}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+            <BarChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                className="stroke-border"
+              />
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                className="text-xs fill-muted-foreground"
+              />
+              <YAxis
+                allowDecimals={false}
+                tickLine={false}
+                axisLine={false}
+                className="text-xs fill-muted-foreground"
+              />
+              <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--accent)", opacity: 0.4 }} />
+              <Bar
+                dataKey="sessions"
+                name="Sessions"
+                fill="var(--primary)"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={40}
+              />
+              <Bar
+                dataKey="passed"
+                name="Passed"
+                fill="var(--success)"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={40}
+              />
+            </BarChart>
+          </MeasuredChart>
         )}
       </CardContent>
     </Card>

@@ -12,6 +12,7 @@
 import "dotenv/config";
 
 import { PrismaPg } from "@prisma/adapter-pg";
+import { runtimeDatabaseUrl } from "../lib/database-url";
 import { hashPassword } from "better-auth/crypto";
 
 import { PrismaClient } from "../lib/generated/prisma/client";
@@ -22,7 +23,7 @@ import { buildFixedExamPaper } from "../lib/exam-paper";
 import { filterEnabledBankQuestions } from "../lib/question-bank";
 
 const prisma = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+  adapter: new PrismaPg({ connectionString: runtimeDatabaseUrl(process.env.DATABASE_URL) }),
 });
 
 /** Shared demo password for every seeded account. */

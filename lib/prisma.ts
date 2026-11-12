@@ -1,8 +1,8 @@
 // Prisma client singleton.
 //
 // Prisma 7 connects through a "driver adapter" rather than a bundled query
-// engine. For self-hosted PostgreSQL we use `@prisma/adapter-pg`, pointed at
-// the same DATABASE_URL the CLI uses.
+// engine. `@prisma/adapter-pg` owns a pg Pool for DATABASE_URL (Neon or local).
+// The CLI can use a separate DIRECT_URL for migration connections.
 //
 // Next.js dev mode hot-reloads modules on every change, which would otherwise
 // spawn a new PrismaClient (and a new connection pool) on each reload and
@@ -14,6 +14,7 @@
 
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/lib/generated/prisma/client";
+import { runtimeDatabaseUrl } from "@/lib/database-url";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -21,7 +22,7 @@ const globalForPrisma = globalThis as unknown as {
 
 function createPrismaClient(): PrismaClient {
   const adapter = new PrismaPg({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: runtimeDatabaseUrl(process.env.DATABASE_URL),
   });
 
   return new PrismaClient({

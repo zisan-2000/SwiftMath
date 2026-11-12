@@ -4,7 +4,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -20,6 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MeasuredChart } from "@/components/ui/measured-chart";
 
 interface TeacherGroupComparisonChartProps {
   data: GroupComparisonPoint[];
@@ -59,7 +59,7 @@ export function TeacherGroupComparisonChart({
   empty,
 }: TeacherGroupComparisonChartProps) {
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardHeader className="border-b border-border">
         <CardTitle className="text-base">Group comparison</CardTitle>
         <CardDescription>
@@ -75,62 +75,58 @@ export function TeacherGroupComparisonChart({
             className="border-0 bg-transparent py-8"
           />
         ) : (
-          <div
-            className="h-64 w-full"
-            role="img"
-            aria-label="Bar chart comparing sessions and pass rate by group"
+          <MeasuredChart
+            label="Bar chart comparing sessions and pass rate by group"
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart
-                data={data}
-                margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  className="stroke-border"
-                />
-                <XAxis
-                  dataKey="groupName"
-                  tickLine={false}
-                  axisLine={false}
-                  className="text-xs fill-muted-foreground"
-                />
-                <YAxis
-                  yAxisId="sessions"
-                  allowDecimals={false}
-                  tickLine={false}
-                  axisLine={false}
-                  className="text-xs fill-muted-foreground"
-                />
-                <YAxis
-                  yAxisId="rate"
-                  orientation="right"
-                  domain={[0, 100]}
-                  tickLine={false}
-                  axisLine={false}
-                  className="text-xs fill-muted-foreground"
-                />
-                <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--accent)", opacity: 0.4 }} />
-                <Bar
-                  yAxisId="sessions"
-                  dataKey="sessions"
-                  name="Sessions"
-                  fill="var(--primary)"
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={36}
-                />
-                <Bar
-                  yAxisId="rate"
-                  dataKey="passRate"
-                  name="Pass rate"
-                  fill="var(--success)"
-                  radius={[4, 4, 0, 0]}
-                  maxBarSize={36}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+            <BarChart
+              data={data}
+              margin={{ top: 4, right: 4, left: -20, bottom: 0 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                className="stroke-border"
+              />
+              <XAxis
+                dataKey="groupName"
+                tickLine={false}
+                axisLine={false}
+                className="text-xs fill-muted-foreground"
+              />
+              <YAxis
+                yAxisId="sessions"
+                allowDecimals={false}
+                tickLine={false}
+                axisLine={false}
+                className="text-xs fill-muted-foreground"
+              />
+              <YAxis
+                yAxisId="rate"
+                orientation="right"
+                domain={[0, 100]}
+                tickLine={false}
+                axisLine={false}
+                className="text-xs fill-muted-foreground"
+              />
+              <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--accent)", opacity: 0.4 }} />
+              <Bar
+                yAxisId="sessions"
+                dataKey="sessions"
+                name="Sessions"
+                fill="var(--primary)"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={36}
+              />
+              <Bar
+                yAxisId="rate"
+                dataKey="passRate"
+                name="Pass rate"
+                fill="var(--success)"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={36}
+              />
+            </BarChart>
+          </MeasuredChart>
         )}
       </CardContent>
     </Card>

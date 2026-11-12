@@ -32,7 +32,8 @@ cp .env.example .env
 
 | Variable | Required | Description |
 | -------- | -------- | ----------- |
-| `DATABASE_URL` | Yes | PostgreSQL connection string. Managed hosts usually need `?sslmode=require` at the end. |
+| `DATABASE_URL` | Yes | Runtime PostgreSQL connection string. Neon: use its `-pooler` hostname and `sslmode=verify-full` (certificate + hostname validation). |
+| `DIRECT_URL` | Optional | Direct connection to the same Neon branch/database for Prisma CLI migrations. Falls back to `DATABASE_URL`. Verified TLS is translated to the schema engine’s `sslmode=require&sslaccept=strict`. |
 | `BETTER_AUTH_SECRET` | Yes | Random secret for signing sessions. **Must be unique per environment.** Generate with `openssl rand -base64 32`. |
 | `BETTER_AUTH_URL` | Yes | Public origin of the app **with no trailing slash**. Must match the URL users open in the browser. |
 | `BLOB_READ_WRITE_TOKEN` | Prod (image uploads) | [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) token. Logos are public; homework photos are private and served only through an authorized app route. Omit locally to use `public/uploads/` for logos and `.data/` for private homework photos. |
@@ -53,7 +54,9 @@ BETTER_AUTH_URL="http://localhost:3000"
 ### Staging / production (example)
 
 ```env
-DATABASE_URL="postgresql://user:pass@ep-xxx.region.aws.neon.tech/neondb?sslmode=require"
+DATABASE_URL="postgresql://user:pass@ep-xxx-pooler.region.aws.neon.tech/neondb?sslmode=verify-full"
+# Optional, same branch/database, without -pooler:
+DIRECT_URL="postgresql://user:pass@ep-xxx.region.aws.neon.tech/neondb?sslmode=verify-full"
 BETTER_AUTH_SECRET="<openssl rand -base64 32>"
 BETTER_AUTH_URL="https://app.yourdomain.com"
 ```
@@ -130,7 +133,8 @@ Open `http://localhost:3000`. Uses `.env` for `DATABASE_URL` and auth settings.
 
 1. Create a project at [neon.tech](https://neon.tech).
 2. Copy the **pooled** connection string (recommended for serverless).
-3. Ensure the URL includes `?sslmode=require`.
+3. Ensure the URL includes `sslmode=verify-full`. Preserve any other provider parameters, such as `channel_binding=require`. Never replace the hostname or branch credentials manually.
+4. Optionally set `DIRECT_URL` to Neon’s direct connection string for the **same branch/database**. Runtime uses only `DATABASE_URL`; Prisma CLI uses `DIRECT_URL` when set.
 
 ### 5.2 Create the Vercel project
 
@@ -140,7 +144,8 @@ Open `http://localhost:3000`. Uses `.env` for `DATABASE_URL` and auth settings.
 
    | Name | Value |
    | ---- | ----- |
-   | `DATABASE_URL` | Neon connection string |
+   | `DATABASE_URL` | Neon pooled (`-pooler`) connection string with `sslmode=verify-full` |
+   | `DIRECT_URL` | Optional direct string for the same branch/database, with verified TLS |
    | `BETTER_AUTH_SECRET` | New random secret per environment |
    | `BETTER_AUTH_URL` | `https://<your-vercel-domain>` |
 
@@ -255,7 +260,7 @@ After schema changes: commit migration SQL → deploy → `migrate deploy` runs 
 
 ### Database SSL errors
 
-- Append `?sslmode=require` to Neon/Railway URLs.
+- For Neon runtime use `sslmode=verify-full`. The pg adapter normalizes legacy `prefer`/`require`/`verify-ca` to `verify-full` without disabling certificate/hostname verification. The Prisma CLI uses `require&sslaccept=strict` because its schema engine has different TLS options.
 
 ### Stale Turbopack / weird `ReferenceError` after big changes
 
@@ -409,3 +414,79 @@ Phase 2 is complete. See:
 - [docs/SUPER_ADMIN_RUNBOOK.md](./SUPER_ADMIN_RUNBOOK.md) — platform operator guide
 
 ---
+
+
+## Runtime warning verification (Vercel / Neon)
+
+- `pg`’s SSL compatibility message is a Node warning written to stderr, which
+  Vercel may label **Error** even when the SQL request succeeds. Do not suppress
+  warnings globally or downgrade TLS to silence it.
+- `lib/database-url.ts` preserves credentials, database, pooled hostname, CA and
+  other query parameters, and makes pg’s current certificate/hostname checks
+  explicit. Neon URLs that explicitly disable verification fail closed.
+- `PrismaPg` already creates a process-level `pg.Pool`; `lib/prisma.ts` reuses its
+  client (including hot reload). Current pg defaults remain max 10 connections,
+  min 0 and 10-second idle timeout. Neon’s `-pooler` endpoint provides a separate
+  server-side pool. No per-request Prisma client or `$disconnect()` is needed.
+  Budget pool capacity against Vercel concurrency before changing defaults.
+- Verify `DATABASE_URL` in **each** Vercel target and any branch overrides; Preview
+  should use an isolated non-production Neon branch. Sensitive variables cannot
+  be read back through the API. Inspect provider connection metadata in the
+  dashboard without copying credentials into logs or chat. Optional `DIRECT_URL`
+  must point to the same branch/database as the runtime URL.
+- Leave `NODE_TLS_REJECT_UNAUTHORIZED` unset. If using a private certificate
+  authority, configure its trusted CA rather than bypassing verification. Never
+  set `sslrootcert=system` for pg: it expects a file at that path.
+  The CLI helper maps a pg `sslrootcert` file to the schema engine's `sslcert`
+  option. Conflicting certificate parameters require a dedicated `DIRECT_URL`;
+  the helper never silently replaces a different certificate. CA files must be
+  available at the configured path in the environment running the CLI.
+- Environment edits affect new deployments. After an explicitly approved deploy,
+  verify login, `/teacher`, `/teacher/students`, `/student/homework` and notification
+  requests, and check fresh deployment logs. No migrations are needed for these
+  warning fixes.
+- Charts now reserve the original 256px layout during SSR and mount after a
+  positive container measurement, also handling hidden/revealed and resized
+  cards. Test teacher/admin dashboards and class-performance charts at mobile and
+  desktop widths; graphs and their data/filters must remain unchanged.
+
+References: [Neon secure connections](https://neon.com/docs/connect/connect-securely),
+[node-postgres SSL](https://node-postgres.com/features/ssl),
+[Prisma PostgreSQL TLS options](https://docs.prisma.io/docs/orm/v6/overview/databases/postgresql),
+[Recharts ResponsiveContainer](https://recharts.github.io/en-US/api/ResponsiveContainer/).
+
+### Local verification, 12 November 2026
+
+- Root causes reproduced: pg's deprecated SSL mode aliases and Recharts 3.8.1's
+  default SSR dimensions (-1, -1). Four real chart components emitted four sizing
+  warnings before the fix and zero afterwards, with identical synthetic input.
+- Changed files: `lib/database-url.ts` and its test, `lib/prisma.ts`,
+  `prisma.config.ts`, `prisma/seed.ts`, `components/ui/measured-chart.tsx` and its
+  test, `components/practice-activity-chart.tsx`,
+  `components/teacher/teacher-progress-chart.tsx`,
+  `components/teacher/teacher-group-comparison-chart.tsx`,
+  `components/teacher/class-performance-trend-chart.tsx`, `.env.example`, this
+  document, `.gitignore` (four specific public-fixture exceptions), and public
+  synthetic TLS fixtures under `tests/fixtures/database-tls/`.
+- Automated tests: **452 passed**, 80 opt-in DB tests skipped in the ordinary
+  unit run. Separately: **22 isolated PostgreSQL integration/authorization tests**
+  and **56 local production HTTP/homework upload checks passed**. New regressions:
+  27 URL/TLS tests and 12 chart SSR/resize/visibility tests.
+- TypeScript and isolated production build passed. ESLint: zero errors and seven
+  existing unused-variable warnings in unrelated files.
+- Real pg TLS handshakes accept a trusted certificate and reject an untrusted CA
+  and mismatched hostname. A separate loopback PostgreSQL 17 cluster confirmed
+  TLS 1.3; real Prisma CLI read-only introspection accepted the trusted CA (then
+  correctly reported an empty database) and rejected untrusted/wrong-host certs.
+- Browser preview of the real chart components confirmed values, desktop/mobile
+  resizing, hidden/revealed charts and zero console warnings/errors. It used
+  synthetic data and minimal preview CSS, not a live authenticated dashboard.
+- Source database read-only fingerprints for 11 tables were unchanged. No schema
+  migrations, production data/config changes, commits, pushes or deployments.
+- Vercel read-only metadata: Node 24.x; `DATABASE_URL` is a shared Sensitive entry
+  targeted at Production and Preview. The API does not return its value. Actual
+  Neon hostname, pooling endpoint, certificate connectivity, branch separation
+  and any inherited integration settings remain a dashboard/live-deploy check;
+  neither production connectivity nor isolated Preview data can be certified
+  from that metadata alone. No `DIRECT_URL` or TLS-bypass environment entries
+  were present in the returned project environment list.

@@ -5,7 +5,6 @@ import {
   Legend,
   Line,
   LineChart,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -21,6 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MeasuredChart } from "@/components/ui/measured-chart";
 
 interface TeacherProgressChartProps {
   data: DailyProgressPoint[];
@@ -62,7 +62,7 @@ export function TeacherProgressChart({
   empty,
 }: TeacherProgressChartProps) {
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardHeader className="border-b border-border">
         <CardTitle className="text-base">Progress trend</CardTitle>
         <CardDescription>
@@ -78,54 +78,50 @@ export function TeacherProgressChart({
             className="border-0 bg-transparent py-8"
           />
         ) : (
-          <div
-            className="h-64 w-full"
-            role="img"
-            aria-label="Line chart of daily pass rate and average accuracy"
+          <MeasuredChart
+            label="Line chart of daily pass rate and average accuracy"
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={data}
-                margin={{ top: 4, right: 8, left: -16, bottom: 0 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  className="stroke-border"
-                />
-                <XAxis
-                  dataKey="label"
-                  tickLine={false}
-                  axisLine={false}
-                  className="text-xs fill-muted-foreground"
-                />
-                <YAxis
-                  domain={[0, 100]}
-                  tickLine={false}
-                  axisLine={false}
-                  className="text-xs fill-muted-foreground"
-                />
-                <Tooltip content={<ChartTooltip />} />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="passRate"
-                  name="Pass rate"
-                  stroke="var(--primary)"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="avgAccuracy"
-                  name="Avg accuracy"
-                  stroke="var(--success)"
-                  strokeWidth={2}
-                  dot={{ r: 3 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+            <LineChart
+              data={data}
+              margin={{ top: 4, right: 8, left: -16, bottom: 0 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                className="stroke-border"
+              />
+              <XAxis
+                dataKey="label"
+                tickLine={false}
+                axisLine={false}
+                className="text-xs fill-muted-foreground"
+              />
+              <YAxis
+                domain={[0, 100]}
+                tickLine={false}
+                axisLine={false}
+                className="text-xs fill-muted-foreground"
+              />
+              <Tooltip content={<ChartTooltip />} />
+              <Legend />
+              <Line
+                type="monotone"
+                dataKey="passRate"
+                name="Pass rate"
+                stroke="var(--primary)"
+                strokeWidth={2}
+                dot={{ r: 3 }}
+              />
+              <Line
+                type="monotone"
+                dataKey="avgAccuracy"
+                name="Avg accuracy"
+                stroke="var(--success)"
+                strokeWidth={2}
+                dot={{ r: 3 }}
+              />
+            </LineChart>
+          </MeasuredChart>
         )}
       </CardContent>
     </Card>

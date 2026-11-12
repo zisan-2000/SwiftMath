@@ -4,7 +4,6 @@ import {
   CartesianGrid,
   Line,
   LineChart,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -19,6 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { MeasuredChart } from "@/components/ui/measured-chart";
 
 interface TrendPoint {
   date: string;
@@ -29,7 +29,7 @@ interface TrendPoint {
 export function ClassPerformanceTrendChart({ data }: { data: TrendPoint[] }) {
   const chartData = [...data].reverse();
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardHeader className="border-b border-border">
         <CardTitle className="text-base">Class performance trend</CardTitle>
         <CardDescription>
@@ -45,52 +45,48 @@ export function ClassPerformanceTrendChart({ data }: { data: TrendPoint[] }) {
             className="border-0 bg-transparent py-8"
           />
         ) : (
-          <div
-            className="h-64 w-full"
-            role="img"
-            aria-label="Line chart of date-wise class performance percentage"
+          <MeasuredChart
+            label="Line chart of date-wise class performance percentage"
           >
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart
-                data={chartData}
-                margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
-              >
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  className="stroke-border"
-                />
-                <XAxis
-                  dataKey="date"
-                  tickLine={false}
-                  axisLine={false}
-                  className="text-xs fill-muted-foreground"
-                />
-                <YAxis
-                  domain={[0, 100]}
-                  tickLine={false}
-                  axisLine={false}
-                  className="text-xs fill-muted-foreground"
-                  unit="%"
-                />
-                <Tooltip
-                  formatter={(value) => [`${Number(value)}%`, "Group average"]}
-                  labelFormatter={(_, payload) =>
-                    payload[0]?.payload?.label ?? "Class"
-                  }
-                />
-                <Line
-                  type="monotone"
-                  dataKey="averagePercentage"
-                  name="Group average"
-                  stroke="var(--primary)"
-                  strokeWidth={2.5}
-                  dot={{ r: 4, fill: "var(--primary)" }}
-                  activeDot={{ r: 6 }}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+            <LineChart
+              data={chartData}
+              margin={{ top: 8, right: 8, left: -16, bottom: 0 }}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                vertical={false}
+                className="stroke-border"
+              />
+              <XAxis
+                dataKey="date"
+                tickLine={false}
+                axisLine={false}
+                className="text-xs fill-muted-foreground"
+              />
+              <YAxis
+                domain={[0, 100]}
+                tickLine={false}
+                axisLine={false}
+                className="text-xs fill-muted-foreground"
+                unit="%"
+              />
+              <Tooltip
+                formatter={(value) => [`${Number(value)}%`, "Group average"]}
+                labelFormatter={(_, payload) =>
+                  payload[0]?.payload?.label ?? "Class"
+                }
+              />
+              <Line
+                type="monotone"
+                dataKey="averagePercentage"
+                name="Group average"
+                stroke="var(--primary)"
+                strokeWidth={2.5}
+                dot={{ r: 4, fill: "var(--primary)" }}
+                activeDot={{ r: 6 }}
+              />
+            </LineChart>
+          </MeasuredChart>
         )}
       </CardContent>
     </Card>
